@@ -1,5 +1,5 @@
 // UI Components
-export * from "./ui";
+export * from ".";
 
 // Shared Components
 export * from "./site-navbar";

@@ -1,0 +1,1 @@
+export { default as GeologyPage } from './geology.page'; 
