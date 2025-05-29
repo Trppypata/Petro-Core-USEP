@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/accordion";
 import MineralsList from '../minerals/minerals-list';
 import RocksList from '../rocks/rocks-list';
-import { ExcelImporter } from '../rocks/components/ExcelImporter';
+import { RockExcelImporter } from '../rocks/components';
 import { MineralExcelImporter } from '../minerals/components';
 import { MINERAL_CATEGORIES } from '../minerals/mineral.interface';
 import { ROCK_CATEGORIES } from '../rocks/rock.interface';
@@ -28,7 +28,7 @@ import { RockContentForm } from '../rocks/components';
 
 const GeologyPage = () => {
   const [activeTab, setActiveTab] = useState<'minerals' | 'rocks'>('minerals');
-  const [mineralCategory, setMineralCategory] = useState<string>(MINERAL_CATEGORIES[0]);
+  const [mineralCategory, setMineralCategory] = useState<string>('ALL');
   const [rockCategory, setRockCategory] = useState<string>(ROCK_CATEGORIES[0]);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -82,7 +82,7 @@ const GeologyPage = () => {
                   </DialogHeader>
                   
                   {activeTab === 'rocks' && (
-                    <ExcelImporter onImportComplete={() => setShowImportDialog(false)} />
+                    <RockExcelImporter onImportComplete={() => setShowImportDialog(false)} />
                   )}
                   
                   {activeTab === 'minerals' && (
@@ -92,7 +92,7 @@ const GeologyPage = () => {
               </Dialog>
               
               {activeTab === 'minerals' ? (
-                <MineralContentForm />
+                <MineralContentForm category={mineralCategory as any} />
               ) : (
                 <RockContentForm category={rockCategory as any} />
               )}
@@ -181,8 +181,9 @@ const GeologyPage = () => {
                       To import rocks from an Excel file, your file should have the following columns:
                     </p>
                     <ul className="list-disc list-inside ml-4 space-y-1">
-                      <li><strong>Rock Code</strong>: A unique identifier (e.g., S-0001)</li>
+                      <li><strong>Rock Code</strong>: A unique identifier (e.g., S-0001, I-0001, M-0001, O-0001)</li>
                       <li><strong>Rock Name</strong>: The name of the rock (e.g., Granite, Limestone)</li>
+                      <li><strong>Category</strong>: The rock category (Igneous, Sedimentary, Metamorphic, or Ore Samples)</li>
                       <li><strong>Type</strong>: The rock type (e.g., Igneous, Sedimentary)</li>
                       <li><strong>Depositional Environment</strong>: Where the rock formed (e.g., Shallow Marine)</li>
                       <li><strong>Grain Size</strong>: Description of grain size (e.g., Fine-grained)</li>
@@ -190,14 +191,19 @@ const GeologyPage = () => {
                       <li><strong>Hardness</strong>: The rock's hardness on the Mohs scale</li>
                       <li><strong>Color</strong>: The color of the rock (e.g., Gray, Pink, White)</li>
                       <li><strong>Texture</strong>: The texture of the rock (e.g., Porphyritic, Vesicular)</li>
-                      <li><strong>Latitude</strong>: Geographic coordinates - latitude</li>
-                      <li><strong>Longitude</strong>: Geographic coordinates - longitude</li>
+                      <li><strong>Coordinates</strong>: Combined geographic coordinates (e.g., "7.0622° N, 125.6072° E")</li>
+                      <li><strong>Latitude</strong>: Geographic coordinate - latitude (e.g., "7.0622° N")</li>
+                      <li><strong>Longitude</strong>: Geographic coordinate - longitude (e.g., "125.6072° E")</li>
                       <li><strong>Locality</strong>: Location where the rock was found</li>
                       <li><strong>Mineral Composition</strong>: Major minerals in the rock</li>
                       <li><strong>Description</strong>: Detailed description of the rock</li>
                       <li><strong>Formation</strong>: Geological formation</li>
                       <li><strong>Geological Age</strong>: Age or period of formation</li>
+                      <li><strong>Status</strong>: Whether the rock is active or inactive (default: active)</li>
                     </ul>
+                    <p className="mt-2 text-sm text-blue-600">
+                      <strong>For Ore Samples</strong>: Make sure to include Commodity Type, Ore Group, and Mining Company fields.
+                    </p>
                     <div className="mt-4">
                       <a 
                         href="/src/assets/Database.xlsx" 

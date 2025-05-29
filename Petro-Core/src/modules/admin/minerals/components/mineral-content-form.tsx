@@ -1,137 +1,75 @@
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { 
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Plus, Upload } from 'lucide-react';
-import { importDefaultMinerals, importMineralsFromExcel } from '../services/minerals.service';
+import {
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import { PlusCircleIcon } from 'lucide-react';
+import { useState } from 'react';
+import { useAddMineral } from '../hooks/useAddMineral';
+import MineralForm from '../mineral-form';
+import type { MineralCategory } from '../mineral.interface';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
+import { Q_KEYS } from '@/shared/qkeys';
 
-const MineralContentForm = () => {
-  const [isImporting, setIsImporting] = useState(false);
-  const [showImportDialog, setShowImportDialog] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+interface MineralContentFormProps {
+  category?: MineralCategory;
+}
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setSelectedFile(e.target.files[0]);
-    }
-  };
+const MineralContentForm = ({ category }: MineralContentFormProps = {}) => {
+  const { isAdding } = useAddMineral();
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const queryClient = useQueryClient();
 
-  const handleImportDefault = async () => {
-    try {
-      setIsImporting(true);
-      const result = await importDefaultMinerals();
-      
-      toast.success("Import Successful", {
-        description: result.message || "Default minerals imported successfully"
-      });
-      
-      // Reload the page to refresh data
-      window.location.reload();
-    } catch (error: any) {
-      toast.error("Import Failed", {
-        description: error.message || "Failed to import default minerals"
-      });
-    } finally {
-      setIsImporting(false);
-      setShowImportDialog(false);
-    }
-  };
-
-  const handleImportFromExcel = async () => {
-    if (!selectedFile) {
-      toast.error("No File Selected", {
-        description: "Please select an Excel file to import"
-      });
-      return;
-    }
-
-    try {
-      setIsImporting(true);
-      const result = await importMineralsFromExcel(selectedFile);
-      
-      toast.success("Import Successful", {
-        description: result.message || "Minerals imported successfully"
-      });
-      
-      // Reload the page to refresh data
-      window.location.reload();
-    } catch (error: any) {
-      toast.error("Import Failed", {
-        description: error.message || "Failed to import minerals from Excel"
-      });
-    } finally {
-      setIsImporting(false);
-      setShowImportDialog(false);
-    }
+  const handleClose = () => {
+    setIsOpen(false);
   };
 
   return (
-    <div className="flex gap-2">
-      <Button 
-        variant="outline" 
-        className="flex items-center gap-2"
-        onClick={() => setShowImportDialog(true)}
-      >
-        <Plus className="w-4 h-4" />
-        Add Mineral
-      </Button>
-      
-      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Import Minerals</DialogTitle>
-            <DialogDescription>
-              Import minerals from an Excel file or use the default database.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="excel-file">Upload Excel File</Label>
-              <Input
-                id="excel-file"
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={handleFileChange}
-              />
+    <div>
+      <Sheet onOpenChange={setIsOpen} open={isOpen}>
+        <SheetTrigger asChild>
+          <Button className="h-8 gap-1" size="sm" variant="default">
+            <PlusCircleIcon className="h-3.5 w-3.5" />
+            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+              Add Mineral
+            </span>
+          </Button>
+        </SheetTrigger>
+
+        <SheetContent className="p-0 flex flex-col h-full md:max-w-[40rem]">
+          <header className="py-4 bg-overlay-bg border-b border-overlay-border px-6 flex-shrink-0">
+            <div>
+              <h3 className="text-lg font-medium">Adding Mineral {category ? `to ${category}` : ''}</h3>
+              <p className="text-xs text-muted-foreground">
+                Fill in the details.
+              </p>
             </div>
+          </header>
+
+          <div className="flex-grow overflow-y-auto">
+            <MineralForm 
+              category={category} 
+              onClose={handleClose} 
+              inSheet={true} 
+              hideButtons={true}
+            />
           </div>
-          
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowImportDialog(false)}
-              disabled={isImporting}
-            >
+
+          <SheetFooter className="flex-shrink-0 px-6 py-4 bg-overlay-bg border-t border-overlay-border">
+            <Button variant="outline" onClick={handleClose} type="button">
               Cancel
             </Button>
-            <Button
-              onClick={handleImportFromExcel}
-              disabled={!selectedFile || isImporting}
-              className="ml-2"
-            >
-              {isImporting ? 'Importing...' : 'Import from Excel'}
+            <Button type="submit" form="mineral-form" disabled={isSubmitting || isAdding}>
+              {(isSubmitting || isAdding) && <span className="mr-2 h-4 w-4 animate-spin">◌</span>}
+              Save Mineral
             </Button>
-            <Button
-              onClick={handleImportDefault}
-              disabled={isImporting}
-              className="ml-2"
-            >
-              {isImporting ? 'Importing...' : 'Import Default Data'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };

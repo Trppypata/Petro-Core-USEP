@@ -14,6 +14,7 @@ import adminRoutes from './routes/admin.routes';
 import studentRoutes from './routes/student.routes';
 import userRoutes from './routes/users.routes';
 import mineralsRoutes from './routes/minerals.routes';
+import rocksRoutes from './routes/rocks.routes';
 
 // Create Express app
 const app = express();
@@ -33,6 +34,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/student', studentRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/minerals', mineralsRoutes);
+app.use('/api/rocks', rocksRoutes);
 
 // Health check route
 app.get('/health', (req, res) => {

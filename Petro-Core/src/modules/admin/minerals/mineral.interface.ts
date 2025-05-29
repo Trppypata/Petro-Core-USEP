@@ -17,8 +17,9 @@ export interface IMineral {
 }
 
 export type MineralCategory = 
+  | 'ALL'
   | 'SULFOSALTS'
-  | 'BORATES'
+  | 'BORATES '
   | 'SULFATES'
   | 'CHROMATES'
   | 'MOLYBDATE'
@@ -28,10 +29,16 @@ export type MineralCategory =
   | 'ARSENATES'
   | 'NATIVE ELEMENTS'
   | 'SULFIDES'
-  | 'OXIDES';
+  | 'OXIDES'
+  | 'HYDROXIDES '
+  | 'SILICATES'
+  | 'ORGANICS'
+  | 'HALIDES'
+  | 'CARBONATES ';
 
 export const MINERAL_CATEGORIES: MineralCategory[] = [
-  'BORATES',
+  'ALL',
+  'BORATES ',
   'SULFATES',
   'CHROMATES',
   'MOLYBDATE',
@@ -42,5 +49,10 @@ export const MINERAL_CATEGORIES: MineralCategory[] = [
   'NATIVE ELEMENTS',
   'SULFIDES',
   'SULFOSALTS',
-  'OXIDES'
+  'OXIDES',
+  'HYDROXIDES ',
+  'SILICATES',
+  'ORGANICS',
+  'HALIDES',
+  'CARBONATES '
 ]; 

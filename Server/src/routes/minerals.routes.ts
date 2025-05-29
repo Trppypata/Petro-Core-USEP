@@ -2,12 +2,12 @@ import express from 'express';
 import multer from 'multer';
 import {
   importMineralsFromExcel,
-  importDefaultMinerals,
   getAllMinerals,
   addMineral,
   updateMineral,
   deleteMineral
 } from '../controllers/minerals.controller';
+import { verifyToken } from '../middleware/auth.middleware';
 
 const router = express.Router();
 
@@ -30,11 +30,13 @@ const upload = multer({
 });
 
 // Routes
-router.post('/import', upload.single('file'), importMineralsFromExcel);
-router.post('/import-default', importDefaultMinerals);
+// Public routes (no authentication required)
 router.get('/', getAllMinerals);
-router.post('/', addMineral);
-router.put('/:id', updateMineral);
-router.delete('/:id', deleteMineral);
+router.post('/import', upload.single('file'), importMineralsFromExcel); // Import without auth
+
+// Protected routes (authentication required)
+router.post('/', verifyToken, addMineral);
+router.put('/:id', verifyToken, updateMineral);
+router.delete('/:id', verifyToken, deleteMineral);
 
 export default router; 

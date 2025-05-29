@@ -13,8 +13,14 @@ export interface IRock {
   grain_size?: string;
   color?: string;
   texture?: string;
+  luster?: string;
+  streak?: string;
+  reaction_to_hcl?: string;
+  magnetism?: string;
+  origin?: string;
   latitude?: string;
   longitude?: string;
+  coordinates?: string; // Combined latitude and longitude
   locality?: string;
   mineral_composition?: string;
   description?: string;
@@ -27,7 +33,9 @@ export interface IRock {
   metamorphism_type?: string; // Contact, regional, dynamic, etc.
   metamorphic_grade?: string; // Low, medium, high
   parent_rock?: string; // Original rock type before metamorphism
+  protolith?: string; // Alternative term for parent rock
   foliation?: string; // Whether the rock shows foliation - yes/no/partial
+  foliation_type?: string; // Type of foliation if present
   // Igneous rock specific fields
   silica_content?: string; // Felsic, intermediate, mafic, ultramafic
   cooling_rate?: string; // Fast, slow, variable

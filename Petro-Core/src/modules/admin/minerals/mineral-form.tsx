@@ -76,7 +76,7 @@ const MineralForm = ({
     try {
       await addMineral({
         ...values,
-        category: category || 'Silicate',
+        category: category || 'BORATES',
         type: 'mineral',
       });
       form.reset();
@@ -90,7 +90,7 @@ const MineralForm = ({
 
   const formContent = (
     <Form {...form}>
-      <form id="mineral-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form id="mineral-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Mineral Code */}
           <FormField

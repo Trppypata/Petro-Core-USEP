@@ -13,13 +13,20 @@ This is the backend server for the Petro Core application.
    ```
    PORT=8000
    SUPABASE_URL=your_supabase_url
-   SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
    ```
 
-3. Start the development server:
-   ```
-   npm run dev
-   ```
+## Running the Server
+
+For Windows users:
+```
+run-server.bat
+```
+
+For other platforms:
+```
+npm run dev
+```
 
 ## Importing Minerals from Excel
 
@@ -111,4 +118,53 @@ The Excel file should follow this format:
   - Fracture
   - Habit
   - Crystal System
-  - etc. 
+  - etc.
+
+## Fixing the Row-Level Security (RLS) Issue
+
+If you encounter errors like `Error: new row violates row-level security policy for table "minerals"` when importing minerals, follow these steps:
+
+### Option 1: Deploy the Database Function (Recommended)
+
+This method uses a stored procedure that bypasses RLS policies:
+
+1. Run the deploy script:
+```
+npm run deploy:functions
+```
+
+2. Alternatively, manually deploy the function:
+   - Go to your Supabase dashboard
+   - Navigate to the SQL Editor
+   - Copy the contents of `src/db/import_minerals_function.sql`
+   - Execute the SQL
+
+### Option 2: Modify RLS Policies
+
+If you prefer to adjust your RLS policies instead:
+
+1. Go to your Supabase dashboard
+2. Navigate to Authentication > Policies
+3. Find the `minerals` table
+4. Create a new policy:
+   - Name: `Allow insert from API`
+   - Operation: `INSERT`
+   - Target roles: `authenticated`, `service_role`
+   - Policy definition: `true` (or a more restrictive condition if needed)
+
+### Option 3: Use the Service Role Key
+
+The server is already configured to use the service role key, which should bypass RLS. If you're still experiencing issues:
+
+1. Check that your `.env` file contains the correct `SUPABASE_SERVICE_ROLE_KEY`
+2. Make sure you're using the full key, not the anon key
+3. Restart the server after making any changes
+
+## Troubleshooting
+
+If you continue to experience issues:
+
+1. Check the Supabase logs for any errors
+2. Verify that your database schema matches the expected structure
+3. Ensure your service role key has the necessary permissions
+4. Try importing a small batch of minerals first to identify any specific issues 

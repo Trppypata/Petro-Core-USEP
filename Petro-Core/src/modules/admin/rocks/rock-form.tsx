@@ -65,6 +65,14 @@ const formSchema = z.object({
   parent_rock: z.string().optional(),
   foliation: z.string().optional(),
   associated_minerals: z.string().optional(),
+  coordinates: z.string().optional(),
+  luster: z.string().optional(),
+  streak: z.string().optional(),
+  reaction_to_hcl: z.string().optional(),
+  magnetism: z.string().optional(),
+  origin: z.string().optional(),
+  protolith: z.string().optional(),
+  foliation_type: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -111,6 +119,14 @@ const RockForm = ({
       parent_rock: '',
       foliation: '',
       associated_minerals: '',
+      coordinates: '',
+      luster: '',
+      streak: '',
+      reaction_to_hcl: '',
+      magnetism: '',
+      origin: '',
+      protolith: '',
+      foliation_type: '',
     },
   });
   
@@ -175,22 +191,25 @@ const RockForm = ({
               )}
             />
             
-            {/* Rock Code - Only for Ore Samples */}
-            {form.watch('category') === 'Ore Samples' && (
-              <FormField
-                control={form.control}
-                name="rock_code"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Rock Code</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., O-0001" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
+            {/* Rock Code - For all categories */}
+            <FormField
+              control={form.control}
+              name="rock_code"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Rock Code</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., I-0001" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    {form.watch('category') === 'Ore Samples' 
+                      ? 'Format: O-XXXX for Ore Samples' 
+                      : `Format: ${form.watch('category').charAt(0)}-XXXX for ${form.watch('category')} rocks`}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             
             {/* Category */}
             <FormField
@@ -400,6 +419,222 @@ const RockForm = ({
                 </FormItem>
               )}
             />
+
+            {/* Color */}
+            <FormField
+              control={form.control}
+              name="color"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Color</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Gray, White" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Texture */}
+            <FormField
+              control={form.control}
+              name="texture"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Texture</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Porphyritic" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Grain Size */}
+            <FormField
+              control={form.control}
+              name="grain_size"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Grain Size</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Fine-grained, Crystalline" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Hardness */}
+            <FormField
+              control={form.control}
+              name="hardness"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Hardness</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., 6-7" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Chemical Formula */}
+            <FormField
+              control={form.control}
+              name="chemical_formula"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Chemical Formula</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Complex mixture" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Mineral Composition */}
+            <FormField
+              control={form.control}
+              name="mineral_composition"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Mineral Composition</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Quartz, Feldspar, Mica" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Ore-specific fields */}
+            {form.watch('category') === 'Ore Samples' && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="mineral_composition"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Metal Content</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., 2-5% Copper, 1% Zinc" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="depositional_environment"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Deposit Type</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Hydrothermal vein, Porphyry deposit" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
+            
+            {/* Depositional Environment - show only for sedimentary or when not ore samples */}
+            {(form.watch('category') !== 'Ore Samples' || form.watch('category') === 'Sedimentary') && (
+              <FormField
+                control={form.control}
+                name="depositional_environment"
+                render={({ field }) => (
+                  <FormItem className="col-span-2">
+                    <FormLabel>Depositional Environment</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Shallow Marine, Terrestrial" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* NEW FIELDS */}
+            {/* Luster */}
+            <FormField
+              control={form.control}
+              name="luster"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Luster</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Vitreous, Metallic" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Streak */}
+            <FormField
+              control={form.control}
+              name="streak"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Streak</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., White, Gray" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Reaction to HCl */}
+            <FormField
+              control={form.control}
+              name="reaction_to_hcl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Reaction to HCl</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Effervescent, None" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Magnetism */}
+            <FormField
+              control={form.control}
+              name="magnetism"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Magnetism</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Strong, Weak, None" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Origin */}
+            <FormField
+              control={form.control}
+              name="origin"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Origin</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Volcanic, Plutonic" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
         </div>
         
@@ -561,25 +796,9 @@ const RockForm = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Metamorphism Type</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select metamorphism type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Contact">Contact</SelectItem>
-                        <SelectItem value="Regional">Regional</SelectItem>
-                        <SelectItem value="Dynamic">Dynamic</SelectItem>
-                        <SelectItem value="Contact/Regional">Contact/Regional</SelectItem>
-                        <SelectItem value="Burial">Burial</SelectItem>
-                        <SelectItem value="Hydrothermal">Hydrothermal</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <Input placeholder="e.g., Contact, Regional" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -592,24 +811,9 @@ const RockForm = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Metamorphic Grade</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select metamorphic grade" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Low">Low</SelectItem>
-                        <SelectItem value="Medium">Medium</SelectItem>
-                        <SelectItem value="High">High</SelectItem>
-                        <SelectItem value="Medium to High">Medium to High</SelectItem>
-                        <SelectItem value="Low to Medium">Low to Medium</SelectItem>
-                        <SelectItem value="Very Low">Very Low</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <Input placeholder="e.g., Low, Medium, High" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -623,7 +827,22 @@ const RockForm = ({
                   <FormItem>
                     <FormLabel>Parent Rock</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Limestone, Shale, Granite" {...field} />
+                      <Input placeholder="e.g., Limestone, Shale" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              {/* Protolith */}
+              <FormField
+                control={form.control}
+                name="protolith"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Protolith</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Granite, Basalt" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -637,38 +856,23 @@ const RockForm = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Foliation</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select foliation" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Yes">Yes</SelectItem>
-                        <SelectItem value="No">No</SelectItem>
-                        <SelectItem value="Weak">Weak</SelectItem>
-                        <SelectItem value="Moderate">Moderate</SelectItem>
-                        <SelectItem value="Strong">Strong</SelectItem>
-                        <SelectItem value="Weak to Moderate">Weak to Moderate</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <Input placeholder="e.g., Yes, No, Partial" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               
-              {/* Associated Minerals */}
+              {/* Foliation Type */}
               <FormField
                 control={form.control}
-                name="associated_minerals"
+                name="foliation_type"
                 render={({ field }) => (
-                  <FormItem className="col-span-2">
-                    <FormLabel>Associated Minerals</FormLabel>
+                  <FormItem>
+                    <FormLabel>Foliation Type</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Garnet, Biotite, Muscovite, Staurolite" {...field} />
+                      <Input placeholder="e.g., Schistosity, Gneissic banding" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -734,7 +938,19 @@ const RockForm = ({
                 <FormItem>
                   <FormLabel>Latitude</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., 46.1912° N" {...field} />
+                    <Input 
+                      placeholder="e.g., 46.1912° N" 
+                      {...field} 
+                      onChange={(e) => {
+                        field.onChange(e);
+                        // Update coordinates when latitude changes
+                        const lat = e.target.value;
+                        const lng = form.getValues('longitude');
+                        if (lat && lng) {
+                          form.setValue('coordinates', `${lat}, ${lng}`);
+                        }
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -749,8 +965,51 @@ const RockForm = ({
                 <FormItem>
                   <FormLabel>Longitude</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., 122.1944° W" {...field} />
+                    <Input 
+                      placeholder="e.g., 122.1944° W" 
+                      {...field} 
+                      onChange={(e) => {
+                        field.onChange(e);
+                        // Update coordinates when longitude changes
+                        const lng = e.target.value;
+                        const lat = form.getValues('latitude');
+                        if (lat && lng) {
+                          form.setValue('coordinates', `${lat}, ${lng}`);
+                        }
+                      }}
+                    />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Coordinates (combined) */}
+            <FormField
+              control={form.control}
+              name="coordinates"
+              render={({ field }) => (
+                <FormItem className="col-span-2">
+                  <FormLabel>Coordinates</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="e.g., 46.1912° N, 122.1944° W" 
+                      {...field}
+                      onChange={(e) => {
+                        field.onChange(e);
+                        // Parse coordinates if needed
+                        const coordsStr = e.target.value;
+                        if (coordsStr && coordsStr.includes(',')) {
+                          const [lat, lng] = coordsStr.split(',').map(s => s.trim());
+                          if (lat) form.setValue('latitude', lat);
+                          if (lng) form.setValue('longitude', lng);
+                        }
+                      }}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Automatically filled from latitude and longitude, or enter manually
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

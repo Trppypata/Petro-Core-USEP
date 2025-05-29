@@ -8,25 +8,39 @@ export const getMinerals = async (
   category: string
 ): Promise<IMineral[]> => {
   try {
-    console.log('Fetching minerals from API...');
-    const response = await axios.get(`${API_URL}/minerals`);
-    console.log('API response:', response.data);
+    console.log('🔍 Fetching minerals from API...');
+    console.log('🔗 API URL:', `${API_URL}/minerals`);
     
-    let minerals = response.data.data || [];
+    // Add category as a query parameter if provided and not ALL
+    const url = category && category !== 'ALL' 
+      ? `${API_URL}/minerals?category=${encodeURIComponent(category)}` 
+      : `${API_URL}/minerals`;
     
-    // Filter by category if specified and not 'ALL'
-    if (category && category !== 'ALL') {
-      minerals = minerals.filter((mineral: IMineral) => 
-        mineral.category === category
-      );
+    console.log('🔍 Request URL with category:', url);
+    
+    const response = await axios.get(url);
+    console.log('✅ Raw API Response status:', response.status);
+    console.log('✅ Response data length:', response.data?.data?.length || 'unknown');
+    
+    if (!response.data || !response.data.data) {
+      console.warn('⚠️ No data received from API');
+      return [];
     }
     
+    // Extract the data from the response
+    const minerals = response.data.data || [];
+    
+    // Check if minerals is an array
+    if (!Array.isArray(minerals)) {
+      console.warn('⚠️ Minerals data is not an array', minerals);
+      return [];
+    }
+    
+    console.log('✅ Extracted minerals array:', minerals.length, 'items');
     return minerals;
   } catch (error) {
-    console.error('Error fetching minerals:', error);
-    // Fallback to mock data only if API fails
-    console.log('Falling back to mock data');
-    return mockGetMinerals(category);
+    console.error('❌ Error fetching minerals:', error);
+    throw new Error('Failed to fetch minerals from the database');
   }
 };
 
@@ -51,38 +65,15 @@ export const importMineralsFromExcel = async (
   }
 };
 
-// Import minerals from default Excel file
-export const importDefaultMinerals = async (): Promise<{ success: boolean; message: string }> => {
-  try {
-    const response = await axios.post(`${API_URL}/minerals/import-default`);
-    return response.data;
-  } catch (error: any) {
-    console.error('Error importing default minerals:', error);
-    throw new Error(error.response?.data?.message || 'Failed to import default minerals');
-  }
-};
-
 // Add a new mineral
 export const addMineral = async (
   mineralData: Omit<IMineral, 'id'>
 ): Promise<IMineral> => {
   try {
-    // For development, we'll first try to load from a mock source
-    // In production, this would be replaced with a real API call
-    if (process.env.NODE_ENV === 'development') {
-      return mockAddMineral(mineralData);
-    }
-
     const response = await axios.post(`${API_URL}/minerals`, mineralData);
     return response.data.data;
   } catch (error) {
     console.error('Error adding mineral:', error);
-    
-    // For development only
-    if (process.env.NODE_ENV === 'development') {
-      return mockAddMineral(mineralData);
-    }
-    
     throw new Error('Failed to add mineral. Please try again.');
   }
 };

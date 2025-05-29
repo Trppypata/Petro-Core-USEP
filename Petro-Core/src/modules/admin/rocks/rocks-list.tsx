@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Table, 
   TableBody, 
@@ -8,7 +8,7 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { Search, Image as ImageIcon } from 'lucide-react';
+import { Search, Image as ImageIcon, Edit, Trash2 } from 'lucide-react';
 import { Spinner } from '@/components/spinner';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -28,6 +28,7 @@ import {
 import type { IRock, RockCategory } from './rock.interface';
 import { useReadRocks } from './hooks/useReadRocks';
 import RockContentForm from './components/rock-content-form';
+import { Button } from '@/components/ui/button';
 
 interface RocksListProps {
   category: RockCategory | string;
@@ -49,6 +50,40 @@ const RocksList = ({
   
   // This will be implemented in the hooks folder
   const { data: rocks, isLoading, error } = useReadRocks(category);
+  
+  // Debug logs to help diagnose issues
+  useEffect(() => {
+    if (rocks && rocks.length > 0) {
+      // Log all categories present in the data
+      const categories = [...new Set(rocks.map(rock => rock.category))];
+      console.log('Rock categories found in data:', categories);
+      
+      // Count items per category
+      const categoryCounts = categories.reduce((acc, cat) => {
+        acc[cat] = rocks.filter(rock => rock.category === cat).length;
+        return acc;
+      }, {} as Record<string, number>);
+      console.log('Rocks per category:', categoryCounts);
+      
+      // Check if we have Ore Samples
+      const oreSamples = rocks.filter(rock => rock.category === 'Ore Samples');
+      console.log('Ore Samples count:', oreSamples.length);
+      if (oreSamples.length > 0) {
+        console.log('Sample Ore Sample:', oreSamples[0]);
+      }
+      
+      // Check coordinates data
+      const withCoordinates = rocks.filter(rock => rock.coordinates).length;
+      const withLatLong = rocks.filter(rock => rock.latitude && rock.longitude).length;
+      console.log('Rocks with coordinates field:', withCoordinates);
+      console.log('Rocks with latitude & longitude:', withLatLong);
+      
+      // If current category is Ore Samples, log all data
+      if (category === 'Ore Samples') {
+        console.log('All Ore Samples:', rocks.filter(rock => rock.category === 'Ore Samples'));
+      }
+    }
+  }, [rocks, category]);
   
   const filteredRocks = rocks?.filter(rock => 
     rock.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -104,7 +139,35 @@ const RocksList = ({
       );
     }
     
-    return filteredRocks.map((rock: IRock) => (
+    // Process rocks to ensure no duplicates and clean up rock codes
+    const processedRocks = filteredRocks
+      // Remove any duplicate rock_codes (keep the most recently updated one)
+      .reduce((unique, rock) => {
+        // Clean up rock code - replace spaces
+        if (rock.rock_code && rock.rock_code.includes(' ')) {
+          rock.rock_code = rock.rock_code.replace(/\s+/g, '');
+        }
+        
+        // Find existing rock with the same code
+        const existingIndex = unique.findIndex((r: IRock) => 
+          r.rock_code && rock.rock_code && 
+          r.rock_code.replace(/\s+/g, '') === rock.rock_code.replace(/\s+/g, '')
+        );
+        
+        if (existingIndex >= 0) {
+          // If we found a duplicate, keep the one with the most recent updated_at
+          const existing = unique[existingIndex];
+          if (new Date(rock.updated_at) > new Date(existing.updated_at)) {
+            unique[existingIndex] = rock;
+          }
+        } else {
+          unique.push(rock);
+        }
+        
+        return unique;
+      }, []);
+    
+    return processedRocks.map((rock: IRock) => (
       <TableRow key={rock.id || rock.name} className="cursor-pointer hover:bg-gray-50" onClick={() => handleRockSelect(rock)}>
         {rock.image_url ? (
           <TableCell>
@@ -119,16 +182,12 @@ const RocksList = ({
         ) : (
           <TableCell>
             <div className="w-10 h-10 bg-gray-200 rounded-md flex items-center justify-center">
-              <ImageIcon className="w-5 h-5 text-gray-400" />
+              <ImageIcon className="w-5 h-5 text-gray-500" />
             </div>
           </TableCell>
         )}
         <TableCell className="font-medium break-words">{rock.name}</TableCell>
-        
-        {/* Ore Samples specific headers */}
-        {category === 'Ore Samples' && (
-          <TableCell className="break-words">{rock.rock_code || '-'}</TableCell>
-        )}
+        <TableCell className="break-words">{rock.rock_code ? rock.rock_code.replace(/\s+/g, '') : '-'}</TableCell>
         
         {/* Only show Category column when not in Ore Samples view */}
         {category !== 'Ore Samples' && (
@@ -139,7 +198,7 @@ const RocksList = ({
           </TableCell>
         )}
         
-        <TableCell className="break-words">{rock.type}</TableCell>
+        <TableCell className="break-words">{rock.type || '-'}</TableCell>
         
         {/* Ore Samples specific fields */}
         {category === 'Ore Samples' && (
@@ -189,9 +248,11 @@ const RocksList = ({
             <TableCell className="break-words">{rock.metamorphic_grade || '-'}</TableCell>
             <TableCell className="break-words">{rock.parent_rock || '-'}</TableCell>
             <TableCell className="break-words">{rock.foliation || '-'}</TableCell>
-            <TableCell className="break-words">{rock.associated_minerals || '-'}</TableCell>
           </>
         )}
+        
+        {/* Show Associated Minerals for all rock types */}
+        <TableCell className="break-words">{rock.associated_minerals || '-'}</TableCell>
         
         {/* Conditionally show different environment label for ore samples */}
         {category === 'Ore Samples' ? (
@@ -212,9 +273,10 @@ const RocksList = ({
         
         {/* Show coordinates for all rock types */}
         <TableCell className="break-words">
-          {rock.latitude && rock.longitude ? 
+          {rock.coordinates || 
+           (rock.latitude && rock.longitude ? 
             `${rock.latitude}, ${rock.longitude}` : 
-            '-'}
+            '-')}
         </TableCell>
         
         <TableCell>
@@ -222,6 +284,11 @@ const RocksList = ({
             {rock.status || 'inactive'}
           </Badge>
         </TableCell>
+        
+        {/* New fields */}
+        <TableCell>{rock.reaction_to_hcl || '-'}</TableCell>
+        {category === 'Metamorphic' && <TableCell>{rock.foliation_type || '-'}</TableCell>}
+        {category === 'Igneous' && <TableCell>{rock.origin || '-'}</TableCell>}
       </TableRow>
     ));
   };
@@ -249,11 +316,7 @@ const RocksList = ({
             <TableRow className="whitespace-nowrap">
               <TableHead className="w-16">Image</TableHead>
               <TableHead className="w-32">Name</TableHead>
-              
-              {/* Ore Samples specific headers */}
-              {category === 'Ore Samples' && (
-                <TableHead className="w-24">Rock Code</TableHead>
-              )}
+              <TableHead className="w-24">Rock Code</TableHead>
               
               {/* Only show Category column when not in Ore Samples view */}
               {category !== 'Ore Samples' && (
@@ -310,9 +373,11 @@ const RocksList = ({
                   <TableHead className="w-28">Metamorphic Grade</TableHead>
                   <TableHead className="w-28">Parent Rock</TableHead>
                   <TableHead className="w-28">Foliation</TableHead>
-                  <TableHead className="w-28">Associated Minerals</TableHead>
                 </>
               )}
+              
+              {/* Show Associated Minerals for all categories */}
+              <TableHead className="w-28">Associated Minerals</TableHead>
               
               {/* Label depends on category */}
               <TableHead className="w-28">
@@ -333,6 +398,11 @@ const RocksList = ({
               <TableHead className="w-36">Coordinates</TableHead>
               
               <TableHead className="w-24">Status</TableHead>
+              
+              {/* New fields */}
+              <TableHead>Reaction to HCl</TableHead>
+              {category === 'Metamorphic' && <TableHead>Foliation Type</TableHead>}
+              {category === 'Igneous' && <TableHead>Origin</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -353,16 +423,21 @@ const RocksList = ({
               <TabsList className="mb-4">
                 <TabsTrigger value="details">Details</TabsTrigger>
                 <TabsTrigger value="image">Image</TabsTrigger>
-                {selectedRock.latitude && selectedRock.longitude && (
+                {(selectedRock.coordinates || (selectedRock.latitude && selectedRock.longitude)) && (
                   <TabsTrigger value="location">Location</TabsTrigger>
                 )}
               </TabsList>
               
               <TabsContent value="details" className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                   <div>
                     <h4 className="text-sm font-medium mb-1">Name</h4>
                     <p>{selectedRock.name}</p>
+                  </div>
+                  
+                  <div>
+                    <h4 className="text-sm font-medium mb-1">Rock Code</h4>
+                    <p>{selectedRock.rock_code || '-'}</p>
                   </div>
                   
                   <div>
@@ -372,10 +447,6 @@ const RocksList = ({
                   
                   {category === 'Ore Samples' && (
                     <>
-                      <div>
-                        <h4 className="text-sm font-medium mb-1">Rock Code</h4>
-                        <p>{selectedRock.rock_code || '-'}</p>
-                      </div>
                       <div>
                         <h4 className="text-sm font-medium mb-1">Commodity Type</h4>
                         <p>{selectedRock.commodity_type || '-'}</p>
@@ -492,13 +563,14 @@ const RocksList = ({
                         <h4 className="text-sm font-medium mb-1">Foliation</h4>
                         <p>{selectedRock.foliation || '-'}</p>
                       </div>
-                      
-                      <div>
-                        <h4 className="text-sm font-medium mb-1">Associated Minerals</h4>
-                        <p>{selectedRock.associated_minerals || '-'}</p>
-                      </div>
                     </>
                   )}
+                  
+                  {/* Always show Associated Minerals for all rock types */}
+                  <div>
+                    <h4 className="text-sm font-medium mb-1">Associated Minerals</h4>
+                    <p>{selectedRock.associated_minerals || '-'}</p>
+                  </div>
                   
                   <div>
                     <h4 className="text-sm font-medium mb-1">
@@ -516,16 +588,16 @@ const RocksList = ({
                     <p>{selectedRock.locality || '-'}</p>
                   </div>
                   
-                  {category === 'Ore Samples' && (
-                    <div>
-                      <h4 className="text-sm font-medium mb-1">Coordinates</h4>
-                      <p>
-                        {selectedRock.latitude && selectedRock.longitude
-                          ? `${selectedRock.latitude}, ${selectedRock.longitude}`
-                          : '-'}
-                      </p>
-                    </div>
-                  )}
+                  {/* Detail view coordinates enhancement */}
+                  <div>
+                    <h4 className="text-sm font-medium mb-1">Coordinates</h4>
+                    <p>
+                      {selectedRock.coordinates || 
+                       (selectedRock.latitude && selectedRock.longitude ? 
+                        `${selectedRock.latitude}, ${selectedRock.longitude}` : 
+                        '-')}
+                    </p>
+                  </div>
                   
                   {category !== 'Ore Samples' && (
                     <>
@@ -539,6 +611,56 @@ const RocksList = ({
                         <p>{selectedRock.formation || '-'}</p>
                       </div>
                     </>
+                  )}
+                  
+                  {/* New fields */}
+                  <div>
+                    <h4 className="text-sm font-medium mb-1">Reaction to HCl</h4>
+                    <p>{selectedRock.reaction_to_hcl || '-'}</p>
+                  </div>
+                  {selectedRock.luster && (
+                    <div>
+                      <h4 className="text-sm font-medium mb-1">Luster</h4>
+                      <p>{selectedRock.luster}</p>
+                    </div>
+                  )}
+                  {selectedRock.streak && (
+                    <div>
+                      <h4 className="text-sm font-medium mb-1">Streak</h4>
+                      <p>{selectedRock.streak}</p>
+                    </div>
+                  )}
+                  {selectedRock.magnetism && (
+                    <div>
+                      <h4 className="text-sm font-medium mb-1">Magnetism</h4>
+                      <p>{selectedRock.magnetism}</p>
+                    </div>
+                  )}
+                  {selectedRock.origin && (
+                    <div>
+                      <h4 className="text-sm font-medium mb-1">Origin</h4>
+                      <p>{selectedRock.origin}</p>
+                    </div>
+                  )}
+                  
+                  {/* Metamorphic specific fields */}
+                  {selectedRock.category === 'Metamorphic' && selectedRock.foliation && (
+                    <div>
+                      <h4 className="text-sm font-medium mb-1">Foliation</h4>
+                      <p>{selectedRock.foliation}</p>
+                    </div>
+                  )}
+                  {selectedRock.category === 'Metamorphic' && selectedRock.foliation_type && (
+                    <div>
+                      <h4 className="text-sm font-medium mb-1">Foliation Type</h4>
+                      <p>{selectedRock.foliation_type}</p>
+                    </div>
+                  )}
+                  {selectedRock.category === 'Metamorphic' && selectedRock.protolith && (
+                    <div>
+                      <h4 className="text-sm font-medium mb-1">Protolith</h4>
+                      <p>{selectedRock.protolith}</p>
+                    </div>
                   )}
                 </div>
               </TabsContent>
