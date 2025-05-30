@@ -128,7 +128,7 @@ const getImageUrl = (profileUrl: string | undefined | null): string => {
     // Check if it's a path from our own upload API
     if (profileUrl.startsWith('/uploads/') || profileUrl.startsWith('uploads/')) {
       const cleanPath = profileUrl.startsWith('/') ? profileUrl.substring(1) : profileUrl;
-      return `${import.meta.env.VITE_local_url || 'http://localhost:8000'}/api/${cleanPath}`;
+      return `${import.meta.env.VITE_local_url || 'http://localhost:8001'}/api/${cleanPath}`;
     }
 
     // If it's just a filename or path, assume it's in Supabase storage

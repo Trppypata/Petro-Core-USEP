@@ -5,7 +5,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 // Debug environment variables
 console.log('Environment loaded: NODE_ENV =', process.env.NODE_ENV);
-console.log('API running at port:', process.env.PORT || 8000);
+console.log('API running at port:', process.env.PORT || 8001);
 
 import express from 'express';
 import cors from 'cors';
@@ -18,7 +18,7 @@ import rocksRoutes from './routes/rocks.routes';
 
 // Create Express app
 const app = express();
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT || 8001;
 
 // Middleware
 app.use(cors({

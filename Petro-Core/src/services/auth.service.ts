@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // API base URL
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001/api';
 
 // Store the JWT token in localStorage
 const JWT_TOKEN = import.meta.env.VITE_JWT_TOKEN || 'YilC18qoKrKaWJBxdoBslfHFflvjHgI7n6EQH2cdeUYO0t1wmM/QjchQxh1TaYG+IuPcPQ4liG0JlhbY1DTL1A==';

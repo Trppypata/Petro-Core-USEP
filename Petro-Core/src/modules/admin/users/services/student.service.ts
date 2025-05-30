@@ -2,7 +2,7 @@ import axios, { AxiosError } from "axios";
 import type { UserFormValues } from "../user.types";
 
 // Updated fallback URL to use port 8000 instead of 3000
-const localhost_url = import.meta.env.VITE_local_url || "http://localhost:8000";
+const localhost_url = import.meta.env.VITE_local_url || "http://localhost:8001";
 
 interface ErrorResponse {
   message: string;
@@ -24,7 +24,7 @@ const addStudent = async (studentData: UserFormValues) => {
       console.log('✅ API health check passed');
     } catch (healthError) {
       console.error('❌ API health check failed - server may be down:', healthError);
-      throw new Error('Backend server is not available. Please make sure the server is running on port 8000.');
+      throw new Error('Backend server is not available. Please make sure the server is running on port 8001.');
     }
 
     const response = await axios.post(`${localhost_url}/api/users/registerStudent`, studentData, {

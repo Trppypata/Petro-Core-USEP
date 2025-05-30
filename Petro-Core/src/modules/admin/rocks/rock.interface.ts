@@ -1,58 +1,59 @@
+export type RockCategory = 'Igneous' | 'Sedimentary' | 'Metamorphic' | 'Ore Samples' | 'ALL';
+
 export interface IRock {
   id?: string;
+  rock_code: string;
   name: string;
-  rock_code?: string; // O-XXXX format
-  commodity_type?: string; // Gold, Copper, Silver, etc.
-  ore_group?: string; // Hydrothermal (ISE), Residual, etc.
-  mining_company?: string; // Mining company/donated by
   chemical_formula?: string;
   hardness?: string;
   category: string;
-  type: string; // igneous, sedimentary, metamorphic
+  type: string;
   depositional_environment?: string;
   grain_size?: string;
   color?: string;
   texture?: string;
-  luster?: string;
-  streak?: string;
-  reaction_to_hcl?: string;
-  magnetism?: string;
-  origin?: string;
   latitude?: string;
   longitude?: string;
-  coordinates?: string; // Combined latitude and longitude
   locality?: string;
   mineral_composition?: string;
   description?: string;
   formation?: string;
   geological_age?: string;
-  status?: 'active' | 'inactive';
+  status?: string;
   image_url?: string;
   // Metamorphic rock specific fields
-  associated_minerals?: string; // Specific minerals associated with metamorphic rocks
-  metamorphism_type?: string; // Contact, regional, dynamic, etc.
-  metamorphic_grade?: string; // Low, medium, high
-  parent_rock?: string; // Original rock type before metamorphism
-  protolith?: string; // Alternative term for parent rock
-  foliation?: string; // Whether the rock shows foliation - yes/no/partial
-  foliation_type?: string; // Type of foliation if present
+  associated_minerals?: string;
+  metamorphism_type?: string; 
+  metamorphic_grade?: string;
+  parent_rock?: string;
+  foliation?: string;
+  foliation_type?: string;
   // Igneous rock specific fields
-  silica_content?: string; // Felsic, intermediate, mafic, ultramafic
-  cooling_rate?: string; // Fast, slow, variable
-  mineral_content?: string; // Major minerals in the igneous rock
+  silica_content?: string;
+  cooling_rate?: string;
+  mineral_content?: string;
+  origin?: string;
   // Sedimentary rock specific fields
-  bedding?: string; // Layering characteristics
-  sorting?: string; // Well-sorted, poorly-sorted
-  roundness?: string; // Angular, subangular, subrounded, rounded
-  fossil_content?: string; // Describes fossils present, if any
-  sediment_source?: string; // Source of the sediments (terrigenous, biogenic, etc.)
+  bedding?: string;
+  sorting?: string;
+  roundness?: string;
+  fossil_content?: string;
+  sediment_source?: string;
+  // Ore samples specific fields
+  commodity_type?: string;
+  ore_group?: string;
+  mining_company?: string;
+  coordinates?: string;
+  // Fields from Excel
+  luster?: string;
+  reaction_to_hcl?: string;
+  magnetism?: string;
+  streak?: string;
+  protolith?: string;
+  // Database fields
+  created_at?: string;
+  updated_at?: string;
 }
-
-export type RockCategory = 
-  | 'Igneous'
-  | 'Sedimentary' 
-  | 'Metamorphic'
-  | 'Ore Samples';
 
 export const ROCK_CATEGORIES: RockCategory[] = [
   'Igneous',
