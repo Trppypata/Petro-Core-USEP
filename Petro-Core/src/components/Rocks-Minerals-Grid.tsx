@@ -25,32 +25,32 @@ const RocksMineralsGrid = ({ items, isLoading = false }: RocksMineralsGridProps)
   }
 
   return (
-    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+   <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
       {items.map((item) => (
-        item.path ? (
-          <Link
+      item.path ? (
+        <Link
             key={item.id}
-            to={item.path}
-            className="transition hover:scale-10"
-          >
-            <RockMineralsCard
-              imageUrl={item.imageUrl}
-              title={item.title}
-              description={item.description}
-            />
-          </Link>
-        ) : (
+          to={item.path}
+          className="transition hover:scale-10"
+        >
+          <RockMineralsCard
+            imageUrl={item.imageUrl}
+            title={item.title}
+            description={item.description}
+          />
+        </Link>
+      ) : (
           <div key={item.id}>
-            <RockMineralsCard
-              imageUrl={item.imageUrl}
-              title={item.title}
-              description={item.description}
-            />
-          </div>
-        )
-      ))}
-    </div>
-  );
+          <RockMineralsCard
+            imageUrl={item.imageUrl}
+            title={item.title}
+            description={item.description}
+          />
+        </div>
+      )
+    ))}
+  </div>
+);
 };
 
 export default RocksMineralsGrid;

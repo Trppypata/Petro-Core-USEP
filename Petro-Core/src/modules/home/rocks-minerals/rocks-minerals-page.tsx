@@ -51,11 +51,11 @@ const RockMinerals = () => {
 
   return (
     <div className="min-h-screen bg-background py-24 px-4 sm:px-6 lg:px-8">
-      <div className="text-center space-y-8">
-        <h1 className="text-4xl font-bold tracking-tight">Rocks and Minerals</h1>
+         <div className="text-center space-y-8">
+          <h1 className="text-4xl font-bold tracking-tight">Rocks and Minerals</h1>
         <div className="flex justify-center">
           <SearchBar onSearch={handleSearch} initialValue={searchTerm} />
-        </div>
+          </div>
 
         <div className="flex gap-4 mb-12 justify-center">
           <button
@@ -63,8 +63,8 @@ const RockMinerals = () => {
             className={`rounded-full px-8 py-2 transition ${
               displayType === "rocks" ? "bg-gray-800 text-white" : "bg-gray-200"
             }`}
-          >
-            Rocks
+        >
+          Rocks
           </button>
           <button
             onClick={() => handleDisplayTypeChange("minerals")}
@@ -74,15 +74,15 @@ const RockMinerals = () => {
           >
             Minerals
           </button>
-          <Link
-            to="/rock-minerals/map"
+        <Link
+          to="/rock-minerals/map"
             className={`rounded-full px-8 py-2 transition ${
               location.pathname === "/rock-minerals/map" ? "bg-gray-800 text-white" : "bg-gray-200"
             }`}
           >
-            Map
-          </Link>
-        </div>
+          Map
+        </Link>
+      </div>
         
         {location.pathname === "/rock-minerals" && (
           <RocksMineralsGrid items={items} isLoading={loading} />
