@@ -4,8 +4,8 @@
   "description": "Petro Core Server with Supabase",
   "main": "src/index.ts",
   "scripts": {
-    "start": "ts-node src/index.ts",
-    "dev": "nodemon src/index.ts",
+    "start": "nodemon src/index.ts" ,
+    "dev": "ts-node src/index.ts",
     "build": "tsc",
     "test": "jest",
     "setup:minerals": "ts-node src/scripts/setup-minerals-table.ts",

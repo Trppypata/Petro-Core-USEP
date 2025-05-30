@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
+import { toast } from 'sonner';
 
 const STORAGE_BUCKET = 'rocks-minerals';
 
@@ -11,6 +12,14 @@ const STORAGE_BUCKET = 'rocks-minerals';
  */
 export const uploadFile = async (file: File, folder: string): Promise<string> => {
   try {
+    // Check if Supabase is properly configured
+    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+      toast.error('Supabase storage is not configured. Image upload is unavailable.');
+      console.error('Missing Supabase environment variables. Please configure your .env file.');
+      // Return a placeholder image URL or empty string
+      return '';
+    }
+
     // Generate a unique filename
     const fileExt = file.name.split('.').pop();
     const fileName = `${uuidv4()}.${fileExt}`;
@@ -36,7 +45,8 @@ export const uploadFile = async (file: File, folder: string): Promise<string> =>
     return publicURL.publicUrl;
   } catch (error) {
     console.error('Error uploading file:', error);
-    throw new Error('Failed to upload file. Please try again.');
+    toast.error('Failed to upload file. Please try again.');
+    return '';
   }
 };
 
@@ -46,6 +56,19 @@ export const uploadFile = async (file: File, folder: string): Promise<string> =>
  */
 export const deleteFile = async (fileUrl: string): Promise<void> => {
   try {
+    // Check if Supabase is properly configured
+    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+      toast.error('Supabase storage is not configured. File deletion is unavailable.');
+      console.error('Missing Supabase environment variables. Please configure your .env file.');
+      return;
+    }
+
+    // Skip if fileUrl is empty
+    if (!fileUrl) {
+      console.warn('Empty file URL provided, skipping deletion');
+      return;
+    }
+
     // Extract the path from the URL
     const storageUrl = supabase.storage.from(STORAGE_BUCKET).getPublicUrl('').data.publicUrl;
     const filePath = fileUrl.replace(storageUrl, '');
@@ -60,6 +83,6 @@ export const deleteFile = async (fileUrl: string): Promise<void> => {
     }
   } catch (error) {
     console.error('Error deleting file:', error);
-    throw new Error('Failed to delete file. Please try again.');
+    toast.error('Failed to delete file. Please try again.');
   }
 }; 
