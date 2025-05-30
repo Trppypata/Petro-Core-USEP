@@ -25,8 +25,6 @@ export interface IRock {
   metamorphic_grade?: string;
   parent_rock?: string;
   foliation?: string;
-  foliation_type?: string;
-  protolith?: string;
   // Igneous rock specific fields
   silica_content?: string;
   cooling_rate?: string;
@@ -42,10 +40,10 @@ export interface IRock {
   ore_group?: string;
   mining_company?: string;
   coordinates?: string;
-  // New fields from Excel
+  // Additional fields
   luster?: string;
-  streak?: string;
   reaction_to_hcl?: string;
   magnetism?: string;
-  origin?: string;
+  created_at?: string;
+  updated_at?: string;
 } 

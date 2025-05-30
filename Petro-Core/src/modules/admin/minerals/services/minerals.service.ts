@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { IMineral } from '../mineral.interface';
 
-const API_URL = import.meta.env.VITE_local_url || 'http://localhost:8000/api';
+const API_URL = import.meta.env.VITE_local_url || 'http://localhost:8001/api';
 
 // Get all minerals by category
 export const getMinerals = async (

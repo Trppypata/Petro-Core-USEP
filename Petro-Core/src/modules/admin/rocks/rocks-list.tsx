@@ -29,6 +29,16 @@ import type { IRock, RockCategory } from './rock.interface';
 import { useReadRocks } from './hooks/useReadRocks';
 import RockContentForm from './components/rock-content-form';
 import { Button } from '@/components/ui/button';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface RocksListProps {
   category: RockCategory | string;
@@ -49,7 +59,14 @@ const RocksList = ({
   const searchTerm = externalSearchTerm !== undefined ? externalSearchTerm : internalSearchTerm;
   
   // This will be implemented in the hooks folder
-  const { data: rocks, isLoading, error } = useReadRocks(category);
+  const { 
+    data: rocks, 
+    isLoading, 
+    error, 
+    pagination, 
+    setPage, 
+    setPageSize 
+  } = useReadRocks(category);
   
   // Debug logs to help diagnose issues
   useEffect(() => {
@@ -107,6 +124,22 @@ const RocksList = ({
     setSelectedRock(rock);
   };
   
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    // Scroll to top of the table when changing page
+    const tableElement = document.getElementById('rocks-table');
+    if (tableElement) {
+      tableElement.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handlePageSizeChange = (value: string) => {
+    const newPageSize = parseInt(value, 10);
+    setPageSize(newPageSize);
+    // Reset to first page when changing page size
+    setPage(1);
+  };
+  
   const renderTableContent = () => {
     if (isLoading) {
       return (
@@ -142,7 +175,7 @@ const RocksList = ({
     // Process rocks to ensure no duplicates and clean up rock codes
     const processedRocks = filteredRocks
       // Remove any duplicate rock_codes (keep the most recently updated one)
-      .reduce((unique, rock) => {
+      .reduce((unique: IRock[], rock) => {
         // Clean up rock code - replace spaces
         if (rock.rock_code && rock.rock_code.includes(' ')) {
           rock.rock_code = rock.rock_code.replace(/\s+/g, '');
@@ -157,7 +190,7 @@ const RocksList = ({
         if (existingIndex >= 0) {
           // If we found a duplicate, keep the one with the most recent updated_at
           const existing = unique[existingIndex];
-          if (new Date(rock.updated_at) > new Date(existing.updated_at)) {
+          if (rock.updated_at && existing.updated_at && new Date(rock.updated_at) > new Date(existing.updated_at)) {
             unique[existingIndex] = rock;
           }
         } else {
@@ -294,112 +327,111 @@ const RocksList = ({
   };
   
   return (
-    <>
+    <div className="space-y-4">
       {!hideControls && (
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center space-x-2">
-            <Search className="w-5 h-5 text-muted-foreground" />
+        <div className="flex items-center space-x-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
             <Input
-              placeholder="Search rocks..."
+              type="search"
+              placeholder="Search rocks by name, type, color..."
+              className="pl-8"
               value={internalSearchTerm}
               onChange={handleSearchChange}
-              className="w-64"
             />
           </div>
-          <RockContentForm category={category as RockCategory} />
         </div>
       )}
       
-      <div className="rounded-md border overflow-x-auto max-w-full">
-        <Table className="w-full table-auto" style={{ minWidth: '800px' }}>
-          <TableHeader className="sticky top-0 bg-white z-10">
-            <TableRow className="whitespace-nowrap">
-              <TableHead className="w-16">Image</TableHead>
-              <TableHead className="w-32">Name</TableHead>
-              <TableHead className="w-24">Rock Code</TableHead>
+      <div className="rounded-md border">
+        <Table id="rocks-table">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[50px]">Image</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Code</TableHead>
               
               {/* Only show Category column when not in Ore Samples view */}
-              {category !== 'Ore Samples' && (
-                <TableHead className="w-28">Category</TableHead>
-              )}
+              {category !== 'Ore Samples' && <TableHead>Category</TableHead>}
               
-              <TableHead className="w-28">Type</TableHead>
+              <TableHead>Type</TableHead>
               
-              {/* Ore Samples specific headers */}
+              {/* Ore Samples specific fields */}
               {category === 'Ore Samples' && (
                 <>
-                  <TableHead className="w-28">Commodity</TableHead>
-                  <TableHead className="w-32">Ore Group</TableHead>
-                  <TableHead className="w-40">Mining Company</TableHead>
+                  <TableHead>Commodity Type</TableHead>
+                  <TableHead>Ore Group</TableHead>
+                  <TableHead>Mining Company</TableHead>
                 </>
               )}
               
-              <TableHead className="w-28">Chemical</TableHead>
-              <TableHead className="w-28">Color</TableHead>
-              <TableHead className="w-20">Hardness</TableHead>
+              <TableHead>Chemical Formula</TableHead>
+              <TableHead>Color</TableHead>
+              <TableHead>Hardness</TableHead>
               
               {/* Only show texture and grain size for non-ore samples */}
               {category !== 'Ore Samples' && (
                 <>
-                  <TableHead className="w-28">Texture</TableHead>
-                  <TableHead className="w-28">Grain Size</TableHead>
+                  <TableHead>Texture</TableHead>
+                  <TableHead>Grain Size</TableHead>
                 </>
               )}
               
               {/* Igneous-specific fields */}
               {category === 'Igneous' && (
                 <>
-                  <TableHead className="w-28">Silica Content</TableHead>
-                  <TableHead className="w-28">Cooling Rate</TableHead>
-                  <TableHead className="w-28">Mineral Content</TableHead>
+                  <TableHead>Silica Content</TableHead>
+                  <TableHead>Cooling Rate</TableHead>
+                  <TableHead>Mineral Content</TableHead>
                 </>
               )}
               
               {/* Sedimentary-specific fields */}
               {category === 'Sedimentary' && (
                 <>
-                  <TableHead className="w-28">Bedding</TableHead>
-                  <TableHead className="w-28">Sorting</TableHead>
-                  <TableHead className="w-28">Roundness</TableHead>
-                  <TableHead className="w-28">Fossil Content</TableHead>
-                  <TableHead className="w-28">Sediment Source</TableHead>
+                  <TableHead>Bedding</TableHead>
+                  <TableHead>Sorting</TableHead>
+                  <TableHead>Roundness</TableHead>
+                  <TableHead>Fossil Content</TableHead>
+                  <TableHead>Sediment Source</TableHead>
                 </>
               )}
               
               {/* Metamorphic-specific fields */}
               {category === 'Metamorphic' && (
                 <>
-                  <TableHead className="w-28">Metamorphism Type</TableHead>
-                  <TableHead className="w-28">Metamorphic Grade</TableHead>
-                  <TableHead className="w-28">Parent Rock</TableHead>
-                  <TableHead className="w-28">Foliation</TableHead>
+                  <TableHead>Metamorphism Type</TableHead>
+                  <TableHead>Metamorphic Grade</TableHead>
+                  <TableHead>Parent Rock</TableHead>
+                  <TableHead>Foliation</TableHead>
                 </>
               )}
               
-              {/* Show Associated Minerals for all categories */}
-              <TableHead className="w-28">Associated Minerals</TableHead>
+              {/* Show Associated Minerals for all rock types */}
+              <TableHead>Associated Minerals</TableHead>
               
-              {/* Label depends on category */}
-              <TableHead className="w-28">
-                {category === 'Ore Samples' ? 'Description' : 'Depositional Env.'}
-              </TableHead>
+              {/* Conditionally show different environment label for ore samples */}
+              {category === 'Ore Samples' ? (
+                <TableHead>Description</TableHead>
+              ) : (
+                <TableHead>Depositional Environment</TableHead>
+              )}
               
-              <TableHead className="w-28">Locality</TableHead>
+              <TableHead>Locality</TableHead>
               
               {/* Only show geological age and formation for non-ore samples */}
               {category !== 'Ore Samples' && (
                 <>
-                  <TableHead className="w-28">Geological Age</TableHead>
-                  <TableHead className="w-28">Formation</TableHead>
+                  <TableHead>Geological Age</TableHead>
+                  <TableHead>Formation</TableHead>
                 </>
               )}
               
               {/* Show coordinates for all rock types */}
-              <TableHead className="w-36">Coordinates</TableHead>
+              <TableHead>Coordinates</TableHead>
+              <TableHead>Status</TableHead>
               
-              <TableHead className="w-24">Status</TableHead>
-              
-              {/* New fields */}
+              {/* Additional fields */}
               <TableHead>Reaction to HCl</TableHead>
               {category === 'Metamorphic' && <TableHead>Foliation Type</TableHead>}
               {category === 'Igneous' && <TableHead>Origin</TableHead>}
@@ -411,297 +443,109 @@ const RocksList = ({
         </Table>
       </div>
       
-      {/* Rock Details Dialog */}
+      {/* Simplified Pagination UI */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <p className="text-sm text-gray-500">
+            Showing page {pagination.page} of {pagination.totalPages} ({pagination.total} total rocks)
+          </p>
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-500">Rows per page:</span>
+            <Select
+              value={pagination.pageSize.toString()}
+              onValueChange={handlePageSizeChange}
+            >
+              <SelectTrigger className="h-8 w-[70px]">
+                <SelectValue placeholder={pagination.pageSize.toString()} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5</SelectItem>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Button 
+            variant="outline" 
+            onClick={() => pagination.page > 1 && handlePageChange(pagination.page - 1)}
+            disabled={pagination.page <= 1}
+            size="sm"
+          >
+            Previous
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => pagination.page < pagination.totalPages && handlePageChange(pagination.page + 1)}
+            disabled={pagination.page >= pagination.totalPages}
+            size="sm"
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+      
       {selectedRock && (
         <Dialog open={!!selectedRock} onOpenChange={(open) => !open && setSelectedRock(null)}>
-          <DialogContent className="max-w-4xl">
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Rock Details</DialogTitle>
+              <DialogTitle>{selectedRock.name}</DialogTitle>
             </DialogHeader>
             
-            <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="mb-4">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="grid grid-cols-2">
                 <TabsTrigger value="details">Details</TabsTrigger>
                 <TabsTrigger value="image">Image</TabsTrigger>
-                {(selectedRock.coordinates || (selectedRock.latitude && selectedRock.longitude)) && (
-                  <TabsTrigger value="location">Location</TabsTrigger>
-                )}
               </TabsList>
               
-              <TabsContent value="details" className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                  <div>
-                    <h4 className="text-sm font-medium mb-1">Name</h4>
-                    <p>{selectedRock.name}</p>
-                  </div>
-                  
-                  <div>
-                    <h4 className="text-sm font-medium mb-1">Rock Code</h4>
-                    <p>{selectedRock.rock_code || '-'}</p>
-                  </div>
-                  
-                  <div>
-                    <h4 className="text-sm font-medium mb-1">Type</h4>
-                    <p>{selectedRock.type || '-'}</p>
-                  </div>
-                  
-                  {category === 'Ore Samples' && (
-                    <>
-                      <div>
-                        <h4 className="text-sm font-medium mb-1">Commodity Type</h4>
-                        <p>{selectedRock.commodity_type || '-'}</p>
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-medium mb-1">Ore Group</h4>
-                        <p>{selectedRock.ore_group || '-'}</p>
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-medium mb-1">Mining Company</h4>
-                        <p>{selectedRock.mining_company || '-'}</p>
-                      </div>
-                    </>
-                  )}
-                  
-                  <div>
-                    <h4 className="text-sm font-medium mb-1">Chemical Formula</h4>
-                    <p>{selectedRock.chemical_formula || '-'}</p>
-                  </div>
-                  
-                  <div>
-                    <h4 className="text-sm font-medium mb-1">Color</h4>
-                    <p>{selectedRock.color || '-'}</p>
-                  </div>
-                  
-                  <div>
-                    <h4 className="text-sm font-medium mb-1">Hardness</h4>
-                    <p>{selectedRock.hardness || '-'}</p>
-                  </div>
-                  
-                  {category !== 'Ore Samples' && (
-                    <>
-                      <div>
-                        <h4 className="text-sm font-medium mb-1">Texture</h4>
-                        <p>{selectedRock.texture || '-'}</p>
-                      </div>
-                      
-                      <div>
-                        <h4 className="text-sm font-medium mb-1">Grain Size</h4>
-                        <p>{selectedRock.grain_size || '-'}</p>
-                      </div>
-                    </>
-                  )}
-                  
-                  {/* Igneous-specific fields in details */}
-                  {category === 'Igneous' && (
-                    <>
-                      <div>
-                        <h4 className="text-sm font-medium mb-1">Silica Content</h4>
-                        <p>{selectedRock.silica_content || '-'}</p>
-                      </div>
-                      
-                      <div>
-                        <h4 className="text-sm font-medium mb-1">Cooling Rate</h4>
-                        <p>{selectedRock.cooling_rate || '-'}</p>
-                      </div>
-                      
-                      <div>
-                        <h4 className="text-sm font-medium mb-1">Mineral Content</h4>
-                        <p>{selectedRock.mineral_content || '-'}</p>
-                      </div>
-                    </>
-                  )}
-                  
-                  {/* Sedimentary-specific fields in details */}
-                  {category === 'Sedimentary' && (
-                    <>
-                      <div>
-                        <h4 className="text-sm font-medium mb-1">Bedding</h4>
-                        <p>{selectedRock.bedding || '-'}</p>
-                      </div>
-                      
-                      <div>
-                        <h4 className="text-sm font-medium mb-1">Sorting</h4>
-                        <p>{selectedRock.sorting || '-'}</p>
-                      </div>
-                      
-                      <div>
-                        <h4 className="text-sm font-medium mb-1">Roundness</h4>
-                        <p>{selectedRock.roundness || '-'}</p>
-                      </div>
-                      
-                      <div>
-                        <h4 className="text-sm font-medium mb-1">Fossil Content</h4>
-                        <p>{selectedRock.fossil_content || '-'}</p>
-                      </div>
-                      
-                      <div>
-                        <h4 className="text-sm font-medium mb-1">Sediment Source</h4>
-                        <p>{selectedRock.sediment_source || '-'}</p>
-                      </div>
-                    </>
-                  )}
-                  
-                  {/* Metamorphic-specific fields in details */}
-                  {category === 'Metamorphic' && (
-                    <>
-                      <div>
-                        <h4 className="text-sm font-medium mb-1">Metamorphism Type</h4>
-                        <p>{selectedRock.metamorphism_type || '-'}</p>
-                      </div>
-                      
-                      <div>
-                        <h4 className="text-sm font-medium mb-1">Metamorphic Grade</h4>
-                        <p>{selectedRock.metamorphic_grade || '-'}</p>
-                      </div>
-                      
-                      <div>
-                        <h4 className="text-sm font-medium mb-1">Parent Rock</h4>
-                        <p>{selectedRock.parent_rock || '-'}</p>
-                      </div>
-                      
-                      <div>
-                        <h4 className="text-sm font-medium mb-1">Foliation</h4>
-                        <p>{selectedRock.foliation || '-'}</p>
-                      </div>
-                    </>
-                  )}
-                  
-                  {/* Always show Associated Minerals for all rock types */}
-                  <div>
-                    <h4 className="text-sm font-medium mb-1">Associated Minerals</h4>
-                    <p>{selectedRock.associated_minerals || '-'}</p>
-                  </div>
-                  
-                  <div>
-                    <h4 className="text-sm font-medium mb-1">
-                      {category === 'Ore Samples' ? 'Description' : 'Depositional Environment'}
-                    </h4>
-                    <p>
-                      {category === 'Ore Samples' 
-                        ? selectedRock.description || '-' 
-                        : selectedRock.depositional_environment || '-'}
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <h4 className="text-sm font-medium mb-1">Locality</h4>
-                    <p>{selectedRock.locality || '-'}</p>
-                  </div>
-                  
-                  {/* Detail view coordinates enhancement */}
-                  <div>
-                    <h4 className="text-sm font-medium mb-1">Coordinates</h4>
-                    <p>
-                      {selectedRock.coordinates || 
-                       (selectedRock.latitude && selectedRock.longitude ? 
-                        `${selectedRock.latitude}, ${selectedRock.longitude}` : 
-                        '-')}
-                    </p>
-                  </div>
-                  
-                  {category !== 'Ore Samples' && (
-                    <>
-                      <div>
-                        <h4 className="text-sm font-medium mb-1">Geological Age</h4>
-                        <p>{selectedRock.geological_age || '-'}</p>
-                      </div>
-                      
-                      <div>
-                        <h4 className="text-sm font-medium mb-1">Formation</h4>
-                        <p>{selectedRock.formation || '-'}</p>
-                      </div>
-                    </>
-                  )}
-                  
-                  {/* New fields */}
-                  <div>
-                    <h4 className="text-sm font-medium mb-1">Reaction to HCl</h4>
-                    <p>{selectedRock.reaction_to_hcl || '-'}</p>
-                  </div>
-                  {selectedRock.luster && (
-                    <div>
-                      <h4 className="text-sm font-medium mb-1">Luster</h4>
-                      <p>{selectedRock.luster}</p>
-                    </div>
-                  )}
-                  {selectedRock.streak && (
-                    <div>
-                      <h4 className="text-sm font-medium mb-1">Streak</h4>
-                      <p>{selectedRock.streak}</p>
-                    </div>
-                  )}
-                  {selectedRock.magnetism && (
-                    <div>
-                      <h4 className="text-sm font-medium mb-1">Magnetism</h4>
-                      <p>{selectedRock.magnetism}</p>
-                    </div>
-                  )}
-                  {selectedRock.origin && (
-                    <div>
-                      <h4 className="text-sm font-medium mb-1">Origin</h4>
-                      <p>{selectedRock.origin}</p>
-                    </div>
-                  )}
-                  
-                  {/* Metamorphic specific fields */}
-                  {selectedRock.category === 'Metamorphic' && selectedRock.foliation && (
-                    <div>
-                      <h4 className="text-sm font-medium mb-1">Foliation</h4>
-                      <p>{selectedRock.foliation}</p>
-                    </div>
-                  )}
-                  {selectedRock.category === 'Metamorphic' && selectedRock.foliation_type && (
-                    <div>
-                      <h4 className="text-sm font-medium mb-1">Foliation Type</h4>
-                      <p>{selectedRock.foliation_type}</p>
-                    </div>
-                  )}
-                  {selectedRock.category === 'Metamorphic' && selectedRock.protolith && (
-                    <div>
-                      <h4 className="text-sm font-medium mb-1">Protolith</h4>
-                      <p>{selectedRock.protolith}</p>
-                    </div>
-                  )}
-                </div>
+              <TabsContent value="details" className="mt-4">
+                <RockContentForm rock={selectedRock} readOnly />
               </TabsContent>
               
-              <TabsContent value="image">
+              <TabsContent value="image" className="mt-4">
                 {selectedRock.image_url ? (
                   <div className="flex justify-center">
                     <img 
                       src={selectedRock.image_url} 
                       alt={selectedRock.name}
-                      className="max-w-full max-h-96 object-contain"
+                      className="max-h-[60vh] object-contain rounded-md"
                     />
                   </div>
                 ) : (
-                  <div className="text-center py-12">
-                    <ImageIcon className="w-16 h-16 mx-auto text-gray-300" />
-                    <p className="mt-2 text-gray-500">No image available</p>
+                  <div className="flex flex-col items-center justify-center h-[60vh] bg-gray-100 rounded-md">
+                    <ImageIcon className="w-16 h-16 text-gray-400" />
+                    <p className="mt-4 text-gray-500">No image available</p>
                   </div>
                 )}
               </TabsContent>
-              
-              {selectedRock.latitude && selectedRock.longitude && (
-                <TabsContent value="location">
-                  <div className="h-96 bg-gray-100 flex items-center justify-center">
-                    <p>Map view would display here for coordinates: {selectedRock.latitude}, {selectedRock.longitude}</p>
-                  </div>
-                </TabsContent>
-              )}
             </Tabs>
             
-            <div className="flex justify-end mt-4">
+            <div className="flex justify-end space-x-2 mt-4">
               <DialogClose asChild>
-                <button className="px-4 py-2 bg-gray-100 rounded-md text-sm font-medium">
-                  Close
-                </button>
+                <Button variant="outline">Close</Button>
               </DialogClose>
+              
+              {!hideControls && (
+                <>
+                  <Button variant="outline" className="flex items-center space-x-1">
+                    <Edit className="w-4 h-4" />
+                    <span>Edit</span>
+                  </Button>
+                  <Button variant="destructive" className="flex items-center space-x-1">
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete</span>
+                  </Button>
+                </>
+              )}
             </div>
           </DialogContent>
         </Dialog>
       )}
-    </>
+    </div>
   );
 };
 

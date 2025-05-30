@@ -2,41 +2,61 @@ import axios from 'axios';
 import type { IRock } from '../rock.interface';
 import * as XLSX from 'xlsx';
 
-const API_URL = import.meta.env.VITE_local_url || 'http://localhost:8000/api';
+const API_URL = import.meta.env.VITE_local_url || 'http://localhost:8001/api';
 console.log('API URL for rocks service:', API_URL);
 
 /**
  * Fetch all rocks or rocks filtered by category
  */
-export const fetchRocks = async (category?: string) => {
+export const fetchRocks = async (category?: string, page: number = 1, pageSize: number = 10) => {
   try {
     console.log('🔍 Fetching rocks from API...');
     console.log('🔗 API URL:', `${API_URL}/rocks`);
+    console.log('📄 Pagination:', { page, pageSize });
     
-    // Add category as a query parameter if provided
-    const url = category && category !== 'ALL' 
-      ? `${API_URL}/rocks?category=${encodeURIComponent(category)}` 
-      : `${API_URL}/rocks`;
+    // Build query parameters
+    let params = new URLSearchParams();
+    
+    // Add category if provided
+    if (category && category !== 'ALL') {
+      params.append('category', category);
+    }
+    
+    // Add pagination parameters
+    params.append('page', page.toString());
+    params.append('pageSize', pageSize.toString());
+    
+    // Construct URL with query parameters
+    const url = `${API_URL}/rocks?${params.toString()}`;
+    console.log('🔗 Full URL:', url);
     
     const response = await axios.get(url);
     console.log('✅ Raw API Response status:', response.status);
     
     if (!response.data || !response.data.data) {
       console.warn('⚠️ No data received from API');
-      return [];
+      return { data: [], pagination: { total: 0, page, pageSize, totalPages: 0 } };
     }
     
-    // Extract the data from the response
+    // Extract the data and pagination from the response
     const rocks = response.data.data || [];
+    const pagination = response.data.pagination || {
+      total: rocks.length,
+      page,
+      pageSize,
+      totalPages: Math.ceil(rocks.length / pageSize)
+    };
     
     // Check if rocks is an array
     if (!Array.isArray(rocks)) {
       console.warn('⚠️ Rocks data is not an array', rocks);
-      return [];
+      return { data: [], pagination };
     }
     
     console.log('✅ Extracted rocks array:', rocks.length, 'items');
-    return rocks;
+    console.log('✅ Pagination info:', pagination);
+    
+    return { data: rocks, pagination };
   } catch (error) {
     console.error('❌ Error fetching rocks:', error);
     throw new Error('Failed to fetch rocks from the database');

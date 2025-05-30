@@ -46,31 +46,35 @@ export const importRocksFromExcel = async (req: Request, res: Response) => {
       // Check if the first row exists and log its headers
       if (jsonData.length > 0) {
         console.log(`First row headers for ${sheetName}:`, Object.keys(jsonData[0] as object));
-        console.log(`First row sample data:`, jsonData[0]);
       }
+      
+      // Track if this is a Sedimentary Special sheet which has different fields
+      const isSedimentarySpecial = sheetName.toLowerCase().includes('sedimentary special');
       
       jsonData.forEach((row: any, index: number) => {
         // More comprehensive name extraction
         let rockName = row['Rock Name'] || row['Name'] || row['Sample Name'] || row['Rock'] || row['Sample'] || '';
-        
-        // Special handling for Ore Samples - use Type of Commodity as name if it's the Ore Samples sheet
+        // Try to use Type of Commodity as name for Ore Samples
         const isOreSheet = sheetName.toLowerCase().includes('ore');
         if (isOreSheet && !rockName && row['Type of Commodity']) {
           rockName = `${row['Type of Commodity']} Ore Sample`;
-          console.log(`Created name for Ore Sample row ${index+1}: "${rockName}"`);
         }
         
-        // Skip only if definitely no rock name found AND not in ore samples sheet
-        if (!rockName && !isOreSheet) {
-          console.log(`Skipping row ${index+1} in sheet ${sheetName} - no rock name found`);
-          sheetCounts[sheetName].skipped++;
-          return;
+        // Enhanced type extraction
+        let rockType = row['Type'] || row['Rock Type'] || row['Type of Commodity'] || row['Commodity Type'] || row['Ore Group'] || '';
+        
+        // Generate default values for missing required fields
+        if (!rockName) {
+          rockName = `Unknown Rock ${index+1} (${sheetName})`;
+          console.log(`Generated default name for row ${index+1} in sheet ${sheetName}`);
         }
         
-        // For Ore Samples sheet, process all rows even without a rock name
-        if (!rockName && isOreSheet) {
-          rockName = `Ore Sample ${index+1}`;
-          console.log(`Generated name for Ore Sample row ${index+1}: "${rockName}"`);
+        if (!rockType) {
+          rockType = sheetName.includes('Igneous') ? 'Igneous' : 
+                    sheetName.includes('Sedimentary') ? 'Sedimentary' : 
+                    sheetName.includes('Metamorphic') ? 'Metamorphic' : 
+                    sheetName.includes('Ore') ? 'Ore' : 'Unknown';
+          console.log(`Generated default type "${rockType}" for row ${index+1} in sheet ${sheetName}`);
         }
         
         // Enhanced category detection - more flexible
@@ -83,59 +87,50 @@ export const importRocksFromExcel = async (req: Request, res: Response) => {
           category = 'Metamorphic';
         } else if (
           sheetName.toLowerCase().includes('ore') || 
-          sheetName.toLowerCase().includes('mineral') || 
-          sheetName.toLowerCase().includes('economic') ||
-          sheetName.toLowerCase().includes('metal') ||
-          sheetName.toLowerCase().includes('mining') ||
-          sheetName.toLowerCase().includes('deposit') ||
           rockName.toLowerCase().includes('ore') ||
-          (row['Commodity Type'] && row['Commodity Type'].toString().trim() !== '') ||
           (row['Type of Commodity'] && row['Type of Commodity'].toString().trim() !== '') ||
           (row['Ore Group'] && row['Ore Group'].toString().trim() !== '') ||
           (row['Type of Deposit'] && row['Type of Deposit'].toString().trim() !== '') ||
           (row['Mining Company'] && row['Mining Company'].toString().trim() !== '') ||
-          (row['Mining Company/Donated by'] && row['Mining Company/Donated by'].toString().trim() !== '') ||
-          (row['Mining Company/Donated by:'] && row['Mining Company/Donated by:'].toString().trim() !== '')
+          (row['Mining Company/Donated by'] && row['Mining Company/Donated by'].toString().trim() !== '')
         ) {
           category = 'Ore Samples';
-          console.log(`Identified Ore Sample in sheet ${sheetName}, row ${index+1}, name: ${rockName}`);
         }
         
         // Enhanced coordinates handling
         let coordinates = '';
-        // First check if coordinates are already in the data
         if (row['Coordinates'] && row['Coordinates'].toString().trim() !== '') {
           coordinates = row['Coordinates'].toString().trim();
-          console.log(`Using explicit coordinates from data: ${coordinates} for rock ${rockName}`);
-        } 
-        // Then try to build from latitude and longitude
-        else if ((row['Latitude'] || row['LAT']) && (row['Longitude'] || row['LONG']) && 
-            (row['Latitude'] || row['LAT']).toString().trim() !== '' && 
-            (row['Longitude'] || row['LONG']).toString().trim() !== '') {
+        } else if ((row['Latitude'] || row['LAT']) && (row['Longitude'] || row['LONG'])) {
           const lat = (row['Latitude'] || row['LAT']).toString().trim();
           const long = (row['Longitude'] || row['LONG']).toString().trim();
           coordinates = `${lat}, ${long}`;
-          console.log(`Generated coordinates from lat/long: ${coordinates} for rock ${rockName}`);
+        }
+
+        // Generate rock code if not present
+        let rockCode = row['Rock Code'] || '';
+        if (!rockCode || rockCode.trim() === '') {
+          // For ore samples, use O-XXXX format
+          if (category === 'Ore Samples') {
+            rockCode = `O-${String(index + 1).padStart(4, '0')}`;
+          } else {
+            // For other rocks, use first letter of category + index
+            rockCode = `${category.charAt(0)}-${String(index + 1).padStart(4, '0')}`;
+          }
         }
 
         // Create rock object with comprehensive field mappings
         const rock: IRock = {
-          rock_code: '',
+          rock_code: rockCode,
           name: rockName,
           chemical_formula: row['Chemical Formula'] || row['Chemical'] || '',
           hardness: row['Hardness'] || '',
           category: category,
-          type: row['Type'] || row['Rock Type'] || '',
-          // Sedimentary specific fields - multiple possible header names
+          type: rockType,
           depositional_environment: row['Depositional Environment'] || row['Depositional Env.'] || '',
           grain_size: row['Grain Size'] || '',
-          color: row['Color'] || row['Colour'] || '',
+          color: row['Color'] || row['Colour'] || row['Color '] || '',
           texture: row['Texture'] || '',
-          luster: row['Luster'] || '',
-          streak: row['Streak'] || '',
-          reaction_to_hcl: row['Reaction to HCl'] || row['Reaction to HCL'] || '',
-          magnetism: row['Magnetism'] || row['Magnetism '] || '',
-          origin: row['Origin'] || '',
           latitude: row['Latitude'] || row['LAT'] || '',
           longitude: row['Longitude'] || row['LONG'] || '',
           coordinates: coordinates,
@@ -146,25 +141,31 @@ export const importRocksFromExcel = async (req: Request, res: Response) => {
           geological_age: row['Geological Age'] || row['Age'] || '',
           status: row['Status'] || 'active',
           image_url: row['Image URL'] || '',
-          // Sedimentary specific fields with more explicit mapping
+          // Metamorphic rock specific fields
+          associated_minerals: row['Associated Minerals'] || '',
+          metamorphism_type: row['Metamorphism Type'] || row['Metamorpism'] || '',
+          metamorphic_grade: row['Metamorphic Grade'] || '',
+          parent_rock: row['Parent Rock'] || '',
+          foliation: row['Foliation'] || '',
+          // Igneous rock specific fields
+          silica_content: row['Silica Content'] || '',
+          cooling_rate: row['Cooling Rate'] || '',
+          mineral_content: row['Mineral Content'] || '',
+          // Sedimentary rock specific fields
           bedding: row['Bedding'] || '',
-          sorting: row['Sorting'] || '',
+          sorting: row['Sorting'] || row['Sorting '] || '',
           roundness: row['Roundness'] || '',
-          fossil_content: row['Fossil Content'] || row['Fossils'] || '',
+          fossil_content: row['Fossil Content'] || row['Fossils'] || row['Fossils '] || '',
           sediment_source: row['Sediment Source'] || '',
+          // Ore samples specific fields
+          commodity_type: row['Type of Commodity'] || row['Commodity Type'] || '',
+          ore_group: row['Ore Group'] || row['Type of Deposit'] || '',
+          mining_company: row['Mining Company'] || row['Mining Company/Donated by'] || '',
+          // Additional fields
+          luster: row['Luster'] || row['Luster '] || '',
+          reaction_to_hcl: row['Reaction to HCl'] || row['Reaction to HCL'] || '',
+          magnetism: row['Magnetism'] || row['Magnetism '] || ''
         };
-        
-        // Ensure all rocks have a rock_code
-        if (!rock.rock_code || rock.rock_code.trim() === '') {
-          // For ore samples, use O-XXXX format
-          if (category === 'Ore Samples') {
-            rock.rock_code = `O-${String(index + 1).padStart(4, '0')}`;
-          } else {
-            // For other rocks, use first letter of category + index
-            rock.rock_code = `${category.charAt(0)}-${String(index + 1).padStart(4, '0')}`;
-          }
-          console.log(`Generated rock code ${rock.rock_code} for ${rockName}`);
-        }
         
         // Add category-specific fields
         if (category === 'Metamorphic') {
@@ -172,53 +173,15 @@ export const importRocksFromExcel = async (req: Request, res: Response) => {
           rock.metamorphism_type = row['Metamorphism Type'] || row['Metamorpism'] || '';
           rock.metamorphic_grade = row['Metamorphic Grade'] || '';
           rock.parent_rock = row['Parent Rock'] || '';
-          rock.protolith = row['Protolith'] || '';
           rock.foliation = row['Foliation'] || '';
-          rock.foliation_type = row['Foliation Type'] || '';
         } else if (category === 'Igneous') {
           rock.silica_content = row['Silica Content'] || '';
           rock.cooling_rate = row['Cooling Rate'] || '';
           rock.mineral_content = row['Mineral Content'] || '';
-        } else if (category === 'Sedimentary') {
-          // Additional fields explicitly mapped for Sedimentary
-          rock.bedding = row['Bedding'] || '';
-          rock.sorting = row['Sorting'] || '';
-          rock.roundness = row['Roundness'] || '';
-          rock.fossil_content = row['Fossil Content'] || row['Fossils'] || '';
-          rock.sediment_source = row['Sediment Source'] || '';
         } else if (category === 'Ore Samples') {
-          // Set ore-specific fields with broader matching
-          rock.commodity_type = row['Type of Commodity'] || row['Commodity Type'] || row['Metal'] || row['Mineral'] || row['Type'] || '';
-          rock.ore_group = row['Ore Group'] || row['Type of Deposit'] || row['Deposit Type'] || '';
-          rock.mining_company = row['Mining Company'] || row['Mining Company/Donated by'] || row['Mining Company/Donated by:'] || row['Source'] || '';
-          
-          // For Ore Samples, use Commodity Type in the name if name is generic
-          if (rockName.startsWith('Ore Sample ') && rock.commodity_type) {
-            rock.name = `${rock.commodity_type} Ore Sample`;
-          }
-          
-          // Ensure ore samples always have an O- code
-          if (!rock.rock_code || rock.rock_code.trim() === '' || !rock.rock_code.startsWith('O-')) {
-            rock.rock_code = `O-${String(index + 1).padStart(4, '0')}`;
-          }
-          
-          // Use Overall Description as description if available
-          if (row['Overall Description'] && (!rock.description || rock.description.trim() === '')) {
-            rock.description = row['Overall Description'];
-          }
-          
-          console.log(`Processing Ore Sample: ${rock.name}, Code: ${rock.rock_code}, Type: ${rock.commodity_type}`);
-        }
-        
-        // Enhanced debug for sedimentary fields if they're missing
-        if (category === 'Sedimentary' && (!rock.bedding || !rock.sorting || !rock.roundness || !rock.fossil_content || !rock.sediment_source)) {
-          console.log(`Sedimentary rock ${rock.name} may have missing fields:`, {
-            bedding: rock.bedding ? 'Present' : 'Missing',
-            sorting: rock.sorting ? 'Present' : 'Missing',
-            roundness: rock.roundness ? 'Present' : 'Missing',
-            fossil_content: rock.fossil_content ? 'Present' : 'Missing',
-            sediment_source: rock.sediment_source ? 'Present' : 'Missing',
-          });
+          rock.commodity_type = row['Type of Commodity'] || row['Commodity Type'] || '';
+          rock.ore_group = row['Ore Group'] || row['Type of Deposit'] || '';
+          rock.mining_company = row['Mining Company'] || row['Mining Company/Donated by'] || '';
         }
         
         rocks.push(rock);
@@ -230,90 +193,105 @@ export const importRocksFromExcel = async (req: Request, res: Response) => {
     console.log(`Total rocks found in Excel: ${rocks.length}`);
     console.log('Sheet counts:', sheetCounts);
 
+    // Use RPC function to bypass RLS if available
+    try {
+      console.log('Attempting to use RPC function for import...');
+      const { data, error } = await supabase.rpc('import_rocks', { rocks_data: rocks });
+      
+      if (!error) {
+        console.log('RPC function result:', data);
+        
+        // Check if there were any successful inserts
+        if (data.inserted > 0 || data.updated > 0) {
+          return res.status(201).json({
+            success: true,
+            message: `Successfully imported ${data.inserted} rocks (${data.updated} updated) using RPC`,
+            counts: sheetCounts,
+            data,
+          });
+        } else if (data.errors > 0) {
+          console.warn(`RPC function encountered ${data.errors} errors. Error details:`, data.error_details);
+          console.log('Falling back to direct insert...');
+        }
+      } else {
+        console.error('RPC method failed, error:', error);
+        console.log('Falling back to direct insert...');
+      }
+    } catch (rpcError) {
+      console.error('RPC not available or errored:', rpcError);
+      console.log('Using direct insert with auth...');
+    }
+
     // Insert the rocks into the database
     if (rocks.length > 0) {
       console.log(`Attempting to insert ${rocks.length} rocks...`);
       
-      // Try inserting them individually instead of in batches
-      let successCount = 0;
-      let failedCount = 0;
-      let errors: any[] = [];
-      
-      for (const rock of rocks) {
-        try {
-          // Check if rock already exists
-          const { data: existingRock, error: checkError } = await supabase
-            .from('rocks')
-            .select('id, rock_code')
-            .eq('rock_code', rock.rock_code)
-            .limit(1)
-            .single();
-            
-          if (checkError && checkError.code !== 'PGRST116') {
-            console.error(`Error checking for existing rock (${rock.rock_code}):`, checkError);
-            failedCount++;
-            errors.push({
-              rock: rock.rock_code,
-              error: checkError.message
+      // Insert rocks in batches
+      try {
+        const BATCH_SIZE = 50; // Reduce batch size to avoid issues
+        let successCount = 0;
+        let errorCount = 0;
+        let errorDetails = [];
+        
+        for (let i = 0; i < rocks.length; i += BATCH_SIZE) {
+          const batch = rocks.slice(i, i + BATCH_SIZE);
+          console.log(`Importing batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil(rocks.length/BATCH_SIZE)}...`);
+          
+          try {
+            const { data, error } = await supabase
+              .from('rocks')
+              .upsert(batch, {
+                onConflict: 'rock_code',
+                ignoreDuplicates: false,
+              });
+              
+            if (error) {
+              console.error('Error inserting rocks batch:', error);
+              errorCount += batch.length;
+              errorDetails.push({
+                batchStart: i,
+                batchEnd: i + batch.length - 1,
+                error: error.message
+              });
+              
+              // Instead of failing the entire import, log the error and continue
+              console.log(`Skipping batch ${Math.floor(i/BATCH_SIZE) + 1} due to error`);
+            } else {
+              successCount += batch.length;
+              console.log(`Successfully imported ${successCount} of ${rocks.length} rocks so far`);
+            }
+          } catch (batchError: any) {
+            console.error(`Error processing batch ${Math.floor(i/BATCH_SIZE) + 1}:`, batchError);
+            errorCount += batch.length;
+            errorDetails.push({
+              batchStart: i,
+              batchEnd: i + batch.length - 1,
+              error: batchError.message
             });
-            continue;
           }
-            
-          if (existingRock) {
-            // Update existing rock
-            const { error: updateError } = await supabase
-              .from('rocks')
-              .update(rock)
-              .eq('id', existingRock.id);
-                
-            if (updateError) {
-              console.error(`Error updating rock (${rock.rock_code}):`, updateError);
-              failedCount++;
-              errors.push({
-                rock: rock.rock_code,
-                error: updateError.message
-              });
-            } else {
-              successCount++;
-              console.log(`Updated rock: ${rock.rock_code}`);
-            }
-          } else {
-            // Insert new rock
-            const { error: insertError } = await supabase
-              .from('rocks')
-              .insert(rock);
-                
-            if (insertError) {
-              console.error(`Error inserting rock (${rock.rock_code}):`, insertError);
-              failedCount++;
-              errors.push({
-                rock: rock.rock_code,
-                error: insertError.message
-              });
-            } else {
-              successCount++;
-              console.log(`Inserted rock: ${rock.rock_code}`);
-            }
-          }
-        } catch (rockError: any) {
-          console.error(`Error processing rock (${rock.rock_code}):`, rockError);
-          failedCount++;
-          errors.push({
-            rock: rock.rock_code,
-            error: rockError.message
-          });
+          
+          // Add a small delay between batches to avoid overwhelming the database
+          await new Promise(resolve => setTimeout(resolve, 300));
         }
+        
+        // Even if some batches failed, return success with details
+        return res.status(201).json({
+          success: successCount > 0,
+          message: `Processed ${rocks.length} rocks: ${successCount} successful, ${errorCount} failed`,
+          counts: sheetCounts,
+          totalFound: rocks.length,
+          successCount,
+          errorCount,
+          errorDetails: errorDetails.length > 0 ? errorDetails : undefined
+        });
+      } catch (error: any) {
+        console.error('Import rocks error:', error);
+        return res.status(500).json({
+          success: false,
+          message: error.message || 'Internal server error',
+          details: error
+        });
       }
-
-      return res.status(201).json({
-        success: successCount > 0,
-        message: `Processed ${successCount} of ${rocks.length} rocks${failedCount > 0 ? ` (${failedCount} failed)` : ''}`,
-        counts: sheetCounts,
-        totalFound: rocks.length,
-        successCount,
-        failedCount,
-        errors: errors.length > 0 ? errors.slice(0, 10) : [] // Limit to first 10 errors
-      });
     } else {
       return res.status(400).json({
         success: false,
@@ -332,11 +310,34 @@ export const importRocksFromExcel = async (req: Request, res: Response) => {
 // Fetch all rocks
 export const getAllRocks = async (req: Request, res: Response) => {
   try {
-    // Get the category from query parameters
-    const { category } = req.query;
-    console.log('Fetching rocks with category filter:', category);
+    // Get the category and pagination parameters from query parameters
+    const { category, page = '1', pageSize = '10' } = req.query;
+    const pageNum = parseInt(page as string, 10);
+    const pageSizeNum = parseInt(pageSize as string, 10);
     
-    // Build the query
+    console.log('Fetching rocks with category filter:', category);
+    console.log('Pagination parameters:', { page: pageNum, pageSize: pageSizeNum });
+    
+    // Build the query for count
+    let countQuery = supabase.from('rocks').select('id', { count: 'exact' });
+    
+    // Apply category filter to count if provided
+    if (category && category !== 'ALL') {
+      countQuery = countQuery.ilike('category', `%${category}%`);
+    }
+    
+    // Get total count
+    const { count, error: countError } = await countQuery;
+    
+    if (countError) {
+      console.error('Error counting rocks:', countError);
+      return res.status(400).json({
+        success: false,
+        message: countError.message,
+      });
+    }
+    
+    // Build the query for data
     let query = supabase.from('rocks').select('*');
     
     // Apply category filter if provided
@@ -346,8 +347,14 @@ export const getAllRocks = async (req: Request, res: Response) => {
       console.log(`Filtering rocks by category: ${category} (case-insensitive)`);
     }
     
-    // Execute the query with ordering
-    const { data, error } = await query.order('name', { ascending: true });
+    // Apply pagination
+    const from = (pageNum - 1) * pageSizeNum;
+    const to = from + pageSizeNum - 1;
+    
+    // Execute the query with ordering and pagination
+    const { data, error } = await query
+      .order('name', { ascending: true })
+      .range(from, to);
 
     if (error) {
       console.error('Error fetching rocks:', error);
@@ -360,38 +367,15 @@ export const getAllRocks = async (req: Request, res: Response) => {
     // Log some information about the results
     if (data && data.length > 0) {
       const categories = [...new Set(data.map(rock => rock.category))];
-      console.log(`Found ${data.length} rocks with ${categories.length} categories:`);
+      console.log(`Found ${data.length} rocks with ${categories.length} categories (page ${pageNum} of ${Math.ceil((count || 0) / pageSizeNum)})`);
       console.log('Categories:', categories);
       
-      // Count rocks per category
+      // Count rocks per category in this page
       const categoryCounts = categories.reduce((acc, category) => {
         acc[category] = data.filter(rock => rock.category === category).length;
         return acc;
       }, {});
-      console.log('Rocks per category:', categoryCounts);
-      
-      // Check specifically for Ore Samples
-      const oreSamplesCount = data.filter(rock => 
-        rock.category === 'Ore Samples' || 
-        rock.category === 'ore samples' || 
-        rock.category === 'Ore samples'
-      ).length;
-      console.log('Ore Samples count (case variants):', oreSamplesCount);
-      
-      // Check for coordinates
-      const withCoordinates = data.filter(rock => rock.coordinates).length;
-      const withLatLong = data.filter(rock => rock.latitude && rock.longitude).length;
-      console.log('Rocks with coordinates field:', withCoordinates);
-      console.log('Rocks with latitude & longitude:', withLatLong);
-      
-      // If specifically requesting Ore Samples, log the first few
-      if (category === 'Ore Samples' && oreSamplesCount > 0) {
-        console.log('Sample Ore Samples:', data.filter(rock => 
-          rock.category === 'Ore Samples' || 
-          rock.category === 'ore samples' || 
-          rock.category === 'Ore samples'
-        ).slice(0, 3));
-      }
+      console.log('Rocks per category on this page:', categoryCounts);
     } else {
       console.log('No rocks found with the provided criteria');
     }
@@ -403,7 +387,8 @@ export const getAllRocks = async (req: Request, res: Response) => {
         .from('rocks')
         .select('*')
         .or('category.ilike.%ore samples%,category.ilike.%Ore Samples%')
-        .order('name', { ascending: true });
+        .order('name', { ascending: true })
+        .range(from, to);
         
       if (!altError && altData && altData.length > 0) {
         console.log(`Found ${altData.length} rocks with case-insensitive Ore Samples search`);
@@ -417,6 +402,12 @@ export const getAllRocks = async (req: Request, res: Response) => {
         return res.status(200).json({
           success: true,
           data: fixedData,
+          pagination: {
+            total: count || 0,
+            page: pageNum,
+            pageSize: pageSizeNum,
+            totalPages: Math.ceil((count || 0) / pageSizeNum)
+          }
         });
       }
     }
@@ -424,6 +415,12 @@ export const getAllRocks = async (req: Request, res: Response) => {
     return res.status(200).json({
       success: true,
       data,
+      pagination: {
+        total: count || 0,
+        page: pageNum,
+        pageSize: pageSizeNum,
+        totalPages: Math.ceil((count || 0) / pageSizeNum)
+      }
     });
   } catch (error) {
     console.error('Fetch rocks error:', error);
@@ -658,7 +655,7 @@ export const importDefaultRocks = async (_req: Request, res: Response) => {
       }
       
       jsonData.forEach((row: any, index: number) => {
-        // Name extraction
+        // More comprehensive name extraction
         const rockName = row['Rock Name'] || row['Name'] || row['Sample Name'] || row['Rock'] || row['Sample'] || '';
         
         if (!rockName) {
@@ -721,11 +718,6 @@ export const importDefaultRocks = async (_req: Request, res: Response) => {
           grain_size: row['Grain Size'] || '',
           color: row['Color'] || row['Colour'] || '',
           texture: row['Texture'] || '',
-          luster: row['Luster'] || '',
-          streak: row['Streak'] || '',
-          reaction_to_hcl: row['Reaction to HCl'] || row['Reaction to HCL'] || '',
-          magnetism: row['Magnetism'] || row['Magnetism '] || '',
-          origin: row['Origin'] || '',
           latitude: row['Latitude'] || '',
           longitude: row['Longitude'] || '',
           coordinates: coordinates,
@@ -736,6 +728,30 @@ export const importDefaultRocks = async (_req: Request, res: Response) => {
           geological_age: row['Geological Age'] || row['Age'] || '',
           status: row['Status'] || 'active',
           image_url: row['Image URL'] || '',
+          // Metamorphic rock specific fields
+          associated_minerals: row['Associated Minerals'] || '',
+          metamorphism_type: row['Metamorphism Type'] || '',
+          metamorphic_grade: row['Metamorphic Grade'] || '',
+          parent_rock: row['Parent Rock'] || '',
+          foliation: row['Foliation'] || '',
+          // Igneous rock specific fields
+          silica_content: row['Silica Content'] || '',
+          cooling_rate: row['Cooling Rate'] || '',
+          mineral_content: row['Mineral Content'] || '',
+          // Sedimentary rock specific fields
+          bedding: row['Bedding'] || '',
+          sorting: row['Sorting'] || '',
+          roundness: row['Roundness'] || '',
+          fossil_content: row['Fossil Content'] || row['Fossils'] || row['Fossils '] || '',
+          sediment_source: row['Sediment Source'] || '',
+          // Ore samples specific fields
+          commodity_type: row['Commodity Type'] || row['Type of Commodity'] || row['Metal'] || row['Mineral'] || row['Type'] || '',
+          ore_group: row['Ore Group'] || row['Type of Deposit'] || row['Deposit Type'] || '',
+          mining_company: row['Mining Company'] || row['Mining Company/Donated by'] || row['Mining Company/Donated by:'] || row['Source'] || '',
+          // Additional fields
+          luster: row['Luster'] || row['Luster '] || '',
+          reaction_to_hcl: row['Reaction to HCl'] || row['Reaction to HCL'] || '',
+          magnetism: row['Magnetism'] || row['Magnetism '] || ''
         };
         
         // Ensure all rocks have a rock_code
@@ -792,38 +808,72 @@ export const importDefaultRocks = async (_req: Request, res: Response) => {
     if (rocks.length > 0) {
       console.log(`Attempting to insert ${rocks.length} rocks...`);
       
-      const BATCH_SIZE = 100;
-      let successCount = 0;
-      
-      for (let i = 0; i < rocks.length; i += BATCH_SIZE) {
-        const batch = rocks.slice(i, i + BATCH_SIZE);
-        console.log(`Importing batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil(rocks.length/BATCH_SIZE)}...`);
+      // Insert rocks in batches
+      try {
+        const BATCH_SIZE = 50; // Reduce batch size to avoid issues
+        let successCount = 0;
+        let errorCount = 0;
+        let errorDetails = [];
         
-        const { data, error } = await supabase
-          .from('rocks')
-          .upsert(batch, {
-            onConflict: 'rock_code',
-            ignoreDuplicates: false,
-          });
-
-        if (error) {
-          console.error('Error inserting rocks batch:', error);
-          return res.status(400).json({
-            success: false,
-            message: `Error: ${error.message}. This may be due to row-level security policies or data format issues.`,
-          });
+        for (let i = 0; i < rocks.length; i += BATCH_SIZE) {
+          const batch = rocks.slice(i, i + BATCH_SIZE);
+          console.log(`Importing batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil(rocks.length/BATCH_SIZE)}...`);
+          
+          try {
+            const { data, error } = await supabase
+              .from('rocks')
+              .upsert(batch, {
+                onConflict: 'rock_code',
+                ignoreDuplicates: false,
+              });
+              
+            if (error) {
+              console.error('Error inserting rocks batch:', error);
+              errorCount += batch.length;
+              errorDetails.push({
+                batchStart: i,
+                batchEnd: i + batch.length - 1,
+                error: error.message
+              });
+              
+              // Instead of failing the entire import, log the error and continue
+              console.log(`Skipping batch ${Math.floor(i/BATCH_SIZE) + 1} due to error`);
+            } else {
+              successCount += batch.length;
+              console.log(`Successfully imported ${successCount} of ${rocks.length} rocks so far`);
+            }
+          } catch (batchError: any) {
+            console.error(`Error processing batch ${Math.floor(i/BATCH_SIZE) + 1}:`, batchError);
+            errorCount += batch.length;
+            errorDetails.push({
+              batchStart: i,
+              batchEnd: i + batch.length - 1,
+              error: batchError.message
+            });
+          }
+          
+          // Add a small delay between batches to avoid overwhelming the database
+          await new Promise(resolve => setTimeout(resolve, 300));
         }
         
-        successCount += batch.length;
-        console.log(`Successfully imported ${successCount} of ${rocks.length} rocks so far`);
+        // Even if some batches failed, return success with details
+        return res.status(201).json({
+          success: successCount > 0,
+          message: `Processed ${rocks.length} rocks: ${successCount} successful, ${errorCount} failed`,
+          counts: sheetCounts,
+          totalFound: rocks.length,
+          successCount,
+          errorCount,
+          errorDetails: errorDetails.length > 0 ? errorDetails : undefined
+        });
+      } catch (error: any) {
+        console.error('Import rocks error:', error);
+        return res.status(500).json({
+          success: false,
+          message: error.message || 'Internal server error',
+          details: error
+        });
       }
-
-      return res.status(201).json({
-        success: true,
-        message: `Successfully imported ${successCount} rocks from default file`,
-        counts: sheetCounts,
-        totalFound: rocks.length
-      });
     } else {
       return res.status(400).json({
         success: false,
@@ -855,199 +905,66 @@ export const importRocksDirectly = async (req: Request, res: Response) => {
     
     console.log(`Received direct import request with ${rocksData.length} rocks`);
     
-    // Track success and failure counts
-    let totalProcessed = 0;
-    let failedItems = 0;
-    let errors: any[] = [];
-    
-    // Enhanced debugging - log sample of incoming data
-    if (rocksData.length > 0) {
-      console.log('Sample rock data for debugging:');
-      const sampleRock = rocksData[0];
-      console.log(JSON.stringify({
-        name: sampleRock.name,
-        rock_code: sampleRock.rock_code,
-        category: sampleRock.category,
-        type: sampleRock.type,
-        // Fields that are often missing
-        sorting: sampleRock.sorting,
-        bedding: sampleRock.bedding,
-        roundness: sampleRock.roundness,
-        fossil_content: sampleRock.fossil_content,
-        sediment_source: sampleRock.sediment_source,
-        grain_size: sampleRock.grain_size,
-        depositional_environment: sampleRock.depositional_environment,
-        texture: sampleRock.texture
-      }, null, 2));
-    }
-    
-    // Process each rock individually to avoid transaction failures
-    for (const rockData of rocksData) {
-      try {
-        // Ensure category is properly set
-        if (!rockData.category) {
-          rockData.category = 'Unknown';
-        }
-        
-        // Ensure rock code is present and clean
-        if (!rockData.rock_code || rockData.rock_code.trim() === '') {
-          // Generate a default rock code if missing
-          const prefix = rockData.category === 'Igneous' ? 'I-' : 
-                       rockData.category === 'Sedimentary' ? 'S-' :
-                       rockData.category === 'Metamorphic' ? 'M-' : 'O-';
-          
-          rockData.rock_code = `${prefix}${String(Math.floor(Math.random() * 9000) + 1000)}`;
-        }
-        
-        // Clean rock code (remove spaces)
-        rockData.rock_code = rockData.rock_code.replace(/\s+/g, '');
-        
-        // Add proper defaults for missing fields based on category
-        if (rockData.category === 'Sedimentary') {
-          // Ensure critical sedimentary fields have at least empty string values
-          rockData.bedding = rockData.bedding || '';
-          rockData.sorting = rockData.sorting || '';
-          rockData.roundness = rockData.roundness || '';
-          rockData.fossil_content = rockData.fossil_content || '';
-          rockData.sediment_source = rockData.sediment_source || '';
-          rockData.grain_size = rockData.grain_size || '';
-          rockData.depositional_environment = rockData.depositional_environment || '';
-        } else if (rockData.category === 'Igneous') {
-          rockData.silica_content = rockData.silica_content || '';
-          rockData.cooling_rate = rockData.cooling_rate || '';
-          rockData.mineral_content = rockData.mineral_content || '';
-        } else if (rockData.category === 'Metamorphic') {
-          rockData.metamorphism_type = rockData.metamorphism_type || '';
-          rockData.metamorphic_grade = rockData.metamorphic_grade || '';
-          rockData.parent_rock = rockData.parent_rock || '';
-          rockData.foliation = rockData.foliation || '';
-          rockData.foliation_type = rockData.foliation_type || '';
-        } else if (rockData.category === 'Ore Samples') {
-          rockData.commodity_type = rockData.commodity_type || '';
-          rockData.ore_group = rockData.ore_group || '';
-          rockData.mining_company = rockData.mining_company || '';
-        }
-        
-        // Ensure common fields have at least empty values
-        rockData.texture = rockData.texture || '';
-        rockData.color = rockData.color || '';
-        rockData.hardness = rockData.hardness || '';
-        rockData.description = rockData.description || '';
-        rockData.locality = rockData.locality || '';
-        rockData.type = rockData.type || '';
-        
-        // Check if a rock with this code already exists
-        const { data: existingRock, error: findError } = await supabase
-          .from('rocks')
-          .select('id, rock_code')
-          .eq('rock_code', rockData.rock_code)
-          .limit(1)
-          .single();
-        
-        if (findError && findError.code !== 'PGRST116') {
-          // PGRST116 means "no rows returned" which is fine - it means no duplicate
-          console.error(`Error checking for existing rock (${rockData.rock_code}):`, findError);
-          errors.push({
-            rock: rockData.rock_code,
-            error: findError.message
-          });
-          failedItems++;
-          continue;
-        }
-        
-        // Log the rock data being inserted/updated
-        console.log(`Processing ${existingRock ? 'update' : 'insert'} for rock ${rockData.rock_code} (${rockData.name})`);
-        
-        if (existingRock) {
-          // Update existing rock
-          const { data: updatedRock, error: updateError } = await supabase
-            .from('rocks')
-            .update(rockData)
-            .eq('id', existingRock.id)
-            .select()
-            .single();
-          
-          if (updateError) {
-            console.error(`Error updating rock (${rockData.rock_code}):`, updateError);
-            errors.push({
-              rock: rockData.rock_code,
-              error: updateError.message,
-              data: JSON.stringify({
-                name: rockData.name,
-                category: rockData.category,
-                type: rockData.type
-              })
-            });
-            failedItems++;
-          } else {
-            console.log(`Updated rock: ${rockData.rock_code}`);
-            totalProcessed++;
-          }
-        } else {
-          // Insert new rock
-          const { data: newRock, error: insertError } = await supabase
-            .from('rocks')
-            .insert(rockData)
-            .select()
-            .single();
-          
-          if (insertError) {
-            console.error(`Error inserting rock (${rockData.rock_code}):`, insertError);
-            errors.push({
-              rock: rockData.rock_code,
-              error: insertError.message,
-              data: JSON.stringify({
-                name: rockData.name,
-                category: rockData.category,
-                type: rockData.type
-              })
-            });
-            failedItems++;
-          } else {
-            console.log(`Inserted new rock: ${rockData.rock_code}`);
-            totalProcessed++;
-          }
-        }
-      } catch (rockError: any) {
-        console.error(`Error processing rock (${rockData.rock_code || 'unknown'}):`, rockError);
-        errors.push({
-          rock: rockData.rock_code || 'unknown',
-          error: rockError.message,
-          data: JSON.stringify({
-            name: rockData.name,
-            category: rockData.category,
-            type: rockData.type
-          })
+    // Try RPC function first for batch insert
+    try {
+      const { data, error } = await supabase.rpc('import_rocks', { rocks_data: rocksData });
+      
+      if (!error) {
+        return res.status(201).json({
+          success: true,
+          message: `Successfully imported ${rocksData.length} rocks using RPC`,
+          totalProcessed: rocksData.length,
+          failedItems: 0
         });
-        failedItems++;
+      } else {
+        console.log('RPC method failed, falling back to direct batch insert:', error);
       }
+    } catch (rpcError) {
+      console.log('RPC not available, using direct batch insert:', rpcError);
     }
     
-    // Log detailed summary
-    console.log(`Import completed: ${totalProcessed} successful, ${failedItems} failed`);
-    if (errors.length > 0) {
-      console.log(`Sample errors (${errors.length} total):`);
-      errors.slice(0, 3).forEach((err, i) => console.log(`Error ${i+1}:`, err));
-    }
-    
-    if (totalProcessed === 0 && errors.length > 0) {
-      // All items failed
+    // Fall back to batch insert
+    try {
+      const BATCH_SIZE = 100;
+      let successCount = 0;
+      
+      for (let i = 0; i < rocksData.length; i += BATCH_SIZE) {
+        const batch = rocksData.slice(i, i + BATCH_SIZE);
+        console.log(`Importing batch ${Math.floor(i/BATCH_SIZE) + 1} of ${Math.ceil(rocksData.length/BATCH_SIZE)}...`);
+        
+        const { data, error } = await supabase
+          .from('rocks')
+          .upsert(batch, {
+            onConflict: 'rock_code',
+            ignoreDuplicates: false,
+          });
+
+        if (error) {
+          console.error('Error inserting rocks batch:', error);
+          return res.status(400).json({
+            success: false,
+            message: `Error: ${error.message}. This may be due to row-level security policies or data format issues.`,
+          });
+        }
+        
+        successCount += batch.length;
+        console.log(`Successfully imported ${successCount} of ${rocksData.length} rocks so far`);
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: `Successfully processed ${successCount} rocks`,
+        totalProcessed: successCount,
+        failedItems: 0
+      });
+    } catch (error: any) {
+      console.error('Error in batch import:', error);
       return res.status(500).json({
         success: false,
-        message: 'Failed to import any rocks',
-        totalProcessed,
-        failedItems,
-        errors: errors.slice(0, 10) // Limit number of errors returned
+        message: `Server error: ${error.message}`,
+        error: error.message
       });
     }
-    
-    return res.status(200).json({
-      success: true,
-      message: `Successfully processed ${totalProcessed} rocks with ${failedItems} failures`,
-      totalProcessed,
-      failedItems,
-      errors: errors.length > 0 ? errors.slice(0, 10) : [] // Limit number of errors returned
-    });
   } catch (error: any) {
     console.error('Error in importRocksDirectly:', error);
     return res.status(500).json({
@@ -1056,4 +973,4 @@ export const importRocksDirectly = async (req: Request, res: Response) => {
       error: error.message
     });
   }
-}; 
+};

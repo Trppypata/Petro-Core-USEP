@@ -3,9 +3,39 @@ import dotenv from 'dotenv'
 import path from 'path'
 
 // Configure dotenv with explicit path to .env file
-const envPath = path.resolve(__dirname, '../../.env');
-console.log('Loading .env file from:', envPath);
-dotenv.config({ path: envPath })
+// Try multiple possible locations for the .env file
+const possiblePaths = [
+  path.resolve(process.cwd(), '.env'),            // Root of the project where npm run is executed
+  path.resolve(__dirname, '../../.env'),          // Server directory
+  path.resolve(__dirname, '../../../.env'),       // Parent directory
+];
+
+console.log('Checking for .env files at:');
+possiblePaths.forEach(p => console.log(` - ${p}`));
+
+// Try each path until we find one that works
+let envLoaded = false;
+for (const envPath of possiblePaths) {
+  if (require('fs').existsSync(envPath)) {
+    console.log(`Found .env file at: ${envPath}`);
+    dotenv.config({ path: envPath });
+    
+    // Check if it loaded correctly
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.log('Successfully loaded environment variables from:', envPath);
+      envLoaded = true;
+      break;
+    } else {
+      console.log('Found .env file at', envPath, 'but it did not contain the required variables');
+    }
+  }
+}
+
+if (!envLoaded) {
+  console.error('Could not find valid .env file with required variables in any of the checked locations');
+  // Instead of immediately failing, let's continue and see if the environment variables
+  // might be set by other means (like system environment variables)
+}
 
 // Debug environment variables
 console.log('Environment variables loaded:');
