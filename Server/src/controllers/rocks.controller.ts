@@ -974,3 +974,51 @@ export const importRocksDirectly = async (req: Request, res: Response) => {
     });
   }
 };
+
+// Get a single rock by ID
+export const getRockById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Rock ID is required',
+      });
+    }
+    
+    console.log(`Fetching rock with ID: ${id}`);
+    
+    const { data, error } = await supabase
+      .from('rocks')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      console.error('Error fetching rock by ID:', error);
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+    
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        message: 'Rock not found',
+      });
+    }
+    
+    return res.status(200).json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    console.error('Get rock by ID error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};

@@ -1,24 +1,25 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Q_KEYS } from '@/shared/qkeys';
+import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { addMineral } from '../services/minerals.service';
 import type { IMineral } from '../mineral.interface';
 
-export function useAddMineral() {
-  const queryClient = useQueryClient();
-
-  const { isPending: isAdding, mutateAsync: addMineralAsync } = useMutation({
-    mutationFn: async (mineralData: Omit<IMineral, 'id'>) => {
-      return await addMineral(mineralData);
+export const useAddMineral = () => {
+  const mutation = useMutation({
+    mutationFn: (mineralData: Omit<IMineral, 'id'>) => {
+      return addMineral(mineralData);
     },
-    onSuccess: (data, variables) => {
-      toast.success(`Success! The ${variables.type} has been added to the database.`);
-      queryClient.invalidateQueries({ 
-        queryKey: [Q_KEYS.MINERALS, variables.category, variables.type] 
-      });
+    onSuccess: () => {
+      toast.success('Mineral added successfully');
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (error: any) => {
+      toast.error(error?.message || 'Failed to add mineral');
+    },
   });
 
-  return { isAdding, addMineral: addMineralAsync };
-} 
+  return {
+    addMineral: mutation.mutate,
+    addMineralAsync: mutation.mutateAsync,
+    isAdding: mutation.isPending,
+    error: mutation.error,
+  };
+}; 

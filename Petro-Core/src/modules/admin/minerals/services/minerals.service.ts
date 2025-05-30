@@ -1,7 +1,17 @@
 import axios from 'axios';
 import type { IMineral } from '../mineral.interface';
+import Cookies from 'js-cookie';
 
 const API_URL = import.meta.env.VITE_local_url || 'http://localhost:8001/api';
+
+// Helper function to get the authentication token
+const getAuthToken = (): string | null => {
+  // Try to get token from multiple possible sources
+  return localStorage.getItem('access_token') || 
+         Cookies.get('access_token') || 
+         localStorage.getItem('token') || 
+         localStorage.getItem('auth_token');
+};
 
 // Get all minerals by category
 export const getMinerals = async (
@@ -70,11 +80,80 @@ export const addMineral = async (
   mineralData: Omit<IMineral, 'id'>
 ): Promise<IMineral> => {
   try {
-    const response = await axios.post(`${API_URL}/minerals`, mineralData);
+    // Get token using the helper function
+    const token = getAuthToken();
+
+    if (!token) {
+      throw new Error('Authentication token not found. Please log in again.');
+    }
+
+    // Set headers with the token for authorization
+    const headers = {
+      Authorization: `Bearer ${token}`
+    };
+
+    console.log('Add mineral headers:', headers);
+    console.log('Add mineral data:', mineralData);
+
+    const response = await axios.post(`${API_URL}/minerals`, mineralData, { headers });
     return response.data.data;
   } catch (error) {
     console.error('Error adding mineral:', error);
     throw new Error('Failed to add mineral. Please try again.');
+  }
+};
+
+// Update a mineral
+export const updateMineral = async (
+  id: string,
+  mineralData: Partial<IMineral>
+): Promise<IMineral> => {
+  try {
+    // Get token using the helper function
+    const token = getAuthToken();
+
+    if (!token) {
+      throw new Error('Authentication token not found. Please log in again.');
+    }
+
+    // Set headers with the token for authorization
+    const headers = {
+      Authorization: `Bearer ${token}`
+    };
+
+    console.log('Update mineral headers:', headers);
+    console.log('Update mineral data:', mineralData);
+
+    const response = await axios.put(`${API_URL}/minerals/${id}`, mineralData, { headers });
+    return response.data.data;
+  } catch (error) {
+    console.error('Error updating mineral:', error);
+    throw new Error('Failed to update mineral. Please try again.');
+  }
+};
+
+// Delete a mineral
+export const deleteMineral = async (id: string): Promise<void> => {
+  try {
+    // Get token using the helper function
+    const token = getAuthToken();
+
+    if (!token) {
+      throw new Error('Authentication token not found. Please log in again.');
+    }
+
+    // Set headers with the token for authorization
+    const headers = {
+      Authorization: `Bearer ${token}`
+    };
+
+    console.log('Delete mineral headers:', headers);
+    console.log('Deleting mineral ID:', id);
+
+    await axios.delete(`${API_URL}/minerals/${id}`, { headers });
+  } catch (error) {
+    console.error('Error deleting mineral:', error);
+    throw new Error('Failed to delete mineral. Please try again.');
   }
 };
 
@@ -146,4 +225,50 @@ const mockAddMineral = (
       resolve(newMineral);
     }, 500);
   });
+};
+
+// Paginated fetch for minerals
+export const fetchMinerals = async (
+  category: string,
+  page: number = 1,
+  pageSize: number = 10
+): Promise<{ data: IMineral[]; pagination: { total: number; page: number; pageSize: number; totalPages: number } }> => {
+  try {
+    let params = new URLSearchParams();
+    if (category && category !== 'ALL') {
+      params.append('category', category);
+    }
+    params.append('page', page.toString());
+    params.append('pageSize', pageSize.toString());
+    const url = `${API_URL}/minerals?${params.toString()}`;
+    
+    // Get the authentication token
+    const token = getAuthToken();
+    
+    // Set up request headers with authentication
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    
+    console.log('Fetch minerals headers:', headers);
+    console.log('Fetch minerals URL:', url);
+    
+    const response = await axios.get(url, { headers });
+    
+    if (!response.data || !response.data.data) {
+      return { data: [], pagination: { total: 0, page, pageSize, totalPages: 0 } };
+    }
+    const minerals = response.data.data || [];
+    const pagination = response.data.pagination || {
+      total: minerals.length,
+      page,
+      pageSize,
+      totalPages: Math.ceil(minerals.length / pageSize)
+    };
+    return { data: minerals, pagination };
+  } catch (error) {
+    console.error('Error fetching minerals:', error);
+    throw new Error('Failed to fetch minerals from the database');
+  }
 }; 

@@ -15,6 +15,7 @@ import studentRoutes from './routes/student.routes';
 import userRoutes from './routes/users.routes';
 import mineralsRoutes from './routes/minerals.routes';
 import rocksRoutes from './routes/rocks.routes';
+import { setupStorageBuckets } from './config/setup-storage';
 
 // Create Express app
 const app = express();
@@ -39,6 +40,11 @@ app.use('/api/rocks', rocksRoutes);
 // Health check route
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Server is running' });
+});
+
+// Initialize Supabase storage buckets
+setupStorageBuckets().catch(err => {
+  console.error('Error setting up storage buckets:', err);
 });
 
 // Start server

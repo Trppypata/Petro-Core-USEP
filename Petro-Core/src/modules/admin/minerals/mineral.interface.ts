@@ -14,6 +14,15 @@ export interface IMineral {
   crystal_system?: string;
   category: string; // For categorizing into BORATES, SULFATES, etc.
   type: 'mineral' | 'rock'; // To differentiate between minerals and rocks
+  // Additional properties
+  image_url?: string;
+  specific_gravity?: string;
+  transparency?: string;
+  occurrence?: string;
+  uses?: string;
+  // Database fields
+  created_at?: string;
+  updated_at?: string;
 }
 
 export type MineralCategory = 

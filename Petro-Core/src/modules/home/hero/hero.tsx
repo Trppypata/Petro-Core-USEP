@@ -29,7 +29,7 @@ const HeroSection = () => {
          
           </Link>
 
-          <Link to="/field-works" className="">
+          <Link to="/rock-minerals" className="">
           <div className="flex flex-col">
             <div className=" h-[300px] rounded-3xl overflow-hidden mb-6">
               <img

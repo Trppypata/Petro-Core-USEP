@@ -8,7 +8,7 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { Search, Image as ImageIcon, Edit, Trash2 } from 'lucide-react';
+import { Search, Image as ImageIcon, Edit, Trash2, Eye, PlusCircleIcon } from 'lucide-react';
 import { Spinner } from '@/components/spinner';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -39,6 +39,17 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useDeleteRock } from './hooks/useDeleteRock';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 
 interface RocksListProps {
   category: RockCategory | string;
@@ -54,6 +65,10 @@ const RocksList = ({
   const [internalSearchTerm, setInternalSearchTerm] = useState('');
   const [selectedRock, setSelectedRock] = useState<IRock | null>(null);
   const [activeTab, setActiveTab] = useState('details');
+  const [rockToEdit, setRockToEdit] = useState<IRock | null>(null);
+  const [rockToDelete, setRockToDelete] = useState<IRock | null>(null);
+  const [rockToView, setRockToView] = useState<IRock | null>(null);
+  const [isAddOpen, setIsAddOpen] = useState(false);
   
   // Use external search term if provided, otherwise use internal
   const searchTerm = externalSearchTerm !== undefined ? externalSearchTerm : internalSearchTerm;
@@ -67,6 +82,8 @@ const RocksList = ({
     setPage, 
     setPageSize 
   } = useReadRocks(category);
+  
+  const { mutateAsync: deleteRockAsync, isDeleting } = useDeleteRock();
   
   // Debug logs to help diagnose issues
   useEffect(() => {
@@ -138,6 +155,27 @@ const RocksList = ({
     setPageSize(newPageSize);
     // Reset to first page when changing page size
     setPage(1);
+  };
+  
+  const handleEdit = (rock: IRock) => setRockToEdit(rock);
+  const handleCloseEdit = () => setRockToEdit(null);
+  const handleDelete = async () => {
+    if (!rockToDelete || !rockToDelete.id) return;
+    try {
+      await deleteRockAsync(rockToDelete.id);
+      setRockToDelete(null);
+    } catch (error) {
+      setRockToDelete(null);
+    }
+  };
+  const handleView = (rock: IRock) => setRockToView(rock);
+  
+  const handleAddSuccess = () => {
+    setIsAddOpen(false);
+    // Refetch rocks after adding
+    if (typeof window !== 'undefined') {
+      window.location.reload(); // fallback if no refetch method
+    }
   };
   
   const renderTableContent = () => {
@@ -322,6 +360,35 @@ const RocksList = ({
         <TableCell>{rock.reaction_to_hcl || '-'}</TableCell>
         {category === 'Metamorphic' && <TableCell>{rock.foliation_type || '-'}</TableCell>}
         {category === 'Igneous' && <TableCell>{rock.origin || '-'}</TableCell>}
+        <TableCell>
+          <div className="flex space-x-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={e => { e.stopPropagation(); handleView(rock); }}
+              title="View details"
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={e => { e.stopPropagation(); handleEdit(rock); }}
+              title="Edit rock"
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={e => { e.stopPropagation(); setRockToDelete(rock); }}
+              className="text-destructive hover:text-destructive"
+              title="Delete rock"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </TableCell>
       </TableRow>
     ));
   };
@@ -329,9 +396,9 @@ const RocksList = ({
   return (
     <div className="space-y-4">
       {!hideControls && (
-        <div className="flex items-center space-x-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center space-x-2">
+            <Search className="w-5 h-5 text-muted-foreground" />
             <Input
               type="search"
               placeholder="Search rocks by name, type, color..."
@@ -340,6 +407,10 @@ const RocksList = ({
               onChange={handleSearchChange}
             />
           </div>
+          <Button className="h-8 gap-1" size="sm" variant="default" onClick={() => setIsAddOpen(true)}>
+            <PlusCircleIcon className="h-3.5 w-3.5" />
+            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Add Rock</span>
+          </Button>
         </div>
       )}
       
@@ -435,6 +506,7 @@ const RocksList = ({
               <TableHead>Reaction to HCl</TableHead>
               {category === 'Metamorphic' && <TableHead>Foliation Type</TableHead>}
               {category === 'Igneous' && <TableHead>Origin</TableHead>}
+              <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -489,62 +561,58 @@ const RocksList = ({
         </div>
       </div>
       
-      {selectedRock && (
-        <Dialog open={!!selectedRock} onOpenChange={(open) => !open && setSelectedRock(null)}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      {/* Edit Rock Dialog */}
+      {rockToEdit && (
+        <Dialog open={!!rockToEdit} onOpenChange={open => !open && setRockToEdit(null)}>
+          <DialogContent className="sm:max-w-[625px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{selectedRock.name}</DialogTitle>
+              <DialogTitle>Edit Rock: {rockToEdit.name}</DialogTitle>
             </DialogHeader>
-            
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid grid-cols-2">
-                <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="image">Image</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="details" className="mt-4">
-                <RockContentForm rock={selectedRock} readOnly />
-              </TabsContent>
-              
-              <TabsContent value="image" className="mt-4">
-                {selectedRock.image_url ? (
-                  <div className="flex justify-center">
-                    <img 
-                      src={selectedRock.image_url} 
-                      alt={selectedRock.name}
-                      className="max-h-[60vh] object-contain rounded-md"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-[60vh] bg-gray-100 rounded-md">
-                    <ImageIcon className="w-16 h-16 text-gray-400" />
-                    <p className="mt-4 text-gray-500">No image available</p>
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
-            
-            <div className="flex justify-end space-x-2 mt-4">
-              <DialogClose asChild>
-                <Button variant="outline">Close</Button>
-              </DialogClose>
-              
-              {!hideControls && (
-                <>
-                  <Button variant="outline" className="flex items-center space-x-1">
-                    <Edit className="w-4 h-4" />
-                    <span>Edit</span>
-                  </Button>
-                  <Button variant="destructive" className="flex items-center space-x-1">
-                    <Trash2 className="w-4 h-4" />
-                    <span>Delete</span>
-                  </Button>
-                </>
-              )}
-            </div>
+            <RockContentForm
+              rock={rockToEdit}
+              onClose={handleCloseEdit}
+              inDialog={true}
+            />
           </DialogContent>
         </Dialog>
       )}
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!rockToDelete} onOpenChange={open => !open && setRockToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the rock{' '}
+              <span className="font-semibold">{rockToDelete?.name}</span>.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
+              {isDeleting && <Spinner className="mr-2 h-4 w-4" />}Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* View Rock Dialog */}
+      <Dialog open={!!rockToView} onOpenChange={open => !open && setRockToView(null)}>
+        <DialogContent className="sm:max-w-[625px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{rockToView?.name}</DialogTitle>
+          </DialogHeader>
+          <RockContentForm rock={rockToView!} readOnly />
+        </DialogContent>
+      </Dialog>
+      {/* Add Rock Dialog */}
+      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        <DialogContent className="sm:max-w-[625px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New Rock</DialogTitle>
+          </DialogHeader>
+          <RockContentForm onClose={handleAddSuccess} inDialog={true} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

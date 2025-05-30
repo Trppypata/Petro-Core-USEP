@@ -8,7 +8,8 @@ import {
   deleteRock,
   getRockStats,
   importDefaultRocks,
-  importRocksDirectly
+  importRocksDirectly,
+  getRockById
 } from '../controllers/rocks.controller';
 import { verifyToken } from '../middleware/auth.middleware';
 
@@ -35,10 +36,11 @@ const upload = multer({
 // Routes
 // Public routes (no authentication required)
 router.get('/', getAllRocks);
+router.get('/:id', getRockById);
 router.get('/stats', getRockStats);
 router.post('/import', upload.single('file'), importRocksFromExcel); // Import without auth
-router.post('/import-default', importDefaultRocks); // Import from default excel file
-router.post('/import-direct', importRocksDirectly);
+router.post('/import-directly', importRocksDirectly);
+router.post('/import-default', importDefaultRocks);
 
 // Protected routes (authentication required)
 router.post('/', verifyToken, addRock);

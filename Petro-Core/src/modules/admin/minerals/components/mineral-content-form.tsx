@@ -16,9 +16,10 @@ import { Q_KEYS } from '@/shared/qkeys';
 
 interface MineralContentFormProps {
   category?: MineralCategory;
+  onSuccess?: () => void;
 }
 
-const MineralContentForm = ({ category }: MineralContentFormProps = {}) => {
+const MineralContentForm = ({ category, onSuccess }: MineralContentFormProps) => {
   const { isAdding } = useAddMineral();
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,6 +27,29 @@ const MineralContentForm = ({ category }: MineralContentFormProps = {}) => {
 
   const handleClose = () => {
     setIsOpen(false);
+    // Refresh the minerals data when closing the form
+    if (onSuccess) {
+      onSuccess();
+    } else {
+      // Refetch all minerals data with the current category
+      queryClient.invalidateQueries({ 
+        queryKey: [Q_KEYS.MINERALS, category] 
+      });
+      
+      // Display success message
+      toast.success('Minerals list refreshed');
+    }
+  };
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    // This is just to show the loading state, the actual submission happens in the form
+    try {
+      // Wait for the form submission to complete
+      await new Promise(resolve => setTimeout(resolve, 500));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -63,7 +87,7 @@ const MineralContentForm = ({ category }: MineralContentFormProps = {}) => {
             <Button variant="outline" onClick={handleClose} type="button">
               Cancel
             </Button>
-            <Button type="submit" form="mineral-form" disabled={isSubmitting || isAdding}>
+            <Button type="submit" form="mineral-form" disabled={isSubmitting || isAdding} onClick={handleSubmit}>
               {(isSubmitting || isAdding) && <span className="mr-2 h-4 w-4 animate-spin">◌</span>}
               Save Mineral
             </Button>

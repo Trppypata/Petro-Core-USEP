@@ -329,12 +329,15 @@ export const importDefaultMinerals = async (_req: Request, res: Response) => {
 // Fetch all minerals
 export const getAllMinerals = async (req: Request, res: Response) => {
   try {
-    // Get the category from query parameters
-    const { category } = req.query;
-    console.log('Fetching minerals with category filter:', category);
+    // Get the category and pagination parameters from query parameters
+    const { category, page = '1', pageSize = '10' } = req.query;
+    const pageNum = parseInt(page as string, 10);
+    const pageSizeNum = parseInt(pageSize as string, 10);
+    
+    console.log('Fetching minerals with params:', { category, page: pageNum, pageSize: pageSizeNum });
     
     // Build the query
-    let query = supabase.from('minerals').select('*');
+    let query = supabase.from('minerals').select('*', { count: 'exact' });
     
     // Apply category filter if provided
     if (category && category !== 'ALL') {
@@ -343,8 +346,28 @@ export const getAllMinerals = async (req: Request, res: Response) => {
       console.log(`Filtering minerals by category: ${category} (case-insensitive)`);
     }
     
-    // Execute the query with ordering
-    const { data, error } = await query.order('mineral_name', { ascending: true });
+    // Get total count first
+    const { count, error: countError } = await query;
+    
+    if (countError) {
+      return res.status(400).json({
+        success: false,
+        message: countError.message,
+      });
+    }
+    
+    // Calculate pagination values
+    const total = count || 0;
+    const totalPages = Math.ceil(total / pageSizeNum);
+    
+    // Apply pagination
+    const from = (pageNum - 1) * pageSizeNum;
+    const to = from + pageSizeNum - 1;
+    
+    // Execute the query with ordering and pagination
+    const { data, error } = await query
+      .order('mineral_name', { ascending: true })
+      .range(from, to);
 
     if (error) {
       return res.status(400).json({
@@ -369,9 +392,16 @@ export const getAllMinerals = async (req: Request, res: Response) => {
       console.log('No minerals found with the provided criteria');
     }
 
+    // Return paginated response
     return res.status(200).json({
       success: true,
       data,
+      pagination: {
+        total,
+        page: pageNum,
+        pageSize: pageSizeNum,
+        totalPages
+      }
     });
   } catch (error) {
     console.error('Fetch minerals error:', error);
@@ -476,6 +506,54 @@ export const deleteMineral = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Delete mineral error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+// Get a single mineral by ID
+export const getMineralById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mineral ID is required',
+      });
+    }
+    
+    console.log(`Fetching mineral with ID: ${id}`);
+    
+    const { data, error } = await supabase
+      .from('minerals')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      console.error('Error fetching mineral by ID:', error);
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+    
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        message: 'Mineral not found',
+      });
+    }
+    
+    return res.status(200).json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    console.error('Get mineral by ID error:', error);
     return res.status(500).json({
       success: false,
       message: 'Internal server error',

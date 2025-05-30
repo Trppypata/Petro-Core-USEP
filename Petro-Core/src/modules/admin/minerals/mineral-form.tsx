@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -13,16 +13,21 @@ import {
   FormLabel,
   FormMessage
 } from '@/components/ui/form';
-import type { MineralCategory } from './mineral.interface';
+import type { MineralCategory, IMineral } from './mineral.interface';
 import { useAddMineral } from './hooks/useAddMineral';
 import { Spinner } from '@/components/spinner';
 
 interface MineralFormProps {
   category?: MineralCategory;
-  onClose: () => void;
+  onClose?: () => void;
+  onSubmit?: (data: Partial<IMineral>) => Promise<void>;
   inDialog?: boolean;
   inSheet?: boolean;
   hideButtons?: boolean;
+  mode?: 'add' | 'edit';
+  defaultValues?: Partial<IMineral>;
+  isLoading?: boolean;
+  onCancel?: () => void;
 }
 
 // Schema for mineral form validation
@@ -46,16 +51,34 @@ type FormValues = z.infer<typeof formSchema>;
 const MineralForm = ({ 
   category, 
   onClose, 
+  onSubmit: externalSubmit,
   inDialog = false, 
   inSheet = false, 
-  hideButtons = false 
+  hideButtons = false,
+  mode = 'add',
+  defaultValues,
+  isLoading: externalLoading,
+  onCancel
 }: MineralFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { addMineral, isAdding } = useAddMineral();
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
+    defaultValues: defaultValues ? {
+      mineral_code: defaultValues.mineral_code || '',
+      mineral_name: defaultValues.mineral_name || '',
+      chemical_formula: defaultValues.chemical_formula || '',
+      mineral_group: defaultValues.mineral_group || '',
+      color: defaultValues.color || '',
+      streak: defaultValues.streak || '',
+      luster: defaultValues.luster || '',
+      hardness: defaultValues.hardness || '',
+      cleavage: defaultValues.cleavage || '',
+      fracture: defaultValues.fracture || '',
+      habit: defaultValues.habit || '',
+      crystal_system: defaultValues.crystal_system || '',
+    } : {
       mineral_code: '',
       mineral_name: '',
       chemical_formula: '',
@@ -71,20 +94,62 @@ const MineralForm = ({
     },
   });
   
+  useEffect(() => {
+    if (defaultValues) {
+      form.reset({
+        mineral_code: defaultValues.mineral_code || '',
+        mineral_name: defaultValues.mineral_name || '',
+        chemical_formula: defaultValues.chemical_formula || '',
+        mineral_group: defaultValues.mineral_group || '',
+        color: defaultValues.color || '',
+        streak: defaultValues.streak || '',
+        luster: defaultValues.luster || '',
+        hardness: defaultValues.hardness || '',
+        cleavage: defaultValues.cleavage || '',
+        fracture: defaultValues.fracture || '',
+        habit: defaultValues.habit || '',
+        crystal_system: defaultValues.crystal_system || '',
+      });
+    }
+  }, [defaultValues, form]);
+  
   const onSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
     try {
-      await addMineral({
-        ...values,
-        category: category || 'BORATES',
-        type: 'mineral',
-      });
-      form.reset();
-      onClose();
+      if (externalSubmit) {
+        // For edit mode, use the external submit function
+        await externalSubmit(values);
+      } else {
+        // For add mode, use the addMineral function
+        await addMineral({
+          ...values,
+          category: category || 'BORATES',
+          type: 'mineral',
+        });
+        form.reset();
+      }
+      
+      // Close the form after successful submission
+      if (onClose) onClose();
     } catch (error) {
-      console.error('Error adding mineral:', error);
+      console.error(`Error ${mode === 'add' ? 'adding' : 'updating'} mineral:`, error);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Determine if loading state should come from external props or internal state
+  const isLoading = externalLoading !== undefined ? externalLoading : (mode === 'add' ? isAdding : isSubmitting);
+  
+  // Determine the action text based on the mode
+  const actionText = mode === 'add' ? 'Save' : 'Update';
+  
+  // Handle cancel button
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+    } else if (onClose) {
+      onClose();
     }
   };
 
@@ -279,12 +344,12 @@ const MineralForm = ({
         
         {!hideButtons && (
           <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={onClose} type="button">
+            <Button variant="outline" onClick={handleCancel} type="button">
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || isAdding}>
-              {(isSubmitting || isAdding) && <Spinner className="mr-2 h-4 w-4" />}
-              Save
+            <Button type="submit" disabled={isLoading}>
+              {isLoading && <Spinner className="mr-2 h-4 w-4" />}
+              {actionText}
             </Button>
           </div>
         )}
@@ -303,7 +368,7 @@ const MineralForm = ({
   return inDialog ? formContent : (
     <div className="w-full mb-6 border rounded-lg p-6">
       <h3 className="text-lg font-semibold mb-4">
-        Add New Mineral {category ? `to ${category}` : ''}
+        {mode === 'add' ? 'Add New' : 'Edit'} Mineral {category ? `to ${category}` : ''}
       </h3>
       {formContent}
     </div>

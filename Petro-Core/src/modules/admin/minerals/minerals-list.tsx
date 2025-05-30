@@ -8,11 +8,40 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { Search } from 'lucide-react';
+import { Search, Edit, Trash2, Eye } from 'lucide-react';
 import { Spinner } from '@/components/spinner';
 import type { IMineral, MineralCategory } from './mineral.interface';
 import { useReadMinerals } from './hooks/useReadMinerals';
-import { MineralContentForm } from './components';
+import { MineralContentForm, MineralEditForm } from './components';
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useDeleteMineral } from './hooks/useDeleteMineral';
+import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface MineralsListProps {
   category: MineralCategory | string;
@@ -26,12 +55,16 @@ const MineralsList = ({
   hideControls = false 
 }: MineralsListProps) => {
   const [internalSearchTerm, setInternalSearchTerm] = useState('');
+  const [mineralToEdit, setMineralToEdit] = useState<IMineral | null>(null);
+  const [mineralToDelete, setMineralToDelete] = useState<IMineral | null>(null);
+  const [mineralToView, setMineralToView] = useState<IMineral | null>(null);
+  const { mutateAsync: deleteMineralAsync, isPending: isDeleting } = useDeleteMineral();
   
   // Use external search term if provided, otherwise use internal
   const searchTerm = externalSearchTerm !== undefined ? externalSearchTerm : internalSearchTerm;
   
   // This will be implemented in the hooks folder
-  const { data: minerals, isLoading, error } = useReadMinerals(category);
+  const { data: minerals, isLoading, error, pagination, setPage, setPageSize, refetch } = useReadMinerals(category);
   
   // Enhanced debugging for minerals data
   useEffect(() => {
@@ -84,12 +117,54 @@ const MineralsList = ({
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInternalSearchTerm(e.target.value);
   };
+
+  const handleEdit = (mineral: IMineral) => {
+    setMineralToEdit(mineral);
+  };
+
+  const handleCloseEdit = () => {
+    setMineralToEdit(null);
+    refetch();
+  };
+
+  const handleDelete = async () => {
+    if (!mineralToDelete || !mineralToDelete.id) return;
+    
+    try {
+      await deleteMineralAsync(mineralToDelete.id);
+      toast.success(`${mineralToDelete.mineral_name} has been removed successfully.`);
+      refetch();
+    } catch (error) {
+      console.error('Error deleting mineral:', error);
+      toast.error("Failed to delete mineral. Please try again.");
+    } finally {
+      setMineralToDelete(null);
+    }
+  };
+
+  const handleView = (mineral: IMineral) => {
+    setMineralToView(mineral);
+  };
+  
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    const tableElement = document.getElementById('minerals-table');
+    if (tableElement) {
+      tableElement.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handlePageSizeChange = (value: string) => {
+    const newPageSize = parseInt(value, 10);
+    setPageSize(newPageSize);
+    setPage(1);
+  };
   
   const renderTableContent = () => {
     if (isLoading) {
       return (
         <TableRow>
-          <TableCell colSpan={13} className="h-24 text-center">
+          <TableCell colSpan={14} className="h-24 text-center">
             <Spinner className="mx-auto" />
             <span className="sr-only">Loading minerals...</span>
           </TableCell>
@@ -101,7 +176,7 @@ const MineralsList = ({
       console.error('Error loading minerals:', error);
       return (
         <TableRow>
-          <TableCell colSpan={13} className="h-24 text-center text-red-500">
+          <TableCell colSpan={14} className="h-24 text-center text-red-500">
             Error loading minerals: {error.message || 'Please try again later.'}
           </TableCell>
         </TableRow>
@@ -112,7 +187,7 @@ const MineralsList = ({
       console.warn('No minerals data received');
       return (
         <TableRow>
-          <TableCell colSpan={13} className="h-24 text-center">
+          <TableCell colSpan={14} className="h-24 text-center">
             No minerals data available.
           </TableCell>
         </TableRow>
@@ -123,7 +198,7 @@ const MineralsList = ({
       console.warn('Minerals data is not an array:', minerals);
       return (
         <TableRow>
-          <TableCell colSpan={13} className="h-24 text-center">
+          <TableCell colSpan={14} className="h-24 text-center">
             Invalid minerals data format.
           </TableCell>
         </TableRow>
@@ -135,7 +210,7 @@ const MineralsList = ({
     if (filteredMinerals.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={13} className="h-24 text-center">
+          <TableCell colSpan={14} className="h-24 text-center">
             No minerals found{category !== 'ALL' ? ` in ${category}` : ''}.
           </TableCell>
         </TableRow>
@@ -156,6 +231,35 @@ const MineralsList = ({
         <TableCell>{mineral.fracture}</TableCell>
         <TableCell>{mineral.habit}</TableCell>
         <TableCell>{mineral.crystal_system}</TableCell>
+        <TableCell>
+          <div className="flex space-x-2">
+            <Button
+              variant="outline" 
+              size="icon" 
+              onClick={() => handleView(mineral)}
+              title="View details"
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => handleEdit(mineral)}
+              title="Edit mineral"
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => setMineralToDelete(mineral)}
+              className="text-destructive hover:text-destructive"
+              title="Delete mineral"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </TableCell>
       </TableRow>
     ));
   };
@@ -173,12 +277,12 @@ const MineralsList = ({
               className="w-64"
             />
           </div>
-          <MineralContentForm category={category as MineralCategory} />
+          <MineralContentForm category={category as MineralCategory} onSuccess={() => refetch()} />
         </div>
       )}
       
       <div className="rounded-md border">
-        <Table>
+        <Table id="minerals-table">
           <TableHeader>
             <TableRow>
               <TableHead>Code</TableHead>
@@ -193,6 +297,7 @@ const MineralsList = ({
               <TableHead>Fracture</TableHead>
               <TableHead>Habit</TableHead>
               <TableHead>Crystal System</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -200,6 +305,140 @@ const MineralsList = ({
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination Controls */}
+      <div className="flex items-center justify-between mt-4">
+        <div className="flex items-center space-x-2">
+          <p className="text-sm text-gray-500">
+            Showing page {pagination.page} of {pagination.totalPages} ({pagination.total} total minerals)
+          </p>
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-500">Rows per page:</span>
+            <Select
+              value={pagination.pageSize.toString()}
+              onValueChange={handlePageSizeChange}
+            >
+              <SelectTrigger className="h-8 w-[70px]">
+                <SelectValue placeholder={pagination.pageSize.toString()} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5</SelectItem>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            onClick={() => pagination.page > 1 && handlePageChange(pagination.page - 1)}
+            disabled={pagination.page <= 1}
+            size="sm"
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => pagination.page < pagination.totalPages && handlePageChange(pagination.page + 1)}
+            disabled={pagination.page >= pagination.totalPages}
+            size="sm"
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+
+      {/* Edit Mineral Dialog */}
+      {mineralToEdit && (
+        <MineralEditForm 
+          mineral={mineralToEdit} 
+          onClose={handleCloseEdit}
+          category={category as MineralCategory}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!mineralToDelete} onOpenChange={(open) => !open && setMineralToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the mineral{' '}
+              <span className="font-semibold">{mineralToDelete?.mineral_name}</span>.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
+              {isDeleting && <Spinner className="mr-2 h-4 w-4" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* View Mineral Dialog */}
+      <Dialog open={!!mineralToView} onOpenChange={(open) => !open && setMineralToView(null)}>
+        <DialogContent className="sm:max-w-[625px]">
+          <DialogHeader>
+            <DialogTitle>{mineralToView?.mineral_name}</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-4">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Code</p>
+              <p className="text-sm">{mineralToView?.mineral_code}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Chemical Formula</p>
+              <p className="text-sm">{mineralToView?.chemical_formula || 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Group</p>
+              <p className="text-sm">{mineralToView?.mineral_group}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Category</p>
+              <p className="text-sm">{mineralToView?.category}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Color</p>
+              <p className="text-sm">{mineralToView?.color || 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Streak</p>
+              <p className="text-sm">{mineralToView?.streak || 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Luster</p>
+              <p className="text-sm">{mineralToView?.luster || 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Hardness</p>
+              <p className="text-sm">{mineralToView?.hardness || 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Cleavage</p>
+              <p className="text-sm">{mineralToView?.cleavage || 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Fracture</p>
+              <p className="text-sm">{mineralToView?.fracture || 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Habit</p>
+              <p className="text-sm">{mineralToView?.habit || 'N/A'}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Crystal System</p>
+              <p className="text-sm">{mineralToView?.crystal_system || 'N/A'}</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

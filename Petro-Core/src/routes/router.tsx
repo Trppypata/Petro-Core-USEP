@@ -5,6 +5,9 @@ import DashboardPage from "@/modules/admin/dashboard/dashboard.page";
 import LoginPage from "@/modules/auth/login.page";
 import RegisterPage from "@/modules/auth/register.page";
 import ProtectedRoute from "@/components/protected-route";
+import RockMinerals from "@/modules/home/rocks-minerals/rocks-minerals-page";
+import RockDetailView from "@/modules/home/rocks-minerals/rock-detail-view";
+import MineralDetailView from "@/modules/home/rocks-minerals/mineral-detail-view";
 import { AdminGuard, StudentGuard } from "@/components/role-guard";
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import type { ReactNode } from "react";
@@ -31,6 +34,20 @@ const router = createBrowserRouter([
         path: "/",
         Component: HeroSection,
       },
+
+      {
+        path: "rock-minerals",
+        Component: RockMinerals,
+      },
+      {
+        path: "rock-minerals/rock/:id",
+        Component: RockDetailView,
+      },
+      {
+        path: "rock-minerals/mineral/:id",
+        Component: MineralDetailView,
+      },
+      
     ]
   },
   // Auth routes

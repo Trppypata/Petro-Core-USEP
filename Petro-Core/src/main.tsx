@@ -12,7 +12,7 @@ const queryClient = new QueryClient()
 createRoot(document.getElementById('root')!).render(
   <StrictMode> 
     <QueryClientProvider client={queryClient}>
-      <Toaster richColors /> 
+      <Toaster richColors position="bottom-right" /> 
       <div className="E5E5E5">
         <RouterProvider router={router} />
       </div>
