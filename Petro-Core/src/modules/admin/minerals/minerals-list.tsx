@@ -27,11 +27,12 @@ import {
 import { useDeleteMineral } from './hooks/useDeleteMineral';
 import { toast } from 'sonner';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from "@/components/ui/sheet";
 import {
   Pagination,
   PaginationContent,
@@ -382,63 +383,75 @@ const MineralsList = ({
       </AlertDialog>
 
       {/* View Mineral Dialog */}
-      <Dialog open={!!mineralToView} onOpenChange={(open) => !open && setMineralToView(null)}>
-        <DialogContent className="sm:max-w-[625px]">
-          <DialogHeader>
-            <DialogTitle>{mineralToView?.mineral_name}</DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 py-4">
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Code</p>
-              <p className="text-sm">{mineralToView?.mineral_code}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Chemical Formula</p>
-              <p className="text-sm">{mineralToView?.chemical_formula || 'N/A'}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Group</p>
-              <p className="text-sm">{mineralToView?.mineral_group}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Category</p>
-              <p className="text-sm">{mineralToView?.category}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Color</p>
-              <p className="text-sm">{mineralToView?.color || 'N/A'}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Streak</p>
-              <p className="text-sm">{mineralToView?.streak || 'N/A'}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Luster</p>
-              <p className="text-sm">{mineralToView?.luster || 'N/A'}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Hardness</p>
-              <p className="text-sm">{mineralToView?.hardness || 'N/A'}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Cleavage</p>
-              <p className="text-sm">{mineralToView?.cleavage || 'N/A'}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Fracture</p>
-              <p className="text-sm">{mineralToView?.fracture || 'N/A'}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Habit</p>
-              <p className="text-sm">{mineralToView?.habit || 'N/A'}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Crystal System</p>
-              <p className="text-sm">{mineralToView?.crystal_system || 'N/A'}</p>
+      <Sheet open={!!mineralToView} onOpenChange={(open) => !open && setMineralToView(null)}>
+        <SheetContent className="p-0 flex flex-col h-full md:max-w-[40rem]">
+          <SheetHeader className="py-4 bg-overlay-bg border-b border-overlay-border px-6 flex-shrink-0">
+            <SheetTitle>{mineralToView?.mineral_name}</SheetTitle>
+            <p className="text-xs text-muted-foreground">
+              {mineralToView?.category} | Code: {mineralToView?.mineral_code}
+            </p>
+          </SheetHeader>
+          
+          <div className="flex-grow overflow-y-auto p-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Code</p>
+                <p className="text-sm">{mineralToView?.mineral_code}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Chemical Formula</p>
+                <p className="text-sm">{mineralToView?.chemical_formula || 'N/A'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Group</p>
+                <p className="text-sm">{mineralToView?.mineral_group}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Category</p>
+                <p className="text-sm">{mineralToView?.category}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Color</p>
+                <p className="text-sm">{mineralToView?.color || 'N/A'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Streak</p>
+                <p className="text-sm">{mineralToView?.streak || 'N/A'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Luster</p>
+                <p className="text-sm">{mineralToView?.luster || 'N/A'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Hardness</p>
+                <p className="text-sm">{mineralToView?.hardness || 'N/A'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Cleavage</p>
+                <p className="text-sm">{mineralToView?.cleavage || 'N/A'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Fracture</p>
+                <p className="text-sm">{mineralToView?.fracture || 'N/A'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Habit</p>
+                <p className="text-sm">{mineralToView?.habit || 'N/A'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Crystal System</p>
+                <p className="text-sm">{mineralToView?.crystal_system || 'N/A'}</p>
+              </div>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+          
+          <SheetFooter className="flex-shrink-0 px-6 py-4 bg-overlay-bg border-t border-overlay-border">
+            <Button variant="outline" onClick={() => setMineralToView(null)} type="button">
+              Close
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </>
   );
 };

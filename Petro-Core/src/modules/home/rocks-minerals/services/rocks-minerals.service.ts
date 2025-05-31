@@ -8,6 +8,24 @@ import type { RocksMineralsItem } from '../types';
 const DEFAULT_ROCK_IMAGE = '/images/rocks-minerals/default-rock.jpg';
 const DEFAULT_MINERAL_IMAGE = '/images/rocks-minerals/default-mineral.jpg';
 
+// Check if an image URL is from Supabase and valid
+const isValidImageUrl = (url: string | null | undefined): boolean => {
+  if (!url) return false;
+  
+  // Check if it's a Supabase URL (we'll assume it's valid if it is)
+  if (url.includes('supabase.co')) {
+    return true;
+  }
+  
+  // Check if it's a valid URL
+  try {
+    new URL(url);
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+
 /**
  * Transform rock data to display format
  */
@@ -16,7 +34,7 @@ const transformRockData = (rock: IRock): RocksMineralsItem => {
     id: rock.id || rock.rock_code,
     title: rock.name,
     description: rock.description || `${rock.category} rock from ${rock.locality || 'unknown location'}`,
-    imageUrl: rock.image_url || DEFAULT_ROCK_IMAGE,
+    imageUrl: isValidImageUrl(rock.image_url) ? rock.image_url : DEFAULT_ROCK_IMAGE,
     path: `/rock-minerals/rock/${rock.id}`,
     category: rock.category,
     type: 'rock'
@@ -30,10 +48,8 @@ const transformMineralData = (mineral: IMineral): RocksMineralsItem => {
   return {
     id: mineral.id || mineral.mineral_code,
     title: mineral.mineral_name,
-    description: mineral.chemical_formula 
-      ? `${mineral.mineral_group} - ${mineral.chemical_formula}`
-      : mineral.mineral_group,
-    imageUrl: mineral.image_url || DEFAULT_MINERAL_IMAGE,
+    description: `${mineral.mineral_group} mineral with formula ${mineral.chemical_formula || 'N/A'}`,
+    imageUrl: isValidImageUrl(mineral.image_url) ? mineral.image_url : DEFAULT_MINERAL_IMAGE,
     path: `/rock-minerals/mineral/${mineral.id}`,
     category: mineral.category,
     type: 'mineral'
@@ -41,65 +57,63 @@ const transformMineralData = (mineral: IMineral): RocksMineralsItem => {
 };
 
 /**
- * Fetch rocks with optional search filter
+ * Get rocks with optional search filter
  */
-export const getRocks = async (searchTerm?: string): Promise<RocksMineralsItem[]> => {
+export const getRocks = async (searchTerm: string = ''): Promise<RocksMineralsItem[]> => {
   try {
-    // Fetch all rocks with a large page size to get most records
-    const response = await fetchRocks('ALL', 1, 100);
-    
-    if (!response.data) {
+    const { data: rocks } = await fetchRocks('ALL', 1, 100);
+    if (!rocks || !Array.isArray(rocks)) {
+      console.error('Failed to fetch rocks or invalid data format:', rocks);
       return [];
     }
     
-    // Transform rocks to display format
-    const rocks = response.data.map(transformRockData);
+    let filteredRocks = rocks;
     
     // Apply search filter if provided
-    if (searchTerm && searchTerm.trim() !== '') {
-      const term = searchTerm.toLowerCase();
-      return rocks.filter(rock => 
-        rock.title.toLowerCase().includes(term) ||
-        rock.description.toLowerCase().includes(term) ||
-        rock.category.toLowerCase().includes(term)
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filteredRocks = rocks.filter(rock => 
+        rock.name.toLowerCase().includes(searchLower) ||
+        (rock.description && rock.description.toLowerCase().includes(searchLower)) ||
+        (rock.category && rock.category.toLowerCase().includes(searchLower)) ||
+        (rock.type && rock.type.toLowerCase().includes(searchLower))
       );
     }
     
-    return rocks;
+    return filteredRocks.map(transformRockData);
   } catch (error) {
-    console.error('Error fetching rocks:', error);
+    console.error('Error getting rocks:', error);
     return [];
   }
 };
 
 /**
- * Fetch minerals with optional search filter
+ * Get minerals with optional search filter
  */
-export const getMinerals = async (searchTerm?: string): Promise<RocksMineralsItem[]> => {
+export const getMinerals = async (searchTerm: string = ''): Promise<RocksMineralsItem[]> => {
   try {
-    // Fetch all minerals with a large page size to get most records
-    const response = await fetchMinerals('ALL', 1, 100);
-    
-    if (!response.data) {
+    const { data: minerals } = await fetchMinerals('ALL', 1, 100);
+    if (!minerals || !Array.isArray(minerals)) {
+      console.error('Failed to fetch minerals or invalid data format:', minerals);
       return [];
     }
     
-    // Transform minerals to display format
-    const minerals = response.data.map(transformMineralData);
+    let filteredMinerals = minerals;
     
     // Apply search filter if provided
-    if (searchTerm && searchTerm.trim() !== '') {
-      const term = searchTerm.toLowerCase();
-      return minerals.filter(mineral => 
-        mineral.title.toLowerCase().includes(term) ||
-        mineral.description.toLowerCase().includes(term) ||
-        mineral.category.toLowerCase().includes(term)
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filteredMinerals = minerals.filter(mineral => 
+        mineral.mineral_name.toLowerCase().includes(searchLower) ||
+        (mineral.mineral_group && mineral.mineral_group.toLowerCase().includes(searchLower)) ||
+        (mineral.category && mineral.category.toLowerCase().includes(searchLower)) ||
+        (mineral.chemical_formula && mineral.chemical_formula.toLowerCase().includes(searchLower))
       );
     }
     
-    return minerals;
+    return filteredMinerals.map(transformMineralData);
   } catch (error) {
-    console.error('Error fetching minerals:', error);
+    console.error('Error getting minerals:', error);
     return [];
   }
 };

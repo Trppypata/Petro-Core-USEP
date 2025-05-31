@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import type { IRock } from "../../admin/rocks/rock.interface";
+import { SupabaseImage } from "@/components/ui/supabase-image";
 
 // Function to fetch a single rock by ID
 const fetchRockById = async (id: string): Promise<IRock | null> => {
@@ -104,10 +105,12 @@ const RockDetailView = () => {
             <div className="flex flex-col md:flex-row gap-6">
               {rock.image_url && (
                 <div className="w-full md:w-1/3">
-                  <img 
-                    src={rock.image_url} 
-                    alt={rock.name} 
-                    className="w-full h-auto rounded-lg object-cover"
+                  <SupabaseImage
+                    src={rock.image_url}
+                    alt={rock.name}
+                    className="w-full rounded-lg"
+                    height={300}
+                    objectFit="cover"
                   />
                 </div>
               )}

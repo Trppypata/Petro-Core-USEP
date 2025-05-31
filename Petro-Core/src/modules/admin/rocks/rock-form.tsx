@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, RefObject } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -28,6 +28,7 @@ import { Spinner } from '@/components/spinner';
 import { FileUpload } from '@/components/ui/file-upload';
 import { uploadFile } from '@/services/storage.service';
 import { toast } from 'sonner';
+import { SupabaseImage } from '@/components/ui/supabase-image';
 
 interface RockFormProps {
   category: RockCategory;
@@ -39,6 +40,8 @@ interface RockFormProps {
   onSubmit?: (data: Partial<IRock>) => Promise<void>;
   isLoading?: boolean;
   mode?: 'add' | 'edit';
+  formRef?: RefObject<HTMLFormElement>;
+  onCancel?: () => void;
 }
 
 // Schema for rock form validation
@@ -92,7 +95,9 @@ const RockForm = ({
   defaultValues,
   onSubmit: externalSubmit,
   isLoading: externalLoading,
-  mode = 'add'
+  mode = 'add',
+  formRef,
+  onCancel
 }: RockFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -153,6 +158,7 @@ const RockForm = ({
   };
   
   const onSubmit = async (values: FormValues) => {
+    console.log("RockForm onSubmit called with values:", values);
     setIsSubmitting(true);
     try {
       let imageUrl = values.image_url;
@@ -160,6 +166,7 @@ const RockForm = ({
       // Upload image if we have a new file
       if (imageFile) {
         try {
+          console.log("Uploading image file:", imageFile.name);
           // Upload to Supabase storage
           imageUrl = await uploadFile(imageFile, 'rocks');
           console.log('Uploaded image URL:', imageUrl);
@@ -174,16 +181,21 @@ const RockForm = ({
         image_url: imageUrl,
       };
       
+      console.log("Prepared rock data for submission:", rockData);
+      
       if (externalSubmit) {
+        console.log("Using external submit handler (edit mode)");
         // For edit mode
         await externalSubmit(rockData);
       } else {
+        console.log("Using internal addRock handler (add mode)");
         // For add mode
         await addRock(rockData);
         form.reset();
         setImageFile(null);
       }
       
+      console.log("Form submission completed successfully");
       if (onClose) onClose();
     } catch (error) {
       console.error('Error submitting rock data:', error);
@@ -199,9 +211,22 @@ const RockForm = ({
   // Determine the action text based on the mode
   const actionText = mode === 'add' ? 'Save' : 'Update';
 
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+    } else if (onClose) {
+      onClose();
+    }
+  };
+
   const formContent = (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form 
+        id="rock-form" 
+        onSubmit={form.handleSubmit(onSubmit)} 
+        className="space-y-6"
+        ref={formRef}
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Rock Name */}
           <FormField
@@ -248,6 +273,19 @@ const RockForm = ({
                 maxSizeMB={2}
               />
             </div>
+            {!imageFile && form.watch('image_url') && (
+              <div className="mt-2">
+                <p className="text-xs text-muted-foreground mb-1">Current image from Supabase:</p>
+                <SupabaseImage 
+                  src={form.watch('image_url')} 
+                  alt={form.watch('name') || 'Rock image'} 
+                  height={150}
+                  width="100%"
+                  objectFit="cover"
+                  className="rounded-md"
+                />
+              </div>
+            )}
           </div>
           
           {/* Rest of the form fields - continue with existing fields */}
@@ -581,8 +619,8 @@ const RockForm = ({
         </FormDescription>
         
         {!hideButtons && (
-          <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={onClose} type="button">
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button variant="outline" onClick={handleCancel} type="button">
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading}>

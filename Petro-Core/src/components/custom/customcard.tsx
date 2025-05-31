@@ -1,4 +1,5 @@
 import { Card, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { SupabaseImage } from "../ui/supabase-image";
 
 interface WorkCardProps {
   title: string;
@@ -9,15 +10,16 @@ interface WorkCardProps {
 export function RockMineralsCard({ title, description, imageUrl }: WorkCardProps) {
   return (
     <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-      {imageUrl && (
-        <div className="h-40 overflow-hidden rounded-t-lg">
-          <img
-            src={imageUrl}
-            alt={title}
-            className="w-full h-full object-cover"
-          />
-        </div>
-      )}
+      <div className="h-40 rounded-t-lg overflow-hidden">
+        <SupabaseImage
+          src={imageUrl}
+          alt={title}
+          height={160}
+          width="100%"
+          objectFit="cover"
+          className="w-full h-full"
+        />
+      </div>
       <CardHeader>
         <CardTitle className="text-xl">{title}</CardTitle>
         <CardDescription className="text-sm text-muted-foreground">

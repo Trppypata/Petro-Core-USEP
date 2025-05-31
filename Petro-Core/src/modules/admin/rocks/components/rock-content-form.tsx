@@ -7,30 +7,79 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { PlusCircleIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useAddRock } from '../hooks/useAddRock';
 import RockForm from '../rock-form';
 import type { RockCategory, IRock } from '../rock.interface';
+import { SupabaseImage } from '@/components/ui/supabase-image';
+import { Spinner } from '@/components/spinner';
 
 interface RockContentFormProps {
   category?: RockCategory;
   rock?: IRock;
   readOnly?: boolean;
+  inDialog?: boolean;
+  inSheet?: boolean;
+  onClose?: () => void;
 }
 
-const RockContentForm = ({ category, rock, readOnly = false }: RockContentFormProps) => {
-  const { isAdding } = useAddRock();
+const RockContentForm = ({ 
+  category, 
+  rock, 
+  readOnly = false, 
+  inDialog = false, 
+  inSheet = false,
+  onClose 
+}: RockContentFormProps) => {
+  const { addRock, isAdding } = useAddRock();
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const handleClose = () => {
-    setIsOpen(false);
+    if (onClose) {
+      onClose();
+    } else {
+      setIsOpen(false);
+    }
+  };
+
+  const handleSubmit = async (data: Partial<IRock>) => {
+    setIsSubmitting(true);
+    try {
+      await addRock(data as Omit<IRock, 'id'>);
+      handleClose();
+    } catch (error) {
+      console.error('Error adding rock:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleManualSubmit = () => {
+    if (formRef.current) {
+      formRef.current.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+    }
   };
 
   // If we're in read-only mode showing an existing rock
   if (readOnly && rock) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
+        {/* Display rock image if available */}
+        {rock.image_url && (
+          <div className="mb-6">
+            <h3 className="text-sm font-medium mb-2">Rock Image</h3>
+            <SupabaseImage
+              src={rock.image_url}
+              alt={rock.name}
+              height={250}
+              className="w-full rounded-md"
+              objectFit="cover"
+            />
+          </div>
+        )}
+        
         <div className="grid grid-cols-2 gap-4">
           <div>
             <h3 className="text-sm font-medium">Rock Code</h3>
@@ -190,11 +239,35 @@ const RockContentForm = ({ category, rock, readOnly = false }: RockContentFormPr
             <p>{rock.status || 'inactive'}</p>
           </div>
         </div>
+
+        {inSheet && onClose && (
+          <div className="flex justify-end mt-6">
+            <Button variant="default" onClick={handleClose}>
+              Close
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
 
-  // If we're adding a new rock (original functionality)
+  // If using this component directly in a sheet (not the trigger button version)
+  if (inSheet && category) {
+    return (
+      <div className="p-5">
+        <RockForm 
+          category={category as RockCategory} 
+          onClose={handleClose} 
+          onSubmit={handleSubmit}
+          inSheet={true} 
+          hideButtons={true}
+          formRef={formRef}
+        />
+      </div>
+    );
+  }
+
+  // If we're adding a new rock (original functionality with trigger button)
   return (
     <Sheet onOpenChange={setIsOpen} open={isOpen}>
       <SheetTrigger asChild>
@@ -220,8 +293,10 @@ const RockContentForm = ({ category, rock, readOnly = false }: RockContentFormPr
           <RockForm 
             category={category as RockCategory} 
             onClose={handleClose} 
+            onSubmit={handleSubmit}
             inSheet={true} 
             hideButtons={true}
+            formRef={formRef}
           />
         </div>
 
@@ -229,8 +304,12 @@ const RockContentForm = ({ category, rock, readOnly = false }: RockContentFormPr
           <Button variant="outline" onClick={handleClose} type="button">
             Cancel
           </Button>
-          <Button type="submit" form="rock-form" disabled={isSubmitting || isAdding}>
-            {(isSubmitting || isAdding) && <span className="mr-2 h-4 w-4 animate-spin">◌</span>}
+          <Button 
+            type="button" 
+            onClick={handleManualSubmit} 
+            disabled={isSubmitting || isAdding}
+          >
+            {(isSubmitting || isAdding) && <Spinner className="mr-2 h-4 w-4" />}
             Save Rock
           </Button>
         </SheetFooter>

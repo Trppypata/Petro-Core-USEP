@@ -95,10 +95,14 @@ export const updateRock = async (
   rockData: Partial<IRock>
 ): Promise<IRock> => {
   try {
+    console.log('⭐ Update rock called with ID:', id);
+    console.log('⭐ Update rock data:', JSON.stringify(rockData, null, 2));
+    
     // Get token using the helper function
     const token = getAuthToken();
 
     if (!token) {
+      console.error('❌ Authentication token not found');
       throw new Error('Authentication token not found. Please log in again.');
     }
 
@@ -107,14 +111,22 @@ export const updateRock = async (
       Authorization: `Bearer ${token}`
     };
 
-    console.log('Update rock headers:', headers);
-    console.log('Update rock data:', rockData);
+    console.log('🔑 Update rock headers:', headers);
+    
+    const url = `${API_URL}/rocks/${id}`;
+    console.log('🔗 Update rock URL:', url);
 
-    const response = await axios.put(`${API_URL}/rocks/${id}`, rockData, { headers });
+    console.log('📤 Sending update request...');
+    const response = await axios.put(url, rockData, { headers });
+    
+    console.log('📥 Update response status:', response.status);
+    console.log('📥 Update response data:', response.data);
+    
     return response.data.data;
-  } catch (error) {
-    console.error('Error updating rock:', error);
-    throw new Error('Failed to update rock. Please try again.');
+  } catch (error: any) {
+    console.error('❌ Error updating rock:', error);
+    console.error('❌ Error details:', error.response?.data || error.message);
+    throw new Error(error.response?.data?.message || 'Failed to update rock. Please try again.');
   }
 };
 

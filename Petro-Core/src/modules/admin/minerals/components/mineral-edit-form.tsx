@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from "@/components/ui/sheet";
 import MineralForm from '../mineral-form';
 import { useUpdateMineral } from '../hooks/useUpdateMineral';
 import type { IMineral, MineralCategory } from '../mineral.interface';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/spinner';
 
 interface MineralEditFormProps {
   mineral: IMineral;
@@ -54,21 +57,42 @@ const MineralEditForm = ({ mineral, onClose, category }: MineralEditFormProps) =
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-[625px]">
-        <DialogHeader>
-          <DialogTitle>Edit Mineral: {mineral.mineral_name}</DialogTitle>
-        </DialogHeader>
-        <MineralForm
-          defaultValues={mineral}
-          onSubmit={handleSubmit}
-          onCancel={handleClose}
-          mode="edit"
-          isLoading={isUpdating}
-          inDialog={true}
-        />
-      </DialogContent>
-    </Dialog>
+    <Sheet open={isOpen} onOpenChange={setIsOpen}>
+      <SheetContent className="p-0 flex flex-col h-full md:max-w-[40rem]">
+        <SheetHeader className="py-4 bg-overlay-bg border-b border-overlay-border px-6 flex-shrink-0">
+          <SheetTitle>Edit Mineral: {mineral.mineral_name}</SheetTitle>
+          <p className="text-xs text-muted-foreground">
+            Update the mineral details.
+          </p>
+        </SheetHeader>
+        
+        <div className="flex-grow overflow-y-auto p-6">
+          <MineralForm
+            defaultValues={mineral}
+            onSubmit={handleSubmit}
+            onCancel={handleClose}
+            mode="edit"
+            isLoading={isUpdating}
+            inSheet={true}
+            hideButtons={true}
+          />
+        </div>
+        
+        <SheetFooter className="flex-shrink-0 px-6 py-4 bg-overlay-bg border-t border-overlay-border">
+          <Button variant="outline" onClick={handleClose} type="button">
+            Cancel
+          </Button>
+          <Button 
+            type="submit" 
+            form="mineral-form" 
+            disabled={isUpdating}
+          >
+            {isUpdating && <Spinner className="mr-2 h-4 w-4" />}
+            Update Mineral
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 };
 

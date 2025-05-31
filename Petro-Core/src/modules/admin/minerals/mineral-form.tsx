@@ -21,7 +21,6 @@ interface MineralFormProps {
   category?: MineralCategory;
   onClose?: () => void;
   onSubmit?: (data: Partial<IMineral>) => Promise<void>;
-  inDialog?: boolean;
   inSheet?: boolean;
   hideButtons?: boolean;
   mode?: 'add' | 'edit';
@@ -52,7 +51,6 @@ const MineralForm = ({
   category, 
   onClose, 
   onSubmit: externalSubmit,
-  inDialog = false, 
   inSheet = false, 
   hideButtons = false,
   mode = 'add',
@@ -365,7 +363,7 @@ const MineralForm = ({
     );
   }
   
-  return inDialog ? formContent : (
+  return (
     <div className="w-full mb-6 border rounded-lg p-6">
       <h3 className="text-lg font-semibold mb-4">
         {mode === 'add' ? 'Add New' : 'Edit'} Mineral {category ? `to ${category}` : ''}

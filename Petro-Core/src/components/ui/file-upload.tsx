@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { UploadCloud, X, Image as ImageIcon } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { UploadCloud, X, ImageIcon } from 'lucide-react';
 import { Button } from './button';
 import { cn } from '@/lib/utils';
 
@@ -21,7 +21,16 @@ export function FileUpload({
   const [isDragging, setIsDragging] = useState(false);
   const [preview, setPreview] = useState<string | null>(defaultValue || null);
   const [error, setError] = useState<string | null>(null);
+  const [imageError, setImageError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Update preview when defaultValue changes
+  useEffect(() => {
+    if (defaultValue) {
+      setPreview(defaultValue);
+      setImageError(false);
+    }
+  }, [defaultValue]);
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -62,6 +71,7 @@ export function FileUpload({
     }
 
     setError(null);
+    setImageError(false);
     setPreview(URL.createObjectURL(file));
     onFileChange(file);
   };
@@ -69,20 +79,27 @@ export function FileUpload({
   const clearFile = () => {
     setPreview(null);
     setError(null);
+    setImageError(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
     onFileChange(null);
   };
 
+  const handleImageError = () => {
+    console.error('Image failed to load:', preview);
+    setImageError(true);
+  };
+
   return (
     <div className={cn("w-full", className)}>
-      {preview ? (
+      {preview && !imageError ? (
         <div className="relative border rounded-md overflow-hidden">
           <img 
             src={preview} 
             alt="Preview" 
             className="w-full h-48 object-cover" 
+            onError={handleImageError}
           />
           <Button
             type="button"
@@ -107,16 +124,30 @@ export function FileUpload({
           onClick={() => fileInputRef.current?.click()}
         >
           <div className="flex flex-col items-center justify-center text-center">
-            <UploadCloud className="mb-2 h-8 w-8 text-muted-foreground" />
-            <p className="mb-1 text-sm font-medium">
-              Drag and drop or click to upload
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {accept === 'image/*' 
-                ? 'JPG, PNG, GIF up to ' 
-                : 'Files up to '}
-              {maxSizeMB}MB
-            </p>
+            {imageError ? (
+              <>
+                <ImageIcon className="mb-2 h-8 w-8 text-muted-foreground" />
+                <p className="mb-1 text-sm font-medium text-destructive">
+                  Image failed to load
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Click to upload a new image
+                </p>
+              </>
+            ) : (
+              <>
+                <UploadCloud className="mb-2 h-8 w-8 text-muted-foreground" />
+                <p className="mb-1 text-sm font-medium">
+                  Drag and drop or click to upload
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {accept === 'image/*' 
+                    ? 'JPG, PNG, GIF up to ' 
+                    : 'Files up to '}
+                  {maxSizeMB}MB
+                </p>
+              </>
+            )}
             {error && <p className="text-xs text-destructive mt-2">{error}</p>}
           </div>
           <input

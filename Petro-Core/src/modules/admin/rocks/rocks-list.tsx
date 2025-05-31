@@ -12,14 +12,6 @@ import { Search, Image as ImageIcon, Edit, Trash2, Eye, PlusCircleIcon } from 'l
 import { Spinner } from '@/components/spinner';
 import { Badge } from '@/components/ui/badge';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogClose,
-} from "@/components/ui/dialog";
-import {
   Tabs,
   TabsContent,
   TabsList,
@@ -50,6 +42,14 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import RockEditForm from './components/rock-edit-form';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from "@/components/ui/sheet";
 
 interface RocksListProps {
   category: RockCategory | string;
@@ -247,6 +247,16 @@ const RocksList = ({
                 src={rock.image_url} 
                 alt={rock.name}
                 className="w-10 h-10 object-cover rounded-md"
+                onError={(e) => {
+                  console.error('Image failed to load:', rock.image_url);
+                  // Replace with fallback image icon
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement?.classList.add('bg-gray-200', 'flex', 'items-center', 'justify-center');
+                  // Create and append fallback icon
+                  const icon = document.createElement('div');
+                  icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-image text-gray-500"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>';
+                  e.currentTarget.parentElement?.appendChild(icon);
+                }}
               />
             </div>
           </TableCell>
@@ -563,18 +573,11 @@ const RocksList = ({
       
       {/* Edit Rock Dialog */}
       {rockToEdit && (
-        <Dialog open={!!rockToEdit} onOpenChange={open => !open && setRockToEdit(null)}>
-          <DialogContent className="sm:max-w-[625px] max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Edit Rock: {rockToEdit.name}</DialogTitle>
-            </DialogHeader>
-            <RockContentForm
-              rock={rockToEdit}
-              onClose={handleCloseEdit}
-              inDialog={true}
-            />
-          </DialogContent>
-        </Dialog>
+        <RockEditForm 
+          rock={rockToEdit}
+          onClose={handleCloseEdit}
+          category={category as RockCategory}
+        />
       )}
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!rockToDelete} onOpenChange={open => !open && setRockToDelete(null)}>
@@ -596,23 +599,50 @@ const RocksList = ({
         </AlertDialogContent>
       </AlertDialog>
       {/* View Rock Dialog */}
-      <Dialog open={!!rockToView} onOpenChange={open => !open && setRockToView(null)}>
-        <DialogContent className="sm:max-w-[625px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{rockToView?.name}</DialogTitle>
-          </DialogHeader>
-          <RockContentForm rock={rockToView!} readOnly />
-        </DialogContent>
-      </Dialog>
+      <Sheet open={!!rockToView} onOpenChange={open => !open && setRockToView(null)}>
+        <SheetContent className="p-0 flex flex-col h-full md:max-w-[40rem]">
+          <SheetHeader className="py-4 bg-overlay-bg border-b border-overlay-border px-6 flex-shrink-0">
+            <SheetTitle>{rockToView?.name}</SheetTitle>
+            <p className="text-xs text-muted-foreground">
+              {rockToView?.category} | Code: {rockToView?.rock_code}
+            </p>
+          </SheetHeader>
+          
+          <div className="flex-grow overflow-y-auto p-6">
+            <RockContentForm 
+              rock={rockToView!} 
+              readOnly 
+              inSheet={true}
+              onClose={() => setRockToView(null)}
+            />
+          </div>
+          
+          <SheetFooter className="flex-shrink-0 px-6 py-4 bg-overlay-bg border-t border-overlay-border">
+            <Button variant="outline" onClick={() => setRockToView(null)} type="button">
+              Close
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
       {/* Add Rock Dialog */}
-      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <DialogContent className="sm:max-w-[625px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add New Rock</DialogTitle>
-          </DialogHeader>
-          <RockContentForm onClose={handleAddSuccess} inDialog={true} />
-        </DialogContent>
-      </Dialog>
+      <Sheet open={isAddOpen} onOpenChange={setIsAddOpen}>
+        <SheetContent className="p-0 flex flex-col h-full md:max-w-[40rem]">
+          <SheetHeader className="py-4 bg-overlay-bg border-b border-overlay-border px-6 flex-shrink-0">
+            <SheetTitle>Add New Rock</SheetTitle>
+            <p className="text-xs text-muted-foreground">
+              Fill in the details to add a new rock.
+            </p>
+          </SheetHeader>
+          
+          <div className="flex-grow overflow-y-auto">
+            <RockContentForm 
+              category={category as RockCategory} 
+              onClose={handleAddSuccess} 
+              inSheet={true}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
