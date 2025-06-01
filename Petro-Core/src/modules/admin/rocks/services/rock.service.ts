@@ -177,8 +177,26 @@ export const updateRock = async (
     console.log('⭐ Update rock service called with ID:', id);
     console.log('⭐ Initial rock data:', JSON.stringify(rockData, null, 2));
     
+    // First, get the current rock to preserve the rock_code
+    let originalRockCode = rockData.rock_code;
+    try {
+      const currentRock = await getRockById(id);
+      if (currentRock && currentRock.rock_code) {
+        originalRockCode = currentRock.rock_code;
+        console.log('🔑 Retrieved original rock_code:', originalRockCode);
+      }
+    } catch (fetchError) {
+      console.warn('⚠️ Could not fetch original rock, using provided rock_code');
+    }
+    
     // Clean the data to only include valid fields
     const cleanedData = cleanRockData(rockData);
+    
+    // Always use the original rock_code to prevent unique constraint violations
+    if (originalRockCode) {
+      cleanedData.rock_code = originalRockCode;
+      console.log('🔒 Ensuring original rock_code is preserved:', originalRockCode);
+    }
     
     console.log('🧹 Cleaned data for update:', JSON.stringify(cleanedData, null, 2));
     
@@ -344,7 +362,7 @@ export const cleanRockData = (rockData: any): Partial<IRock> => {
     'silica_content', 'cooling_rate', 'mineral_content', 
     'bedding', 'sorting', 'roundness', 'fossil_content', 'sediment_source',
     'commodity_type', 'ore_group', 'mining_company', 'coordinates',
-    'luster', 'reaction_to_hcl', 'magnetism', 'streak', 
+    'luster', 'reaction_to_hcl', 'magnetism', 'streak', 'protolith',
     'created_at', 'updated_at'
   ];
   
@@ -363,7 +381,6 @@ export const cleanRockData = (rockData: any): Partial<IRock> => {
   delete (cleanedData as any).user;
   delete (cleanedData as any).user_id;
   delete (cleanedData as any).user_metadata;
-  delete (cleanedData as any).protolith;
   delete (cleanedData as any).auth;
   delete (cleanedData as any).auth_user;
   delete (cleanedData as any).auth_user_id;

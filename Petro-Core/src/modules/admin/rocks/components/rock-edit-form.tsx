@@ -28,136 +28,78 @@ const RockEditForm = ({ rock, onClose, category }: RockEditFormProps) => {
   const { updateRock, isUpdating } = useUpdateRock();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const formRef = useRef<HTMLFormElement>(null);
-  const [formData, setFormData] = useState<Partial<IRock>>({...rock});
-  const [imageFile, setImageFile] = useState<File | null>(null);
   const [additionalImages, setAdditionalImages] = useState<File[]>([]);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [formData, setFormData] = useState<Partial<IRock>>(rock);
+  const { uploadImages, isUploading } = useRockImages(rock.id);
+  const formRef = useRef<HTMLFormElement>(null);
+  const [refreshingToken, setRefreshingToken] = useState(false);
   
-  // Use the rock images hook to handle image management
-  const { 
-    images: existingImages, 
-    uploadImages, 
-    isUploading,
-    deleteImage,
-    isDeleting,
-    refetch: refetchImages
-  } = useRockImages(rock.id);
+  // Preserve the original rock_code to prevent duplicate key errors
+  const originalRockCode = rock.rock_code;
   
-  // Save the rock ID for reference
-  const rockId = rock.id;
-  
+  // Update formData when the rock prop changes
   useEffect(() => {
-    console.log("Current form data:", formData);
-  }, [formData]);
+    setFormData(rock);
+  }, [rock]);
   
-  // Check authentication status
   const refreshToken = async () => {
     try {
-      // Check if user is authenticated first
+      setRefreshingToken(true);
+      console.log("🔑 Refreshing auth token...");
+      // Since authService.refreshToken doesn't exist, we'll use logout and login to refresh the session
+      // Or just check if the user is authenticated
       const isAuth = authService.isAuthenticated();
       if (!isAuth) {
-        toast.error("You need to be logged in to update rocks");
-        // Here you would redirect to login
-        return false;
+        throw new Error("You're not authenticated");
       }
-      
-      // Get current user to verify token
-      const user = await authService.getCurrentUser();
-      if (!user) {
-        toast.error("Session expired. Please log in again.");
-        // Here you would redirect to login
-        return false;
-      }
-      
-      return true;
+      console.log("✅ Auth token verified");
     } catch (error) {
-      console.error("Auth check failed:", error);
-      return false;
+      console.error("❌ Error refreshing token:", error);
+      toast.error("Authentication error. Please log in again.");
+    } finally {
+      setRefreshingToken(false);
     }
   };
   
-  // Add this function at the top of the component, before the return statement
+  // Prepare data for submission - remove problematic fields and clean up data
   const prepareDataForSubmission = (data: Partial<IRock>): Partial<IRock> => {
-    // Create a new object with the original data
-    const safeData: Partial<IRock> = { ...data };
+    // Remove fields that don't need to be sent to the server
+    const { id, created_at, updated_at, ...rest } = data;
     
-    // Explicitly remove problematic fields using any type cast to avoid TypeScript errors
-    delete (safeData as any).user;
-    delete (safeData as any).user_id;
-    delete (safeData as any).user_metadata;
-    delete safeData.origin; // This one is in the interface
-    
-    // Temporarily remove protolith field until the database schema is updated
-    delete safeData.protolith;
-    
-    // Remove any null/undefined values using type-safe approach
-    Object.keys(safeData).forEach(key => {
-      const typedKey = key as keyof IRock;
-      if (safeData[typedKey] === null || safeData[typedKey] === undefined) {
-        delete safeData[typedKey];
-      }
-    });
-    
-    console.log("Prepared safe data for submission:", safeData);
-    return safeData;
+    // Ensure we preserve the original rock_code to prevent duplicate key errors
+    return {
+      ...rest,
+      rock_code: originalRockCode, // Always use the original rock_code
+    };
   };
   
-  // Direct update handler that bypasses form submission
+  // Direct update function for the manual submit button
   const handleDirectUpdate = async () => {
-    if (!rockId) {
-      console.error("Cannot update rock: missing id");
-      toast.error("Cannot update rock: missing ID");
+    if (!rock.id) {
+      toast.error("Cannot update: Rock ID is missing");
       return;
     }
     
-    // Verify authentication first
-    const isAuthenticated = await refreshToken();
-    if (!isAuthenticated) {
+    if (refreshingToken) {
+      toast.error("Please wait, refreshing authentication token...");
       return;
     }
     
-    setIsSubmitting(true);
+    if (isSubmitting || isUpdating) {
+      toast.error("Update already in progress");
+      return;
+    }
+    
     try {
-      // Make sure we're working with the latest form data
-      console.log("Direct update initiated with raw data:", formData);
-      
-      // Ensure required fields
-      if (!formData.name) {
-        toast.error("Rock name is required");
-        return;
-      }
+      setIsSubmitting(true);
       
       // Show loading toast
       toast.loading("Updating rock...");
       
-      // Handle image upload if a new image file has been selected
-      let imageUrl = formData.image_url || '';
-      
-      if (imageFile) {
-        try {
-          console.log("Direct update: Uploading image file:", imageFile.name);
-          
-          // Check if Supabase is properly configured before attempting upload
-          if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-            console.warn("Supabase storage is not configured. Skipping image upload.");
-            toast.warning("Image upload skipped due to missing Supabase configuration");
-          } else {
-            // Upload to Supabase storage
-            imageUrl = await uploadFile(imageFile, 'rocks');
-            console.log('Direct update: Uploaded image URL:', imageUrl);
-          }
-        } catch (error) {
-          console.error('Error uploading image:', error);
-          toast.error('Failed to upload image, but will continue updating rock data.');
-          // Continue with the update even if image upload fails
-        }
-      }
-      
-      // Update formData with the new image URL
-      const updatedFormData = {
-        ...formData,
-        image_url: imageUrl
-      };
+      // Get current form data
+      const updatedFormData = formData;
+      console.log("Current form data:", updatedFormData);
       
       // Prepare data for update - explicitly clean it
       const cleanData = prepareDataForSubmission({
@@ -167,7 +109,7 @@ const RockEditForm = ({ rock, onClose, category }: RockEditFormProps) => {
       });
       
       const result = await updateRock({
-        id: rockId,
+        id: rock.id,
         rockData: cleanData
       });
       
@@ -195,119 +137,106 @@ const RockEditForm = ({ rock, onClose, category }: RockEditFormProps) => {
     }
   };
   
+  // Main submit handler for the form
   const handleSubmit = async (data: Partial<IRock>) => {
-    console.log("Form submission received with data:", data);
-    setFormData(data);
-    
-    if (!rockId) {
-      console.error("Cannot update rock: missing id");
-      toast.error("Cannot update rock: missing ID");
+    if (!rock.id) {
+      toast.error("Cannot update: Rock ID is missing");
       return;
     }
     
-    // Verify authentication first
-    const isAuthenticated = await refreshToken();
-    if (!isAuthenticated) {
+    if (refreshingToken) {
+      toast.error("Please wait, refreshing authentication token...");
       return;
     }
     
-    console.log("Starting rock update:", { id: rockId, data });
-    console.log("Image file for regular submission:", imageFile ? imageFile.name : "none");
+    if (isSubmitting || isUpdating) {
+      toast.error("Update already in progress");
+      return;
+    }
     
-    setIsSubmitting(true);
     try {
-      console.log("Calling updateRock with:", { id: rockId, rockData: data });
+      setIsSubmitting(true);
       
-      // Show loading toast
-      toast.loading("Updating rock...");
-      
-      const result = await updateRock({
-        id: rockId,
-        rockData: {
-          ...data,
-          category: category as string
-        }
+      // Prepare data - ensure we keep the original rock_code
+      const cleanData = prepareDataForSubmission({
+        ...data,
+        category: category as string,
+        rock_code: originalRockCode, // Explicitly set original rock_code
       });
       
-      // Dismiss loading toast
-      toast.dismiss();
+      console.log("Submitting rock update with data:", cleanData);
       
-      console.log("Update successful, result:", result);
+      // Update the rock
+      const result = await updateRock({
+        id: rock.id,
+        rockData: cleanData
+      });
       
-      // Show success notification
-      toast.success(`Rock "${data.name}" has been updated successfully`);
+      console.log("Rock updated successfully, result:", result);
       
-      // Invalidate queries to refresh the data
-      queryClient.invalidateQueries({ queryKey: [Q_KEYS.ROCKS] });
+      // Upload additional images if there are any
+      if (additionalImages.length > 0) {
+        await handleAdditionalImagesUpload();
+      }
       
-      // Close the sheet
+      // Close the form
       onClose();
     } catch (error: any) {
-      // Dismiss loading toast
-      toast.dismiss();
-      
       console.error("Error updating rock:", error);
-      toast.error(`Failed to update rock: ${error.message || "Unknown error"}`);
+      
+      // If we get an authentication error, try to refresh the token
+      if (error.message?.includes("token") || error.message?.includes("auth")) {
+        toast.error("Authentication issue. Trying to refresh your session...");
+        await refreshToken();
+        toast.error("Please try saving again");
+      } else {
+        toast.error(`Failed to update rock: ${error.message || "Unknown error"}`);
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
   
-  // Manually trigger form submission
-  const handleManualSubmit = async () => {
-    console.log("Manual form submission triggered");
-    
-    // Check authentication first
-    const isAuthenticated = await refreshToken();
-    if (!isAuthenticated) {
-      return;
-    }
-    
-    // Use direct update as fallback approach
-    if (!formRef.current) {
-      console.log("Form reference not found, using direct update instead");
-      handleDirectUpdate();
-      return;
-    }
-    
-    // Try regular form submission first
-    try {
-      formRef.current.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-      
-      // Set a timeout to check if submission was successful
-      setTimeout(() => {
-        if (!isSubmitting) {
-          console.log("Form submission may have failed, trying direct update");
-          handleDirectUpdate();
-        }
-      }, 500);
-    } catch (error) {
-      console.error("Error during form submission:", error);
-      handleDirectUpdate();
-    }
-  };
-  
-  // Handle additional images upload
+  // Upload additional images after rock is saved
   const handleAdditionalImagesUpload = async () => {
-    if (additionalImages.length === 0 || !rockId) return;
+    if (!rock.id) {
+      toast.error("Cannot upload images: Rock ID is missing");
+      return;
+    }
+    
+    if (!additionalImages.length) {
+      return;
+    }
     
     try {
       toast.loading(`Uploading ${additionalImages.length} additional images...`);
-      const result = await uploadImages(additionalImages);
-      toast.dismiss();
       
+      const result = await uploadImages(additionalImages);
+      
+      toast.dismiss();
       if (result && result.length > 0) {
         toast.success(`Successfully uploaded ${result.length} additional images`);
-        setAdditionalImages([]);
-        refetchImages();
       } else {
-        toast.error('Failed to upload additional images');
+        toast.error("Failed to upload additional images");
       }
-    } catch (error) {
+    } catch (error: any) {
       toast.dismiss();
-      console.error('Error uploading additional images:', error);
-      toast.error('Error uploading additional images');
+      console.error("Error uploading additional images:", error);
+      toast.error(`Failed to upload images: ${error.message || "Unknown error"}`);
     }
+  };
+  
+  const handleManualSubmit = async () => {
+    // Check if form is valid first
+    if (formRef.current) {
+      if (!formRef.current.checkValidity()) {
+        formRef.current.reportValidity();
+        return;
+      }
+    }
+    
+    // Then proceed with update
+    await handleDirectUpdate();
   };
   
   return (
@@ -336,83 +265,58 @@ const RockEditForm = ({ rock, onClose, category }: RockEditFormProps) => {
           />
           
           {/* Additional Images Upload Section */}
-          <div className="px-6 py-4 border-t border-overlay-border">
-            <h4 className="text-sm font-medium mb-2">Additional Images</h4>
-            
-            {/* Display existing images if any */}
-            {existingImages && existingImages.length > 0 && (
-              <div className="mb-4">
-                <p className="text-xs text-muted-foreground mb-2">Existing Images:</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {existingImages.map(image => (
-                    <div key={image.id} className="relative group">
-                      <img 
-                        src={image.image_url} 
-                        alt={image.caption || 'Rock image'} 
-                        className="h-20 w-full object-cover rounded-md"
-                      />
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => image.id && deleteImage(image.id)}
-                        disabled={isDeleting}
-                      >
-                        <span className="sr-only">Delete</span>
-                        ×
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+          <div className="px-6 py-4">
+            <h3 className="font-medium mb-2">Additional Images</h3>
+            <p className="text-sm text-muted-foreground mb-2">
+              Upload more images for this rock
+            </p>
             
             {/* File input for additional images */}
-            <div className="mt-2">
-              <label htmlFor="additional-images" className="block text-xs font-medium mb-1">
-                Upload Additional Images
-              </label>
-              <input
-                type="file"
-                id="additional-images"
-                multiple
-                accept="image/*"
-                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary/90"
-                onChange={(e) => {
-                  const files = Array.from(e.target.files || []);
-                  setAdditionalImages(prev => [...prev, ...files]);
-                }}
-              />
-              {additionalImages.length > 0 && (
-                <div className="mt-2">
-                  <p className="text-xs text-muted-foreground">
-                    {additionalImages.length} new image(s) selected
-                  </p>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="mt-1"
-                    onClick={() => setAdditionalImages([])}
-                  >
-                    Clear Selection
-                  </Button>
-                </div>
-              )}
-            </div>
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={(e) => {
+                const files = Array.from(e.target.files || []);
+                setAdditionalImages(files);
+              }}
+              className="block w-full text-sm text-slate-500
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-md file:border-0
+                file:text-sm file:font-semibold
+                file:bg-primary file:text-primary-foreground
+                hover:file:bg-primary/90"
+            />
+            
+            {additionalImages.length > 0 && (
+              <p className="text-sm mt-2">
+                {additionalImages.length} {additionalImages.length === 1 ? 'file' : 'files'} selected
+              </p>
+            )}
           </div>
         </div>
         
-        <SheetFooter className="flex-shrink-0 px-6 py-4 bg-overlay-bg border-t border-overlay-border">
-          <Button variant="outline" onClick={onClose} type="button">
+        <SheetFooter className="px-6 py-4 border-t border-overlay-border flex-shrink-0">
+          <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
           <Button 
-            type="button" 
-            onClick={handleManualSubmit} 
-            disabled={isSubmitting || isUpdating || isUploading}
+            onClick={handleManualSubmit}
+            disabled={isSubmitting || isUpdating || refreshingToken}
           >
-            {(isSubmitting || isUpdating || isUploading) && <Spinner className="mr-2 h-4 w-4" />}
-            Update Rock
+            {(isSubmitting || isUpdating) ? (
+              <>
+                <Spinner size="sm" className="mr-2" />
+                Saving...
+              </>
+            ) : refreshingToken ? (
+              <>
+                <Spinner size="sm" className="mr-2" />
+                Refreshing Session...
+              </>
+            ) : (
+              'Save Changes'
+            )}
           </Button>
         </SheetFooter>
       </SheetContent>

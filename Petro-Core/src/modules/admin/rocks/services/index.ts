@@ -118,11 +118,14 @@ export const fetchRocks = async (category?: string, page: number = 1, pageSize: 
  * Create a new rock
  */
 export const createRock = async (rockData: Omit<IRock, 'id'>) => {
+  // Define cleanedData outside the try block so it's accessible in the catch block
+  let cleanedData;
+  
   try {
     console.log('Creating rock with data:', rockData);
     
     // Clean the data to only include valid fields
-    const cleanedData = cleanRockData(rockData);
+    cleanedData = cleanRockData(rockData);
     
     console.log('Cleaned rock data for create:', cleanedData);
     
@@ -164,6 +167,34 @@ export const createRock = async (rockData: Omit<IRock, 'id'>) => {
         // Check for specific schema errors
         if (detailedError.includes('origin')) {
           throw new Error('Database schema error: The "origin" field is not in the database schema. Please contact the administrator.');
+        }
+        
+        // Handle the specific user column error
+        if (detailedError.includes('user column of') || detailedError.includes('user_id')) {
+          console.error('User column error detected - this is a known issue with the database schema');
+          
+          // Try again with the fixed data - remove user fields
+          try {
+            // Create a clean copy without user fields
+            const fixedData = { ...cleanedData };
+            delete (fixedData as any).user;
+            delete (fixedData as any).user_id;
+            delete (fixedData as any).user_metadata;
+            
+            // Get a fresh axios instance
+            const retryAuthAxios = getAuthAxios();
+            
+            console.log('Retrying with cleaned data (removed user fields)');
+            const retryResponse = await retryAuthAxios.post(`/rocks`, fixedData);
+            
+            if (retryResponse.data && retryResponse.data.data) {
+              console.log('Retry successful');
+              return retryResponse.data.data;
+            }
+          } catch (retryError) {
+            console.error('Retry also failed:', retryError);
+            // Fall through to the error handling below
+          }
         }
       }
     }
