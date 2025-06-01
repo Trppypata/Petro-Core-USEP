@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
-import { Button } from "../../../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
-import type { IMineral } from "../../admin/minerals/mineral.interface";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import type { IMineral } from "@/modules/admin/minerals/mineral.interface";
+import { SupabaseImage } from "@/components/ui/supabase-image";
 
 // Function to fetch a single mineral by ID
 const fetchMineralById = async (id: string): Promise<IMineral | null> => {
@@ -73,21 +74,14 @@ const MineralDetailView = () => {
             Back to Minerals
           </Button>
         </Link>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center py-8">
-              <h2 className="text-2xl font-bold text-red-500 mb-2">Error</h2>
-              <p className="text-muted-foreground">{error || "Mineral not found"}</p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="text-center py-8 bg-white rounded-lg shadow">
+          <h2 className="text-2xl font-bold text-red-500 mb-2">Error</h2>
+          <p className="text-muted-foreground">{error || "Mineral not found"}</p>
+        </div>
       </div>
     );
   }
 
-  // Default image for minerals
-  const defaultImage = "/images/rocks-minerals/default-mineral.jpg";
-  
   return (
     <div className="container mx-auto px-4 py-8">
       <Link to="/rock-minerals">
@@ -96,119 +90,150 @@ const MineralDetailView = () => {
           Back to Minerals
         </Button>
       </Link>
-
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-2xl">{mineral.mineral_name}</CardTitle>
-            <p className="text-muted-foreground">
-              {mineral.category} | Code: {mineral.mineral_code}
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col md:flex-row gap-6">
-              {/* Use image if available, otherwise use default */}
-              <div className="w-full md:w-1/3">
-                <img 
-                  src={mineral.image_url || defaultImage} 
-                  alt={mineral.mineral_name} 
-                  className="w-full h-auto rounded-lg object-cover"
+      
+      <Card className="p-8 mb-6">
+        <h1 className="text-3xl font-bold mb-2">{mineral.mineral_name}</h1>
+        <p className="text-muted-foreground mb-6">
+          {mineral.category} | {mineral.mineral_group} {mineral.mineral_code && `| Code: ${mineral.mineral_code}`}
+        </p>
+        
+        <div className="flex flex-col md:flex-row gap-8">
+          {/* Left: Mineral Image */}
+          <div className="w-full md:w-1/2">
+            {mineral.image_url ? (
+              <div className="flex justify-center items-center bg-gray-50 rounded-lg" style={{ minHeight: "400px", width: "100%" }}>
+                <SupabaseImage 
+                  src={mineral.image_url} 
+                  alt={mineral.mineral_name}
+                  height={400}
+                  objectFit="contain"
+                  className="w-full max-w-md"
                 />
               </div>
-              <div className="w-full md:w-2/3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <InfoItem label="Mineral Group" value={mineral.mineral_group} />
-                  <InfoItem label="Category" value={mineral.category} />
-                  
-                  {mineral.chemical_formula && (
-                    <InfoItem label="Chemical Formula" value={mineral.chemical_formula} />
-                  )}
-                  
-                  {mineral.hardness && (
-                    <InfoItem label="Hardness" value={mineral.hardness} />
-                  )}
-                  
-                  {mineral.color && (
-                    <InfoItem label="Color" value={mineral.color} />
-                  )}
-                  
-                  {mineral.luster && (
-                    <InfoItem label="Luster" value={mineral.luster} />
-                  )}
-                  
-                  {mineral.streak && (
-                    <InfoItem label="Streak" value={mineral.streak} />
-                  )}
-                </div>
+            ) : (
+              <div className="flex items-center justify-center bg-muted rounded-lg" style={{ height: "400px", width: "100%" }}>
+                <p className="text-muted-foreground">No image available</p>
               </div>
+            )}
+          </div>
+          
+          {/* Right: Mineral Properties */}
+          <div className="w-full md:w-1/2">
+            {mineral.chemical_formula && (
+              <div className="mb-6">
+                <h3 className="text-base font-medium">Chemical Formula</h3>
+                <p className="text-lg">{mineral.chemical_formula}</p>
+              </div>
+            )}
+            
+            {mineral.color && (
+              <div className="mb-6">
+                <h3 className="text-base font-medium">Color</h3>
+                <p className="text-lg">{mineral.color}</p>
+              </div>
+            )}
+            
+            {mineral.streak && (
+              <div className="mb-6">
+                <h3 className="text-base font-medium">Streak</h3>
+                <p className="text-lg">{mineral.streak}</p>
+              </div>
+            )}
+            
+            {mineral.luster && (
+              <div className="mb-6">
+                <h3 className="text-base font-medium">Luster</h3>
+                <p className="text-lg">{mineral.luster}</p>
+              </div>
+            )}
+            
+            {mineral.hardness && (
+              <div className="mb-6">
+                <h3 className="text-base font-medium">Hardness</h3>
+                <p className="text-lg">{mineral.hardness}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Crystal Information */}
+        <Card className="p-6">
+          <h2 className="text-xl font-bold mb-4">Crystal Properties</h2>
+          
+          {mineral.crystal_system && (
+            <div className="mb-4">
+              <h3 className="text-base font-medium">Crystal System</h3>
+              <p className="text-lg">{mineral.crystal_system}</p>
             </div>
-          </CardContent>
+          )}
+          
+          {mineral.cleavage && (
+            <div className="mb-4">
+              <h3 className="text-base font-medium">Cleavage</h3>
+              <p className="text-lg">{mineral.cleavage}</p>
+            </div>
+          )}
+          
+          {mineral.fracture && (
+            <div className="mb-4">
+              <h3 className="text-base font-medium">Fracture</h3>
+              <p className="text-lg">{mineral.fracture}</p>
+            </div>
+          )}
+          
+          {mineral.habit && (
+            <div className="mb-4">
+              <h3 className="text-base font-medium">Habit</h3>
+              <p className="text-lg">{mineral.habit}</p>
+            </div>
+          )}
+          
+          {!mineral.crystal_system && !mineral.cleavage && !mineral.fracture && !mineral.habit && (
+            <p className="text-muted-foreground">No crystal property information available</p>
+          )}
         </Card>
 
-        {/* Crystal Properties */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Crystal Properties</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-4">
-              {mineral.crystal_system && (
-                <InfoItem label="Crystal System" value={mineral.crystal_system} />
-              )}
-              
-              {mineral.cleavage && (
-                <InfoItem label="Cleavage" value={mineral.cleavage} />
-              )}
-              
-              {mineral.fracture && (
-                <InfoItem label="Fracture" value={mineral.fracture} />
-              )}
-              
-              {mineral.habit && (
-                <InfoItem label="Habit" value={mineral.habit} />
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Additional Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Additional Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-4">
-              {mineral.specific_gravity && (
-                <InfoItem label="Specific Gravity" value={mineral.specific_gravity} />
-              )}
-              
-              {mineral.transparency && (
-                <InfoItem label="Transparency" value={mineral.transparency} />
-              )}
-              
-              {mineral.occurrence && (
-                <InfoItem label="Occurrence" value={mineral.occurrence} />
-              )}
-              
-              {mineral.uses && (
-                <InfoItem label="Uses" value={mineral.uses} />
-              )}
-            </div>
-          </CardContent>
+        {/* Additional Properties */}
+        <Card className="p-6">
+          <h2 className="text-xl font-bold mb-4">Additional Properties</h2>
+          
+          <div className="space-y-4">
+            {mineral.specific_gravity && (
+              <div className="mb-4">
+                <h3 className="text-base font-medium">Specific Gravity</h3>
+                <p className="text-lg">{mineral.specific_gravity}</p>
+              </div>
+            )}
+            
+            {mineral.transparency && (
+              <div className="mb-4">
+                <h3 className="text-base font-medium">Transparency</h3>
+                <p className="text-lg">{mineral.transparency}</p>
+              </div>
+            )}
+            
+            {mineral.occurrence && (
+              <div className="mb-4">
+                <h3 className="text-base font-medium">Occurrence</h3>
+                <p className="text-lg">{mineral.occurrence}</p>
+              </div>
+            )}
+            
+            {mineral.uses && (
+              <div className="mb-4">
+                <h3 className="text-base font-medium">Uses</h3>
+                <p className="text-lg">{mineral.uses}</p>
+              </div>
+            )}
+            
+            {!mineral.specific_gravity && !mineral.transparency && !mineral.occurrence && !mineral.uses && (
+              <p className="text-muted-foreground">No additional property information available</p>
+            )}
+          </div>
         </Card>
       </div>
-    </div>
-  );
-};
-
-// Helper component for displaying property-value pairs
-const InfoItem = ({ label, value }: { label: string; value: string }) => {
-  if (!value) return null;
-  
-  return (
-    <div className="mb-2">
-      <h4 className="text-sm font-medium text-muted-foreground">{label}</h4>
-      <p>{value}</p>
     </div>
   );
 };

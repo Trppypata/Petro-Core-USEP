@@ -89,7 +89,7 @@ export default function OverviewDashboard() {
     const fetchTotalUsers = async () => {
       try {
         const response = await axios.get(
-          'http://localhost:3000/api/users/countUsers'
+          'http://localhost:8001/api/users/countUsers'
         );
         setTotalUsers(response.data.totalUsers);
       } catch (error) {

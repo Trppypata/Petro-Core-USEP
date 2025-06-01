@@ -6,4 +6,5 @@ export {
   MineralEditForm
 };
 
-export { MineralExcelImporter } from './MineralExcelImporter'; 
+export { default as MineralExcelImporter } from './mineral-excel-importer';
+export { default as MineralDetailsView } from './mineral-details-view'; 

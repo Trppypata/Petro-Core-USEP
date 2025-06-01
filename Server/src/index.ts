@@ -15,6 +15,7 @@ import studentRoutes from './routes/student.routes';
 import userRoutes from './routes/users.routes';
 import mineralsRoutes from './routes/minerals.routes';
 import rocksRoutes from './routes/rocks.routes';
+import rockImagesRoutes from './routes/rock-images.routes';
 import { setupStorageBuckets } from './config/setup-storage';
 
 // Create Express app
@@ -36,9 +37,15 @@ app.use('/api/student', studentRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/minerals', mineralsRoutes);
 app.use('/api/rocks', rocksRoutes);
+app.use('/api/rock-images', rockImagesRoutes);
 
-// Health check route
+// Health check routes
 app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'Server is running' });
+});
+
+// Add API prefix health check endpoint to match client expectations
+app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Server is running' });
 });
 

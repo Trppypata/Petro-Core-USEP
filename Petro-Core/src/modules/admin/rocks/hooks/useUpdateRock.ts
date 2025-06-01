@@ -9,7 +9,24 @@ export const useUpdateRock = () => {
 
   const { mutateAsync, isPending: isUpdating } = useMutation({
     mutationFn: async ({ id, rockData }: { id: string; rockData: Partial<IRock> }) => {
-      return await updateRock(id, rockData);
+      console.log('useUpdateRock mutation called with:', { id, rockData: { ...rockData } });
+      
+      try {
+        // Show loading toast
+        toast.loading('Updating rock...');
+        
+        // The rock.service updateRock function already handles data cleaning
+        const result = await updateRock(id, rockData);
+        
+        // Dismiss the loading toast
+        toast.dismiss();
+        
+        return result;
+      } catch (error) {
+        // Dismiss the loading toast
+        toast.dismiss();
+        throw error;
+      }
     },
     onSuccess: (updatedRock) => {
       // Invalidate the rocks query to trigger a refetch
@@ -22,7 +39,7 @@ export const useUpdateRock = () => {
     },
     onError: (error: Error) => {
       console.error('Error updating rock:', error);
-      toast.error('Failed to update rock. Please try again.');
+      toast.error(`Failed to update rock: ${error.message}`);
     }
   });
 

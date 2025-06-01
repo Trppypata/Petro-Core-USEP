@@ -9,14 +9,31 @@ export function useAddRock() {
 
   const { isPending: isAdding, mutateAsync: addRock } = useMutation({
     mutationFn: async (rockData: IRock) => {
-      return await createRock(rockData);
+      console.log('useAddRock mutation called with data:', rockData);
+      
+      // Check authentication
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        console.error('No authentication token found');
+        throw new Error('Authentication required. Please log in and try again.');
+      }
+      
+      // Filter out the 'origin' field which is causing schema errors
+      const { origin, ...filteredRockData } = rockData;
+      console.log('Filtered out origin field, sending data:', filteredRockData);
+      
+      return await createRock(filteredRockData);
     },
 
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Rock added successfully:', data);
       toast.success(`Success! The rock has been added to the database.`);
       queryClient.invalidateQueries({ queryKey: [Q_KEYS.ROCKS] });
     },
-    onError: (err: Error) => toast.error(`Failed to add rock: ${err.message}`),
+    onError: (err: Error) => {
+      console.error('Failed to add rock:', err);
+      toast.error(`Failed to add rock: ${err.message}`);
+    },
   });
 
   return { isAdding, addRock };

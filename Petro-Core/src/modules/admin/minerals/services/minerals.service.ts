@@ -1,6 +1,7 @@
 import axios from 'axios';
 import type { IMineral } from '../mineral.interface';
 import Cookies from 'js-cookie';
+import { toast } from 'sonner';
 
 const API_URL = import.meta.env.VITE_local_url || 'http://localhost:8001/api';
 
@@ -93,14 +94,87 @@ export const addMineral = async (
     };
 
     console.log('Add mineral headers:', headers);
-    console.log('Add mineral data:', mineralData);
+    console.log('Add mineral data before cleaning:', mineralData);
+    
+    // Clean the data to remove any problematic fields
+    const cleanedData = cleanMineralData(mineralData);
+    console.log('Add mineral data after cleaning:', cleanedData);
 
-    const response = await axios.post(`${API_URL}/minerals`, mineralData, { headers });
+    // Create a fresh axios instance with auth headers
+    const authAxios = axios.create({
+      baseURL: API_URL,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      // Add a timeout to avoid hanging requests
+      timeout: 10000
+    });
+    
+    console.log('Sending POST request to:', `${API_URL}/minerals`);
+    const response = await authAxios.post('/minerals', cleanedData);
+    console.log('Response status:', response.status);
+    
+    if (!response.data || !response.data.data) {
+      throw new Error('Invalid response format');
+    }
+    
     return response.data.data;
   } catch (error) {
     console.error('Error adding mineral:', error);
+    
+    // Enhanced error handling to provide more details
+    if (axios.isAxiosError(error)) {
+      const statusCode = error.response?.status;
+      const responseData = error.response?.data;
+      
+      console.error(`API Error (${statusCode}):`, responseData);
+      
+      // Handle token expiration specifically
+      if (statusCode === 401) {
+        localStorage.removeItem('access_token');
+        toast.error('Your session has expired. Please log in again.');
+      }
+      
+      if (responseData?.message) {
+        throw new Error(`Failed to add mineral: ${responseData.message}`);
+      }
+    }
+    
     throw new Error('Failed to add mineral. Please try again.');
   }
+};
+
+/**
+ * Cleans mineral data to include only valid fields from the schema
+ */
+export const cleanMineralData = (mineralData: any): Partial<IMineral> => {
+  // Only include fields that are in the IMineral interface
+  const validKeys = [
+    'id', 'mineral_code', 'mineral_name', 'chemical_formula',
+    'mineral_group', 'color', 'streak', 'luster', 'hardness',
+    'cleavage', 'fracture', 'habit', 'crystal_system',
+    'category', 'type', 'image_url', 'specific_gravity',
+    'transparency', 'occurrence', 'uses',
+    'created_at', 'updated_at'
+  ];
+  
+  // Create a new object with only valid fields
+  const cleanedData: Partial<IMineral> = {};
+  
+  // Add each valid field if it exists in the input data
+  for (const key of validKeys) {
+    if (mineralData[key] !== undefined) {
+      cleanedData[key] = mineralData[key];
+    }
+  }
+  
+  // Explicitly remove any user-related fields
+  delete (cleanedData as any).user;
+  delete (cleanedData as any).user_id;
+  delete (cleanedData as any).user_metadata;
+  
+  return cleanedData;
 };
 
 // Update a mineral
@@ -109,6 +183,13 @@ export const updateMineral = async (
   mineralData: Partial<IMineral>
 ): Promise<IMineral> => {
   try {
+    console.log('⭐ Update mineral service called with ID:', id);
+    console.log('⭐ Update mineral data before cleaning:', JSON.stringify(mineralData, null, 2));
+
+    // Clean the data to remove problematic fields
+    const cleanedData = cleanMineralData(mineralData);
+    console.log('🧹 Update mineral data after cleaning:', JSON.stringify(cleanedData, null, 2));
+
     // Get token using the helper function
     const token = getAuthToken();
 
@@ -116,18 +197,49 @@ export const updateMineral = async (
       throw new Error('Authentication token not found. Please log in again.');
     }
 
-    // Set headers with the token for authorization
-    const headers = {
-      Authorization: `Bearer ${token}`
-    };
-
-    console.log('Update mineral headers:', headers);
-    console.log('Update mineral data:', mineralData);
-
-    const response = await axios.put(`${API_URL}/minerals/${id}`, mineralData, { headers });
+    // Create a fresh axios instance with auth headers
+    const authAxios = axios.create({
+      baseURL: API_URL,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      timeout: 10000
+    });
+    
+    console.log('📤 Sending update request...');
+    const response = await authAxios.put(`/minerals/${id}`, cleanedData);
+    
+    console.log('📥 Update response status:', response.status);
+    console.log('📥 Update response data:', response.data);
+    
+    if (!response.data || !response.data.data) {
+      throw new Error('Invalid response format');
+    }
+    
     return response.data.data;
   } catch (error) {
-    console.error('Error updating mineral:', error);
+    console.error('❌ Error updating mineral:', error);
+    
+    // Enhanced error handling to provide more details
+    if (axios.isAxiosError(error)) {
+      const statusCode = error.response?.status;
+      const responseData = error.response?.data;
+      
+      console.error(`❌ Error status:`, statusCode);
+      console.error(`❌ Error data:`, responseData);
+      
+      // Handle token expiration specifically
+      if (statusCode === 401) {
+        localStorage.removeItem('access_token');
+        toast.error('Your session has expired. Please log in again.');
+      }
+      
+      if (responseData?.message) {
+        throw new Error(`Failed to update mineral: ${responseData.message}`);
+      }
+    }
+    
     throw new Error('Failed to update mineral. Please try again.');
   }
 };

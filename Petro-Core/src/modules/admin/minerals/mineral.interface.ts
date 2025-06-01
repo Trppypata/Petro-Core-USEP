@@ -20,6 +20,8 @@ export interface IMineral {
   transparency?: string;
   occurrence?: string;
   uses?: string;
+  // User relationship
+  user_id?: string;
   // Database fields
   created_at?: string;
   updated_at?: string;
@@ -28,7 +30,7 @@ export interface IMineral {
 export type MineralCategory = 
   | 'ALL'
   | 'SULFOSALTS'
-  | 'BORATES '
+  | 'BORATES'
   | 'SULFATES'
   | 'CHROMATES'
   | 'MOLYBDATE'
@@ -39,15 +41,15 @@ export type MineralCategory =
   | 'NATIVE ELEMENTS'
   | 'SULFIDES'
   | 'OXIDES'
-  | 'HYDROXIDES '
+  | 'HYDROXIDES'
   | 'SILICATES'
   | 'ORGANICS'
   | 'HALIDES'
-  | 'CARBONATES ';
+  | 'CARBONATES';
 
 export const MINERAL_CATEGORIES: MineralCategory[] = [
   'ALL',
-  'BORATES ',
+  'BORATES',
   'SULFATES',
   'CHROMATES',
   'MOLYBDATE',
@@ -59,9 +61,9 @@ export const MINERAL_CATEGORIES: MineralCategory[] = [
   'SULFIDES',
   'SULFOSALTS',
   'OXIDES',
-  'HYDROXIDES ',
+  'HYDROXIDES',
   'SILICATES',
   'ORGANICS',
   'HALIDES',
-  'CARBONATES '
+  'CARBONATES'
 ]; 

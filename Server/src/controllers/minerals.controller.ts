@@ -417,6 +417,8 @@ export const addMineral = async (req: Request, res: Response) => {
   try {
     const mineralData: IMineral = req.body;
     
+    console.log('⭐ Add mineral request received:', JSON.stringify(mineralData, null, 2));
+    
     if (!mineralData.mineral_name || !mineralData.category) {
       return res.status(400).json({
         success: false,
@@ -424,13 +426,45 @@ export const addMineral = async (req: Request, res: Response) => {
       });
     }
 
+    // Filter out any undefined or null values
+    const filteredData = Object.fromEntries(
+      Object.entries(mineralData).filter(([_, v]) => v !== null && v !== undefined)
+    );
+    
+    // Explicitly remove any user-related fields for security
+    delete (filteredData as any).user;
+    delete (filteredData as any).user_id;
+    delete (filteredData as any).user_metadata;
+    
+    console.log('🧹 Prepared mineral data for insert:', JSON.stringify(filteredData, null, 2));
+
+    // Try RPC function first if available
+    try {
+      const { data, error } = await supabase.rpc('insert_mineral', { 
+        mineral_data: filteredData 
+      });
+      
+      if (!error) {
+        return res.status(201).json({
+          success: true,
+          data,
+        });
+      } else {
+        console.log('RPC method failed, falling back to direct insert:', error);
+      }
+    } catch (rpcError) {
+      console.log('RPC not available, using direct insert:', rpcError);
+    }
+
+    // If RPC fails, try direct insert
     const { data, error } = await supabase
       .from('minerals')
-      .insert(mineralData)
+      .insert(filteredData)
       .select()
       .single();
 
     if (error) {
+      console.error('❌ Error adding mineral:', error);
       return res.status(400).json({
         success: false,
         message: error.message,
@@ -456,26 +490,88 @@ export const updateMineral = async (req: Request, res: Response) => {
     const { id } = req.params;
     const mineralData: Partial<IMineral> = req.body;
     
-    const { data, error } = await supabase
-      .from('minerals')
-      .update(mineralData)
-      .eq('id', id)
-      .select()
-      .single();
+    console.log('⭐ Update mineral request received for id:', id);
+    console.log('⭐ Original mineral data:', JSON.stringify(mineralData, null, 2));
+    
+    // Filter out any undefined or null values
+    const filteredData = Object.fromEntries(
+      Object.entries(mineralData).filter(([_, v]) => v !== null && v !== undefined)
+    );
+    
+    // Explicitly remove any user-related fields for security
+    delete (filteredData as any).user;
+    delete (filteredData as any).user_id;
+    delete (filteredData as any).user_metadata;
+    
+    console.log('🧹 Prepared mineral data for update:', JSON.stringify(filteredData, null, 2));
+    
+    try {
+      // Check if the mineral exists first
+      const { data: existingMineral, error: findError } = await supabase
+        .from('minerals')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (findError) {
+        console.error('❌ Error finding mineral:', findError);
+        return res.status(404).json({
+          success: false,
+          message: `Mineral with ID ${id} not found`,
+        });
+      }
+      
+      console.log('✅ Found mineral:', existingMineral.mineral_name);
+      console.log('📊 Database columns:', Object.keys(existingMineral));
+      
+      // Try RPC function first if available
+      try {
+        const { data, error } = await supabase.rpc('update_mineral', { 
+          mineral_id: id,
+          mineral_data: filteredData 
+        });
+        
+        if (!error) {
+          return res.status(200).json({
+            success: true,
+            data,
+          });
+        } else {
+          console.log('RPC method failed, falling back to direct update:', error);
+        }
+      } catch (rpcError) {
+        console.log('RPC not available, using direct update:', rpcError);
+      }
+    
+      // If RPC fails, try direct update
+      const { data, error } = await supabase
+        .from('minerals')
+        .update(filteredData)
+        .eq('id', id)
+        .select()
+        .single();
 
-    if (error) {
+      if (error) {
+        console.error('❌ Error updating mineral in database:', error);
+        return res.status(400).json({
+          success: false,
+          message: error.message,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data,
+      });
+    } catch (dbError) {
+      console.error('❌ Database error:', dbError);
       return res.status(400).json({
         success: false,
-        message: error.message,
+        message: 'Database error',
       });
     }
-
-    return res.status(200).json({
-      success: true,
-      data,
-    });
   } catch (error) {
-    console.error('Update mineral error:', error);
+    console.error('❌ Error in updateMineral controller:', error);
     return res.status(500).json({
       success: false,
       message: 'Internal server error',

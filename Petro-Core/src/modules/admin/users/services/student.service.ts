@@ -1,5 +1,6 @@
 import axios, { AxiosError } from "axios";
 import type { UserFormValues } from "../user.types";
+import { apiClient } from "@/services/api.service";
 
 // Updated fallback URL to use port 8000 instead of 3000
 const localhost_url = import.meta.env.VITE_local_url || "http://localhost:8001";
@@ -11,7 +12,7 @@ interface ErrorResponse {
 const addStudent = async (studentData: UserFormValues) => {
   try {
     console.log('📤 Sending student data to API:', studentData);
-    console.log('🔗 API URL:', `${localhost_url}/api/users/registerStudent`);
+    console.log('🔗 API URL: users/registerStudent');
     
     // Log the profile_url before sending
     console.log('📸 Profile URL being sent to backend:', studentData.profile_url || 'No profile URL set');
@@ -27,11 +28,8 @@ const addStudent = async (studentData: UserFormValues) => {
       throw new Error('Backend server is not available. Please make sure the server is running on port 8001.');
     }
 
-    const response = await axios.post(`${localhost_url}/api/users/registerStudent`, studentData, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    // Use apiClient which already has the base URL configured
+    const response = await apiClient.post('/users/registerStudent', studentData);
 
     console.log('✅ API Response:', response.data);
     return response.data;
@@ -49,8 +47,9 @@ const addStudent = async (studentData: UserFormValues) => {
 
 const getAllStudents = async () => {
   try {
-    console.log('🔍 Fetching students from:', `${localhost_url}/api/users/fetchUserDetails`);
-    const response = await axios.get(`${localhost_url}/api/users/fetchUserDetails`);
+    console.log('🔍 Fetching students from endpoint: users/fetchUserDetails');
+    // Use the apiClient which already has the base URL configured
+    const response = await apiClient.get('/users/fetchUserDetails');
     console.log('✅ Raw API Response:', response);
     console.log('✅ Response data:', response.data);
     console.log('✅ Response data type:', typeof response.data);

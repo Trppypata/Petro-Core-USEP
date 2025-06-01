@@ -2,6 +2,33 @@ import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import IUser from '../models/user.model';
 
+// Count total users
+export const countUsers = async (_req: Request, res: Response) => {
+  try {
+    const { count, error } = await supabase
+      .from('students')
+      .select('*', { count: 'exact', head: true });
+
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      totalUsers: count,
+    });
+  } catch (error) {
+    console.error('Count users error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
 // Register student
 export const registerStudent = async (req: Request, res: Response) => {
   try {

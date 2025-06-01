@@ -13,6 +13,9 @@ import RockForm from '../rock-form';
 import type { RockCategory, IRock } from '../rock.interface';
 import { SupabaseImage } from '@/components/ui/supabase-image';
 import { Spinner } from '@/components/spinner';
+import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
+import { Q_KEYS } from '@/shared/qkeys';
 
 interface RockContentFormProps {
   category?: RockCategory;
@@ -35,6 +38,7 @@ const RockContentForm = ({
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const queryClient = useQueryClient();
 
   const handleClose = () => {
     if (onClose) {
@@ -47,10 +51,35 @@ const RockContentForm = ({
   const handleSubmit = async (data: Partial<IRock>) => {
     setIsSubmitting(true);
     try {
-      await addRock(data as Omit<IRock, 'id'>);
+      console.log('Submitting rock data:', data);
+      
+      // Ensure the category is set
+      const rockData = {
+        ...data,
+        category: category || data.category || 'Igneous',
+      } as Omit<IRock, 'id'>;
+      
+      console.log('Processed rock data:', rockData);
+      
+      // Check authentication token
+      const token = localStorage.getItem('access_token');
+      console.log('Authentication token exists:', !!token);
+      if (!token) {
+        console.error('No authentication token found');
+        toast.error('Authentication required. Please log in and try again.');
+        return;
+      }
+      
+      await addRock(rockData);
+      
+      // Force a refetch of the rock data
+      queryClient.invalidateQueries({ queryKey: [Q_KEYS.ROCKS] });
+      
+      toast.success('Rock added successfully!');
       handleClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding rock:', error);
+      toast.error(`Failed to add rock: ${error.message || 'Unknown error'}`);
     } finally {
       setIsSubmitting(false);
     }

@@ -3,10 +3,6 @@ import axios from 'axios';
 // API base URL
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001/api';
 
-// Store the JWT token in localStorage
-const JWT_TOKEN = import.meta.env.VITE_JWT_TOKEN || 'YilC18qoKrKaWJBxdoBslfHFflvjHgI7n6EQH2cdeUYO0t1wmM/QjchQxh1TaYG+IuPcPQ4liG0JlhbY1DTL1A==';
-localStorage.setItem('access_token', JWT_TOKEN);
-
 // Configure axios to use the token for all requests
 axios.interceptors.request.use(
   (config) => {
@@ -51,6 +47,8 @@ export const authService = {
         
         // Save token
         localStorage.setItem('access_token', response.data.data.session.access_token);
+        
+        console.log('Token saved:', response.data.data.session.access_token.substring(0, 20) + '...');
       }
       
       return response.data.data;
@@ -115,6 +113,9 @@ export const authService = {
       localStorage.removeItem('email');
       localStorage.removeItem('role');
       localStorage.removeItem('access_token');
+      
+      // Return to login page
+      window.location.href = '/login';
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
         throw new Error(error.response.data.message || 'Logout failed');
@@ -183,4 +184,19 @@ export const authService = {
       throw error;
     }
   },
+
+  /**
+   * Check if the user is authenticated
+   */
+  isAuthenticated() {
+    const token = localStorage.getItem('access_token');
+    return !!token;
+  },
+
+  /**
+   * Get the current auth token
+   */
+  getToken() {
+    return localStorage.getItem('access_token');
+  }
 }; 

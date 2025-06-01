@@ -14,9 +14,20 @@ export const uploadFile = async (file: File, folder: string): Promise<string> =>
   try {
     // Check if Supabase is properly configured
     if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-      toast.error('Supabase storage is not configured. Image upload is unavailable.');
-      console.error('Missing Supabase environment variables. Please configure your .env file.');
-      // Return a placeholder image URL or empty string
+      // More helpful error message with instructions
+      console.error(`
+        Missing Supabase environment variables. Please configure your .env file.
+        
+        Create a .env file in the Petro-Core directory with the following:
+        VITE_SUPABASE_URL=your_supabase_url
+        VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+        
+        You can find these values in your Supabase dashboard under Project Settings > API.
+      `);
+      
+      toast.error('Supabase storage is not configured. Your data will be saved without the image.');
+      
+      // Return empty string but don't block the rest of the form submission
       return '';
     }
 
@@ -45,8 +56,95 @@ export const uploadFile = async (file: File, folder: string): Promise<string> =>
     return publicURL.publicUrl;
   } catch (error) {
     console.error('Error uploading file:', error);
-    toast.error('Failed to upload file. Please try again.');
+    toast.error('Failed to upload file. Your data will be saved without the image.');
     return '';
+  }
+};
+
+/**
+ * Uploads multiple files to Supabase storage
+ * @param files Array of files to upload
+ * @param folder The folder to upload to (e.g. 'rocks', 'minerals')
+ * @returns Array of URLs of the uploaded files
+ */
+export const uploadMultipleFiles = async (files: File[], folder: string): Promise<string[]> => {
+  try {
+    console.log(`🗄️ Starting upload of ${files.length} files to ${folder} folder`);
+    console.log(`🗄️ File details: ${files.map(f => `${f.name} (${f.size} bytes)`).join(', ')}`);
+    
+    // Check if Supabase is properly configured
+    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+      console.error('🗄️ Missing Supabase environment variables. Please configure your .env file.');
+      toast.error('Supabase storage is not configured. Your data will be saved without images.');
+      return [];
+    }
+
+    console.log(`🗄️ Supabase URL: ${import.meta.env.VITE_SUPABASE_URL}`);
+    console.log(`🗄️ Storage bucket: ${STORAGE_BUCKET}`);
+
+    // Show a loading toast
+    toast.loading(`Uploading ${files.length} images...`);
+
+    // Upload each file concurrently
+    const uploadPromises = files.map(async (file, index) => {
+      try {
+        // Generate a unique filename
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${uuidv4()}.${fileExt}`;
+        const filePath = `${folder}/${fileName}`;
+        console.log(`🗄️ [${index + 1}/${files.length}] Uploading ${file.name} to ${filePath}`);
+
+        // Upload the file
+        const { data, error } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: true
+          });
+
+        if (error) {
+          console.error(`❌ [${index + 1}/${files.length}] Error uploading ${file.name}:`, error);
+          return '';
+        }
+
+        // Get the public URL
+        const { data: publicURL } = supabase.storage
+          .from(STORAGE_BUCKET)
+          .getPublicUrl(data.path);
+
+        console.log(`✅ [${index + 1}/${files.length}] Successfully uploaded ${file.name} to ${data.path}`);
+        console.log(`🔗 Public URL: ${publicURL.publicUrl}`);
+        
+        return publicURL.publicUrl;
+      } catch (error) {
+        console.error(`❌ [${index + 1}/${files.length}] Error uploading ${file.name}:`, error);
+        return '';
+      }
+    });
+
+    // Wait for all uploads to complete
+    console.log(`🗄️ Waiting for all ${files.length} uploads to complete...`);
+    const urls = await Promise.all(uploadPromises);
+    
+    // Dismiss loading toast
+    toast.dismiss();
+    
+    // Show success toast
+    const successCount = urls.filter(url => url !== '').length;
+    console.log(`🗄️ Upload complete: ${successCount}/${files.length} files uploaded successfully`);
+    
+    if (successCount > 0) {
+      toast.success(`Successfully uploaded ${successCount} of ${files.length} images`);
+    } else {
+      toast.error(`Failed to upload any images. Please try again.`);
+    }
+    
+    // Filter out any failed uploads (empty strings)
+    return urls.filter(url => url !== '');
+  } catch (error) {
+    console.error('❌ Error uploading multiple files:', error);
+    toast.error('Failed to upload images. Your data will be saved without images.');
+    return [];
   }
 };
 
@@ -84,5 +182,48 @@ export const deleteFile = async (fileUrl: string): Promise<void> => {
   } catch (error) {
     console.error('Error deleting file:', error);
     toast.error('Failed to delete file. Please try again.');
+  }
+};
+
+/**
+ * Deletes multiple files from Supabase storage
+ * @param fileUrls Array of URLs of the files to delete
+ */
+export const deleteMultipleFiles = async (fileUrls: string[]): Promise<void> => {
+  try {
+    // Check if Supabase is properly configured
+    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+      toast.error('Supabase storage is not configured. File deletion is unavailable.');
+      console.error('Missing Supabase environment variables. Please configure your .env file.');
+      return;
+    }
+
+    // Skip if no URLs provided
+    if (!fileUrls.length) {
+      console.warn('No file URLs provided, skipping deletion');
+      return;
+    }
+
+    // Extract the storage URL
+    const storageUrl = supabase.storage.from(STORAGE_BUCKET).getPublicUrl('').data.publicUrl;
+    
+    // Extract the paths from the URLs
+    const filePaths = fileUrls
+      .filter(url => url) // Filter out empty URLs
+      .map(url => url.replace(storageUrl, ''));
+
+    if (filePaths.length) {
+      // Delete the files
+      const { error } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .remove(filePaths);
+
+      if (error) {
+        throw error;
+      }
+    }
+  } catch (error) {
+    console.error('Error deleting files:', error);
+    toast.error('Failed to delete some files. Please try again.');
   }
 }; 

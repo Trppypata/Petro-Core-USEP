@@ -13,4 +13,5 @@ export const Q_KEYS = {
   // Geology
   ROCKS: 'rocks',
   MINERALS: 'minerals',
+  ROCK_IMAGES: 'rock_images',
 } as const; 

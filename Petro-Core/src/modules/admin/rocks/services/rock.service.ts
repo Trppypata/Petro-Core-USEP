@@ -1,16 +1,58 @@
 import axios from 'axios';
 import type { IRock } from '../rock.interface';
 import Cookies from 'js-cookie';
+import { toast } from 'sonner';
+import { apiClient } from '@/services/api.service';
 
 const API_URL = import.meta.env.VITE_local_url || 'http://localhost:8001/api';
+console.log('API URL for rocks service:', API_URL);
 
-// Helper function to get the authentication token
-const getAuthToken = (): string | null => {
-  // Try to get token from multiple possible sources
-  return localStorage.getItem('access_token') || 
-         Cookies.get('access_token') || 
+/**
+ * Helper to get auth token
+ */
+const getAuthToken = () => {
+  // Try multiple storage locations for the token
+  const token = localStorage.getItem('access_token') || 
+         localStorage.getItem('auth_token') || 
          localStorage.getItem('token') || 
-         localStorage.getItem('auth_token');
+         localStorage.getItem('accessToken') ||
+         Cookies.get('access_token');
+  
+  console.log('Auth token exists:', !!token);
+  if (token) {
+    // Log first and last few characters for debugging
+    const firstChars = token.substring(0, 10);
+    const lastChars = token.substring(token.length - 5);
+    console.log(`Token format check: ${firstChars}...${lastChars} (${token.length} chars)`);
+  } else {
+    console.error('No authentication token found in any storage location');
+  }
+  
+  return token;
+};
+
+/**
+ * Get axios instance with auth headers
+ */
+const getAuthAxios = () => {
+  const token = getAuthToken();
+  
+  if (!token) {
+    console.error('No authentication token found');
+    toast.error('Authentication required. Please log in again.');
+    throw new Error('Authentication token not found');
+  }
+  
+  // Create a fresh axios instance with auth headers
+  return axios.create({
+    baseURL: API_URL,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    // Add a timeout to avoid hanging requests
+    timeout: 10000
+  });
 };
 
 // Get all rocks
@@ -73,60 +115,125 @@ export const addRock = async (rockData: Omit<IRock, 'id'>): Promise<IRock> => {
       throw new Error('Authentication token not found. Please log in again.');
     }
 
-    // Set headers with the token for authorization
-    const headers = {
-      Authorization: `Bearer ${token}`
-    };
+    console.log('Add rock data before cleaning:', rockData);
+    
+    // Clean the data to remove any problematic fields
+    const cleanedData = cleanRockData(rockData);
+    console.log('Add rock data after cleaning:', cleanedData);
 
-    console.log('Add rock headers:', headers);
-    console.log('Add rock data:', rockData);
-
-    const response = await axios.post(`${API_URL}/rocks`, rockData, { headers });
+    // Create a fresh axios instance with auth headers
+    const authAxios = axios.create({
+      baseURL: API_URL,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      // Add a timeout to avoid hanging requests
+      timeout: 10000
+    });
+    
+    console.log('Sending POST request to:', `${API_URL}/rocks`);
+    const response = await authAxios.post('/rocks', cleanedData);
+    console.log('Response status:', response.status);
+    
+    if (!response.data || !response.data.data) {
+      throw new Error('Invalid response format');
+    }
+    
     return response.data.data;
   } catch (error) {
     console.error('Error adding rock:', error);
+    
+    // Enhanced error handling to provide more details
+    if (axios.isAxiosError(error)) {
+      const statusCode = error.response?.status;
+      const responseData = error.response?.data;
+      
+      console.error(`API Error (${statusCode}):`, responseData);
+      
+      // Handle token expiration specifically
+      if (statusCode === 401) {
+        localStorage.removeItem('access_token');
+        toast.error('Your session has expired. Please log in again.');
+      }
+      
+      if (responseData?.message) {
+        throw new Error(`Failed to add rock: ${responseData.message}`);
+      }
+    }
+    
     throw new Error('Failed to add rock. Please try again.');
   }
 };
 
-// Update a rock
+/**
+ * Update an existing rock
+ */
 export const updateRock = async (
   id: string,
   rockData: Partial<IRock>
 ): Promise<IRock> => {
   try {
-    console.log('⭐ Update rock called with ID:', id);
-    console.log('⭐ Update rock data:', JSON.stringify(rockData, null, 2));
+    console.log('⭐ Update rock service called with ID:', id);
+    console.log('⭐ Initial rock data:', JSON.stringify(rockData, null, 2));
+    
+    // Clean the data to only include valid fields
+    const cleanedData = cleanRockData(rockData);
+    
+    console.log('🧹 Cleaned data for update:', JSON.stringify(cleanedData, null, 2));
     
     // Get token using the helper function
     const token = getAuthToken();
 
     if (!token) {
-      console.error('❌ Authentication token not found');
       throw new Error('Authentication token not found. Please log in again.');
     }
-
-    // Set headers with the token for authorization
-    const headers = {
-      Authorization: `Bearer ${token}`
-    };
-
-    console.log('🔑 Update rock headers:', headers);
     
-    const url = `${API_URL}/rocks/${id}`;
-    console.log('🔗 Update rock URL:', url);
-
+    // Create a fresh axios instance with auth headers
+    const authAxios = axios.create({
+      baseURL: API_URL,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      timeout: 10000
+    });
+    
+    // Make the request
     console.log('📤 Sending update request...');
-    const response = await axios.put(url, rockData, { headers });
+    const response = await authAxios.put(`/rocks/${id}`, cleanedData);
     
     console.log('📥 Update response status:', response.status);
     console.log('📥 Update response data:', response.data);
     
+    if (!response.data || !response.data.data) {
+      throw new Error('Invalid response format');
+    }
+    
     return response.data.data;
   } catch (error: any) {
     console.error('❌ Error updating rock:', error);
-    console.error('❌ Error details:', error.response?.data || error.message);
-    throw new Error(error.response?.data?.message || 'Failed to update rock. Please try again.');
+    
+    // Enhanced error logging
+    if (error.response) {
+      console.error('❌ Error status:', error.response.status);
+      console.error('❌ Error data:', error.response.data);
+      
+      // Handle token expiration specifically
+      if (error.response.status === 401) {
+        localStorage.removeItem('access_token');
+        toast.error('Your session has expired. Please log in again.');
+      }
+      
+      // Special handling for 400 errors with schema issues
+      if (error.response.status === 400 && 
+          error.response.data?.message?.includes('Schema mismatch')) {
+        const message = `Database schema error: ${error.response.data.message}`;
+        throw new Error(message);
+      }
+    }
+    
+    throw new Error(error.response?.data?.message || error.message || 'Failed to update rock. Please try again.');
   }
 };
 
@@ -220,4 +327,48 @@ export const fetchRocks = async (
     console.error('Error fetching rocks:', error);
     throw new Error('Failed to fetch rocks from the database');
   }
+};
+
+/**
+ * Cleans rock data to include only valid fields from the schema
+ */
+export const cleanRockData = (rockData: any): Partial<IRock> => {
+  // Only include fields that are in the IRock interface
+  const validKeys = [
+    'id', 'rock_code', 'name', 'chemical_formula', 'hardness',
+    'category', 'type', 'depositional_environment', 'grain_size',
+    'color', 'texture', 'latitude', 'longitude', 'locality',
+    'mineral_composition', 'description', 'formation', 'geological_age',
+    'status', 'image_url', 'associated_minerals', 'metamorphism_type',
+    'metamorphic_grade', 'parent_rock', 'foliation', 'foliation_type',
+    'silica_content', 'cooling_rate', 'mineral_content', 
+    'bedding', 'sorting', 'roundness', 'fossil_content', 'sediment_source',
+    'commodity_type', 'ore_group', 'mining_company', 'coordinates',
+    'luster', 'reaction_to_hcl', 'magnetism', 'streak', 
+    'created_at', 'updated_at'
+  ];
+  
+  // Create a new object with only valid fields
+  const cleanedData: Partial<IRock> = {};
+  
+  // Add each valid field if it exists in the input data
+  for (const key of validKeys) {
+    if (rockData[key] !== undefined) {
+      cleanedData[key] = rockData[key];
+    }
+  }
+  
+  // Explicitly remove ALL problematic fields that might be included
+  delete (cleanedData as any).origin;
+  delete (cleanedData as any).user;
+  delete (cleanedData as any).user_id;
+  delete (cleanedData as any).user_metadata;
+  delete (cleanedData as any).protolith;
+  delete (cleanedData as any).auth;
+  delete (cleanedData as any).auth_user;
+  delete (cleanedData as any).auth_user_id;
+  delete (cleanedData as any).owner;
+  delete (cleanedData as any).owner_id;
+  
+  return cleanedData;
 }; 

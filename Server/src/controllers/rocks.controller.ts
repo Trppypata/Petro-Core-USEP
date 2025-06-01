@@ -164,7 +164,9 @@ export const importRocksFromExcel = async (req: Request, res: Response) => {
           // Additional fields
           luster: row['Luster'] || row['Luster '] || '',
           reaction_to_hcl: row['Reaction to HCl'] || row['Reaction to HCL'] || '',
-          magnetism: row['Magnetism'] || row['Magnetism '] || ''
+          magnetism: row['Magnetism'] || row['Magnetism '] || '',
+          // Add protolith field
+          protolith: row['Protolith'] || ''
         };
         
         // Add category-specific fields
@@ -487,26 +489,77 @@ export const updateRock = async (req: Request, res: Response) => {
     const { id } = req.params;
     const rockData: Partial<IRock> = req.body;
     
-    const { data, error } = await supabase
-      .from('rocks')
-      .update(rockData)
-      .eq('id', id)
-      .select()
-      .single();
+    console.log('⭐ Update rock request received for id:', id);
+    console.log('⭐ Original rock data:', JSON.stringify(rockData, null, 2));
+    
+    // EXPLICITLY REMOVE PROBLEMATIC FIELDS - this is critical
+    // Create a new object WITHOUT these fields to ensure they don't cause schema errors
+    // Using 'as any' to avoid TypeScript errors for fields not in the interface
+    const {
+      ...safeRockData
+    } = rockData;
 
-    if (error) {
+    // Explicitly delete problematic fields that aren't in the IRock interface
+    delete (safeRockData as any).user;
+    delete (safeRockData as any).user_id;
+    delete (safeRockData as any).user_metadata;
+    delete (safeRockData as any).origin; // This might not be in the interface
+    
+    // Also filter out any undefined or null values
+    const cleanedData = Object.fromEntries(
+      Object.entries(safeRockData).filter(([_, v]) => v !== null && v !== undefined)
+    );
+    
+    console.log('🧹 CLEANED rock data for update:', JSON.stringify(cleanedData, null, 2));
+    
+    try {
+      // Check if the rock exists first
+      const { data: existingRock, error: findError } = await supabase
+        .from('rocks')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (findError) {
+        console.error('❌ Error finding rock:', findError);
+        return res.status(404).json({
+          success: false,
+          message: `Rock with ID ${id} not found`,
+        });
+      }
+      
+      console.log('✅ Found rock:', existingRock.name);
+      console.log('📊 Database columns:', Object.keys(existingRock));
+      
+      // Update the rock with our cleaned data
+      const { data, error } = await supabase
+        .from('rocks')
+        .update(cleanedData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Error updating rock in database:', error);
+        return res.status(400).json({
+          success: false,
+          message: error.message,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data,
+      });
+    } catch (dbError) {
+      console.error('❌ Database error:', dbError);
       return res.status(400).json({
         success: false,
-        message: error.message,
+        message: 'Database error',
       });
     }
-
-    return res.status(200).json({
-      success: true,
-      data,
-    });
   } catch (error) {
-    console.error('Update rock error:', error);
+    console.error('❌ Error in updateRock controller:', error);
     return res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -751,7 +804,9 @@ export const importDefaultRocks = async (_req: Request, res: Response) => {
           // Additional fields
           luster: row['Luster'] || row['Luster '] || '',
           reaction_to_hcl: row['Reaction to HCl'] || row['Reaction to HCL'] || '',
-          magnetism: row['Magnetism'] || row['Magnetism '] || ''
+          magnetism: row['Magnetism'] || row['Magnetism '] || '',
+          // Add protolith field
+          protolith: row['Protolith'] || ''
         };
         
         // Ensure all rocks have a rock_code

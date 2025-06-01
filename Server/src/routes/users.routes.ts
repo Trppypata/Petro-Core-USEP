@@ -4,7 +4,8 @@ import {
   fetchUserDetails, 
   updateUser, 
   deleteUser,
-  getTeams
+  getTeams,
+  countUsers
 } from '../controllers/users.controller';
 
 const router = Router();
@@ -17,6 +18,9 @@ router.get('/fetchUserDetails', fetchUserDetails);
 
 // Get all teams/courses
 router.get('/teams', getTeams);
+
+// Count total users
+router.get('/countUsers', countUsers);
 
 // Update user
 router.put('/:id', updateUser);

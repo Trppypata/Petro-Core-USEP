@@ -71,8 +71,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         icon: Rocket,
       },
       {
-        title: 'System Lock',
-        url: 'system-lock',
+        title: 'System Lockdown',
+        url: 'lockdown',
         icon: Lock,
      
       },

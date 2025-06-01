@@ -1,4 +1,5 @@
-import { useState, useEffect, RefObject } from 'react';
+import { useState, useEffect } from 'react';
+import type { RefObject, Dispatch, SetStateAction } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -24,11 +25,17 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { RockCategory, IRock } from './rock.interface';
 import { useAddRock } from './hooks/useAddRock';
+import { useUpdateRock } from './hooks/useUpdateRock';
 import { Spinner } from '@/components/spinner';
-import { FileUpload } from '@/components/ui/file-upload';
+import { FileUpload, MultiFileUpload } from '@/components/ui/file-upload';
 import { uploadFile } from '@/services/storage.service';
 import { toast } from 'sonner';
 import { SupabaseImage } from '@/components/ui/supabase-image';
+import { RockImagesGallery } from '@/components/ui/rock-images-gallery';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useRockImages } from './hooks/useRockImages';
+import { Separator } from '@/components/ui/separator';
+import { RockImageUploader } from '@/components/ui/rock-image-uploader';
 
 interface RockFormProps {
   category: RockCategory;
@@ -42,49 +49,59 @@ interface RockFormProps {
   mode?: 'add' | 'edit';
   formRef?: RefObject<HTMLFormElement>;
   onCancel?: () => void;
+  onFormDataChange?: (data: Partial<IRock>) => void;
+  onImageFileChange?: (file: File | null) => void;
 }
 
 // Schema for rock form validation
 const formSchema = z.object({
   name: z.string().min(1, 'Rock name is required'),
-  rock_code: z.string().optional(),
-  commodity_type: z.string().optional(),
-  ore_group: z.string().optional(),
-  mining_company: z.string().optional(),
-  chemical_formula: z.string().optional(),
-  hardness: z.string().optional(),
   category: z.string().min(1, 'Category is required'),
   type: z.string().min(1, 'Type is required'),
+  status: z.enum(['active', 'inactive']).optional().default('active'),
+  rock_code: z.string().optional(),
+  chemical_formula: z.string().optional(),
+  hardness: z.string().optional(),
   depositional_environment: z.string().optional(),
   grain_size: z.string().optional(),
   color: z.string().optional(),
   texture: z.string().optional(),
-  latitude: z.string().optional(),
-  longitude: z.string().optional(),
   locality: z.string().optional(),
   mineral_composition: z.string().optional(),
   description: z.string().optional(),
   formation: z.string().optional(),
   geological_age: z.string().optional(),
-  status: z.enum(['active', 'inactive']).default('active'),
-  image_url: z.string().optional(),
+  coordinates: z.string().optional(),
   // Metamorphic rock specific fields
   metamorphism_type: z.string().optional(),
   metamorphic_grade: z.string().optional(),
   parent_rock: z.string().optional(),
   foliation: z.string().optional(),
-  associated_minerals: z.string().optional(),
-  coordinates: z.string().optional(),
-  luster: z.string().optional(),
-  streak: z.string().optional(),
-  reaction_to_hcl: z.string().optional(),
-  magnetism: z.string().optional(),
-  origin: z.string().optional(),
-  protolith: z.string().optional(),
   foliation_type: z.string().optional(),
+  // Igneous rock specific fields
+  silica_content: z.string().optional(),
+  cooling_rate: z.string().optional(),
+  mineral_content: z.string().optional(),
+  origin: z.string().optional(),
+  // Sedimentary rock specific fields
+  bedding: z.string().optional(),
+  sorting: z.string().optional(),
+  roundness: z.string().optional(),
+  fossil_content: z.string().optional(),
+  sediment_source: z.string().optional(),
+  // Ore samples specific fields
+  commodity_type: z.string().optional(),
+  ore_group: z.string().optional(),
+  mining_company: z.string().optional(),
+  // Additional fields
+  protolith: z.string().optional(),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+// Type definition for form values
+export type FormValues = z.infer<typeof formSchema> & {
+  // Add any additional fields that might be in the IRock interface but not in the schema
+  image_url?: string;
+};
 
 const RockForm = ({ 
   category, 
@@ -97,11 +114,25 @@ const RockForm = ({
   isLoading: externalLoading,
   mode = 'add',
   formRef,
-  onCancel
+  onCancel,
+  onFormDataChange,
+  onImageFileChange
 }: RockFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | undefined>(defaultValues?.image_url);
+  const [multipleImageFiles, setMultipleImageFiles] = useState<File[]>([]);
   const { addRock, isAdding } = useAddRock();
+  const { updateRock } = useUpdateRock();
+  
+  // Load existing rock images if in edit mode
+  const isEditMode = mode === 'edit' && defaultValues?.id;
+  const { 
+    images: existingImages, 
+    uploadImages, 
+    isUploading,
+    deleteImage 
+  } = useRockImages(defaultValues?.id || '');
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -149,57 +180,162 @@ const RockForm = ({
   // Update form when defaultValues change
   useEffect(() => {
     if (defaultValues) {
-      form.reset(defaultValues);
+      // Ensure status is set to a valid value
+      const formattedValues = {
+        ...defaultValues,
+        status: (defaultValues.status === 'active' || defaultValues.status === 'inactive') 
+          ? defaultValues.status 
+          : 'active' as const
+      };
+      
+      form.reset(formattedValues as unknown as FormValues);
     }
   }, [defaultValues, form]);
   
+  // Add useEffect to push form changes when they happen
+  useEffect(() => {
+    // Only set up the watcher if onFormDataChange is provided
+    if (!onFormDataChange) return;
+    
+    // Watch all form fields
+    const subscription = form.watch((value) => {
+      // Notify parent about data changes when fields change
+      onFormDataChange(value as Partial<IRock>);
+    });
+    
+    // Cleanup subscription
+    return () => subscription.unsubscribe();
+  }, [form, onFormDataChange]);
+  
   const handleFileChange = (file: File | null) => {
     setImageFile(file);
+    if (onImageFileChange) {
+      onImageFileChange(file);
+    }
+
+    // If file is provided, upload it and set the URL
+    if (file) {
+      uploadFile(file, 'rocks')
+        .then(url => {
+          setImageUrl(url);
+          console.log('Image uploaded, URL:', url);
+        })
+        .catch(error => {
+          console.error('Error uploading image:', error);
+          toast.error('Failed to upload image');
+        });
+    } else {
+      // If file is cleared, reset the URL
+      setImageUrl(undefined);
+    }
+  };
+  
+  const handleMultipleFilesChange = (files: File[]) => {
+    setMultipleImageFiles(files);
+    console.log(`🖼️ ${files.length} files selected for upload`);
   };
   
   const onSubmit = async (values: FormValues) => {
-    console.log("RockForm onSubmit called with values:", values);
     setIsSubmitting(true);
     try {
-      let imageUrl = values.image_url;
+      console.log('🧩 Starting form submission process');
+      // Prepare rock data with proper types
+      const rockData = {
+        ...values,
+        status: values.status || 'active',
+      };
+
+      // Add image URL if available
+      if (imageUrl) {
+        // Cast to allow adding the image_url property
+        (rockData as any).image_url = imageUrl;
+        console.log('📸 Main image URL set:', imageUrl);
+      }
+
+      let submissionResult;
+      let rockId = defaultValues?.id;
+      console.log(`🪨 Current rock ID: ${rockId || 'New rock (no ID yet)'}`);
       
-      // Upload image if we have a new file
-      if (imageFile) {
-        try {
-          console.log("Uploading image file:", imageFile.name);
-          // Upload to Supabase storage
-          imageUrl = await uploadFile(imageFile, 'rocks');
-          console.log('Uploaded image URL:', imageUrl);
-        } catch (error) {
-          console.error('Error uploading image:', error);
-          toast.error('Failed to upload image. Please try again.');
+      if (externalSubmit) {
+        console.log("Using external submit handler");
+        submissionResult = await externalSubmit(rockData);
+        // Try to extract ID from result if available
+        if (submissionResult && typeof submissionResult === 'object') {
+          rockId = submissionResult.id || (submissionResult.data && submissionResult.data.id) || rockId;
+        }
+      } else if (mode === 'edit' && defaultValues?.id) {
+        console.log("Using internal updateRock handler (edit mode)");
+        // For edit mode with correct parameters
+        submissionResult = await updateRock({
+          id: defaultValues.id,
+          rockData: rockData
+        });
+        rockId = defaultValues.id;
+      } else {
+        console.log("Using internal addRock handler (add mode)");
+        // For add mode - ensure required fields for IRock
+        const addRockData = {
+          ...rockData,
+          rock_code: rockData.rock_code || `R-${Date.now()}`, // Generate a code if not provided
+        } as IRock;
+        
+        submissionResult = await addRock(addRockData);
+        // Try to extract ID from the response
+        if (submissionResult && typeof submissionResult === 'object') {
+          rockId = submissionResult.id || (submissionResult.data && submissionResult.data.id);
+          console.log('🆕 New rock created with ID:', rockId);
         }
       }
       
-      const rockData = {
-        ...values,
-        image_url: imageUrl,
-      };
+      console.log(`✅ Rock saved successfully. Now handling multiple images. Have ${multipleImageFiles.length} files to upload.`);
+      console.log(`✅ Rock ID for image upload: ${rockId || 'Missing ID!'}`);
       
-      console.log("Prepared rock data for submission:", rockData);
-      
-      if (externalSubmit) {
-        console.log("Using external submit handler (edit mode)");
-        // For edit mode
-        await externalSubmit(rockData);
-      } else {
-        console.log("Using internal addRock handler (add mode)");
-        // For add mode
-        await addRock(rockData);
-        form.reset();
-        setImageFile(null);
+      // Upload multiple images if we have a rock ID and files to upload
+      if (rockId && multipleImageFiles.length > 0) {
+        try {
+          console.log(`🖼️ STARTING UPLOAD OF ${multipleImageFiles.length} IMAGES FOR ROCK ${rockId}`);
+          console.log('🖼️ Image files:', multipleImageFiles.map(f => `${f.name} (${f.size} bytes)`).join(', '));
+          toast.loading(`Uploading ${multipleImageFiles.length} images...`);
+          
+          // Debug helper: check if uploadImages function exists
+          console.log('🔍 uploadImages function exists:', !!uploadImages);
+          console.log('🔍 uploadImages is type:', typeof uploadImages);
+          
+          const result = await uploadImages(multipleImageFiles);
+          console.log('🖼️ Upload result:', result);
+          
+          if (result && result.length > 0) {
+            console.log(`✅ Successfully uploaded ${result.length} images`);
+            toast.success(`Successfully uploaded ${result.length} additional images`);
+          } else {
+            console.error('❌ No images were uploaded successfully');
+            toast.error('Failed to upload images. Please try again.');
+          }
+        } catch (imageError) {
+          console.error('❌ Error uploading additional images:', imageError);
+          if (imageError instanceof Error) {
+            console.error('❌ Error message:', imageError.message);
+            console.error('❌ Error stack:', imageError.stack);
+          }
+          toast.error('Failed to upload images. Please check console for details.');
+        }
+      } else if (multipleImageFiles.length > 0) {
+        console.error('⚠️ Cannot upload images: Missing rock ID or no files selected');
+        if (!rockId) {
+          toast.error('Could not upload additional images - rock ID not available');
+        }
       }
       
-      console.log("Form submission completed successfully");
+      form.reset();
+      setImageFile(null);
+      setImageUrl(undefined);
+      setMultipleImageFiles([]);
+      
+      // Close the form after successful submission if onClose is provided
       if (onClose) onClose();
     } catch (error) {
-      console.error('Error submitting rock data:', error);
-      toast.error('Failed to save rock. Please try again.');
+      console.error(`Error ${mode === 'add' ? 'adding' : 'updating'} rock:`, error);
+      toast.error(`Failed to ${mode === 'add' ? 'add' : 'update'} rock. Please try again.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -226,6 +362,12 @@ const RockForm = ({
         onSubmit={form.handleSubmit(onSubmit)} 
         className="space-y-6"
         ref={formRef}
+        onChange={() => {
+          const values = form.getValues();
+          if (onFormDataChange) {
+            onFormDataChange(values);
+          }
+        }}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Rock Name */}
@@ -265,27 +407,61 @@ const RockForm = ({
           
           {/* Image Upload */}
           <div className="col-span-2">
-            <Label htmlFor="image">Rock Image</Label>
-            <div className="mt-2">
-              <FileUpload 
-                onFileChange={handleFileChange} 
-                defaultValue={form.watch('image_url')}
-                maxSizeMB={2}
-              />
-            </div>
-            {!imageFile && form.watch('image_url') && (
-              <div className="mt-2">
-                <p className="text-xs text-muted-foreground mb-1">Current image from Supabase:</p>
-                <SupabaseImage 
-                  src={form.watch('image_url')} 
-                  alt={form.watch('name') || 'Rock image'} 
-                  height={150}
-                  width="100%"
-                  objectFit="cover"
-                  className="rounded-md"
-                />
-              </div>
-            )}
+            <Tabs defaultValue="single" className="w-full">
+              <TabsList className="mb-2">
+                <TabsTrigger value="single">Primary Image</TabsTrigger>
+                <TabsTrigger value="multiple" disabled={!isEditMode}>
+                  Additional Images {isEditMode && `(${existingImages.length})`}
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="single">
+                <Label htmlFor="image">Main Rock Image</Label>
+                <div className="mt-2">
+                  <FileUpload 
+                    onFileChange={handleFileChange} 
+                    defaultValue={form.watch('image_url')}
+                    maxSizeMB={50}
+                  />
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="multiple">
+                {isEditMode ? (
+                  <div className="space-y-4">
+                    <Label>Additional Rock Images</Label>
+                    
+                    {existingImages && existingImages.length > 0 && (
+                      <div className="mb-4">
+                        <RockImagesGallery 
+                          images={existingImages.map((img: any) => img.image_url)} 
+                          height={300}
+                          aspectRatio="video"
+                        />
+                      </div>
+                    )}
+                    
+                    <Separator className="my-4" />
+                    
+                    <div>
+                      <RockImageUploader 
+                        rockId={defaultValues?.id || ''} 
+                        onSuccess={() => {
+                          toast.success("Images uploaded successfully!");
+                          // No need to manually refetch - the RockImageUploader component will handle invalidation
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="py-8 text-center">
+                    <p className="text-muted-foreground">
+                      You can add additional images after saving the rock.
+                    </p>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
           
           {/* Rest of the form fields - continue with existing fields */}
@@ -652,3 +828,19 @@ const RockForm = ({
 };
 
 export default RockForm; 
+
+// Fix the existingImages.map error by adding a type guard
+const renderImageGallery = () => {
+  if (existingImages && existingImages.length > 0) {
+    return (
+      <div className="mb-4">
+        <RockImagesGallery 
+          images={existingImages.map((img: any) => img.image_url)} 
+          height={300}
+          aspectRatio="video"
+        />
+      </div>
+    );
+  }
+  return null;
+}; 

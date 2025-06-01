@@ -12,7 +12,7 @@ import { Search, Edit, Trash2, Eye } from 'lucide-react';
 import { Spinner } from '@/components/spinner';
 import type { IMineral, MineralCategory } from './mineral.interface';
 import { useReadMinerals } from './hooks/useReadMinerals';
-import { MineralContentForm, MineralEditForm } from './components';
+import { MineralContentForm, MineralEditForm, MineralDetailsView } from './components';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -26,13 +26,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useDeleteMineral } from './hooks/useDeleteMineral';
 import { toast } from 'sonner';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter,
-} from "@/components/ui/sheet";
 import {
   Pagination,
   PaginationContent,
@@ -254,7 +247,6 @@ const MineralsList = ({
               variant="outline" 
               size="icon" 
               onClick={() => setMineralToDelete(mineral)}
-              className="text-destructive hover:text-destructive"
               title="Delete mineral"
             >
               <Trash2 className="h-4 w-4" />
@@ -264,95 +256,140 @@ const MineralsList = ({
       </TableRow>
     ));
   };
-  
+
   return (
-    <>
+    <div>
       {!hideControls && (
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0 mb-4">
           <div className="flex items-center space-x-2">
             <Search className="w-5 h-5 text-muted-foreground" />
-            <Input
-              placeholder="Search minerals..."
+            <Input 
+              placeholder="Search minerals..." 
               value={internalSearchTerm}
               onChange={handleSearchChange}
               className="w-64"
             />
           </div>
-          <MineralContentForm category={category as MineralCategory} onSuccess={() => refetch()} />
+          <MineralContentForm category={category as MineralCategory} />
         </div>
       )}
       
-      <div className="rounded-md border">
-        <Table id="minerals-table">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Code</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Chemical Formula</TableHead>
-              <TableHead>Group</TableHead>
-              <TableHead>Color</TableHead>
-              <TableHead>Streak</TableHead>
-              <TableHead>Luster</TableHead>
-              <TableHead>Hardness</TableHead>
-              <TableHead>Cleavage</TableHead>
-              <TableHead>Fracture</TableHead>
-              <TableHead>Habit</TableHead>
-              <TableHead>Crystal System</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {renderTableContent()}
-          </TableBody>
-        </Table>
+      <div className="rounded-md border overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table id="minerals-table">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Code</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Chemical Formula</TableHead>
+                <TableHead>Group</TableHead>
+                <TableHead>Color</TableHead>
+                <TableHead>Streak</TableHead>
+                <TableHead>Luster</TableHead>
+                <TableHead>Hardness</TableHead>
+                <TableHead>Cleavage</TableHead>
+                <TableHead>Fracture</TableHead>
+                <TableHead>Habit</TableHead>
+                <TableHead>Crystal System</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {renderTableContent()}
+            </TableBody>
+          </Table>
+        </div>
       </div>
-
-      {/* Pagination Controls */}
-      <div className="flex items-center justify-between mt-4">
-        <div className="flex items-center space-x-2">
-          <p className="text-sm text-gray-500">
-            Showing page {pagination.page} of {pagination.totalPages} ({pagination.total} total minerals)
-          </p>
+      
+      {pagination && (
+        <div className="flex items-center justify-between mt-4">
           <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-500">Rows per page:</span>
-            <Select
-              value={pagination.pageSize.toString()}
-              onValueChange={handlePageSizeChange}
-            >
-              <SelectTrigger className="h-8 w-[70px]">
-                <SelectValue placeholder={pagination.pageSize.toString()} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="5">5</SelectItem>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="20">20</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
-              </SelectContent>
-            </Select>
+            <p className="text-sm text-muted-foreground">
+              Showing page {pagination.page} of {pagination.totalPages || 1} ({pagination.total} total items)
+            </p>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-muted-foreground">Items per page:</span>
+              <Select 
+                value={pagination.pageSize.toString()} 
+                onValueChange={handlePageSizeChange}
+              >
+                <SelectTrigger className="h-8 w-[70px]">
+                  <SelectValue placeholder="10" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+          
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious 
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page <= 1}
+                />
+              </PaginationItem>
+              
+              {Array.from({ length: Math.min(5, pagination.totalPages || 1) }).map((_, i) => {
+                // Logic to show pages around the current page
+                let pageNum = pagination.page;
+                if (pagination.totalPages <= 5) {
+                  pageNum = i + 1;
+                } else {
+                  // Show 2 pages before and after current page when possible
+                  const start = Math.max(1, pagination.page - 2);
+                  const end = Math.min(pagination.totalPages, start + 4);
+                  pageNum = start + i;
+                  
+                  // Adjust if we're at the end
+                  if (pageNum > pagination.totalPages) return null;
+                }
+                
+                return (
+                  <PaginationItem key={pageNum}>
+                    <PaginationLink
+                      onClick={() => handlePageChange(pageNum)}
+                      isActive={pageNum === pagination.page}
+                    >
+                      {pageNum}
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+              })}
+              
+              {(pagination.totalPages > 5 && pagination.page < pagination.totalPages - 2) && (
+                <PaginationItem>
+                  <PaginationEllipsis />
+                </PaginationItem>
+              )}
+              
+              {pagination.totalPages > 5 && pagination.page < pagination.totalPages - 1 && (
+                <PaginationItem>
+                  <PaginationLink
+                    onClick={() => handlePageChange(pagination.totalPages)}
+                  >
+                    {pagination.totalPages}
+                  </PaginationLink>
+                </PaginationItem>
+              )}
+              
+              <PaginationItem>
+                <PaginationNext 
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page >= (pagination.totalPages || 1)}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            onClick={() => pagination.page > 1 && handlePageChange(pagination.page - 1)}
-            disabled={pagination.page <= 1}
-            size="sm"
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => pagination.page < pagination.totalPages && handlePageChange(pagination.page + 1)}
-            disabled={pagination.page >= pagination.totalPages}
-            size="sm"
-          >
-            Next
-          </Button>
-        </div>
-      </div>
-
-      {/* Edit Mineral Dialog */}
+      )}
+      
+      {/* Mineral Edit Form */}
       {mineralToEdit && (
         <MineralEditForm 
           mineral={mineralToEdit} 
@@ -360,99 +397,35 @@ const MineralsList = ({
           category={category as MineralCategory}
         />
       )}
-
+      
+      {/* Mineral Details View */}
+      {mineralToView && (
+        <MineralDetailsView
+          mineral={mineralToView}
+          onClose={() => setMineralToView(null)}
+        />
+      )}
+      
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!mineralToDelete} onOpenChange={(open) => !open && setMineralToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the mineral{' '}
-              <span className="font-semibold">{mineralToDelete?.mineral_name}</span>.
+              This will permanently delete the mineral <strong>{mineralToDelete?.mineral_name}</strong>.
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
-              {isDeleting && <Spinner className="mr-2 h-4 w-4" />}
-              Delete
+              {isDeleting ? <Spinner className="mr-2 h-4 w-4" /> : null}
+              {isDeleting ? 'Deleting...' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* View Mineral Dialog */}
-      <Sheet open={!!mineralToView} onOpenChange={(open) => !open && setMineralToView(null)}>
-        <SheetContent className="p-0 flex flex-col h-full md:max-w-[40rem]">
-          <SheetHeader className="py-4 bg-overlay-bg border-b border-overlay-border px-6 flex-shrink-0">
-            <SheetTitle>{mineralToView?.mineral_name}</SheetTitle>
-            <p className="text-xs text-muted-foreground">
-              {mineralToView?.category} | Code: {mineralToView?.mineral_code}
-            </p>
-          </SheetHeader>
-          
-          <div className="flex-grow overflow-y-auto p-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Code</p>
-                <p className="text-sm">{mineralToView?.mineral_code}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Chemical Formula</p>
-                <p className="text-sm">{mineralToView?.chemical_formula || 'N/A'}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Group</p>
-                <p className="text-sm">{mineralToView?.mineral_group}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Category</p>
-                <p className="text-sm">{mineralToView?.category}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Color</p>
-                <p className="text-sm">{mineralToView?.color || 'N/A'}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Streak</p>
-                <p className="text-sm">{mineralToView?.streak || 'N/A'}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Luster</p>
-                <p className="text-sm">{mineralToView?.luster || 'N/A'}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Hardness</p>
-                <p className="text-sm">{mineralToView?.hardness || 'N/A'}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Cleavage</p>
-                <p className="text-sm">{mineralToView?.cleavage || 'N/A'}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Fracture</p>
-                <p className="text-sm">{mineralToView?.fracture || 'N/A'}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Habit</p>
-                <p className="text-sm">{mineralToView?.habit || 'N/A'}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Crystal System</p>
-                <p className="text-sm">{mineralToView?.crystal_system || 'N/A'}</p>
-              </div>
-            </div>
-          </div>
-          
-          <SheetFooter className="flex-shrink-0 px-6 py-4 bg-overlay-bg border-t border-overlay-border">
-            <Button variant="outline" onClick={() => setMineralToView(null)} type="button">
-              Close
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
-    </>
+    </div>
   );
 };
 

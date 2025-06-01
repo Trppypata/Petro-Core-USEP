@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import petroLogo from "@/assets/petro.jpg";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -31,8 +32,15 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      await authService.login(credentials);
-      navigate('/dashboard-app'); // Redirect to dashboard after login
+      const userData = await authService.login(credentials);
+      // Check user role to determine where to redirect
+      const userRole = userData?.user?.user_metadata?.role || 'student';
+      
+      if (userRole === 'admin') {
+        navigate('/dashboard-app'); // Admin goes to dashboard
+      } else {
+        navigate('/home'); // Students go to home page
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to login. Please try again.');
     } finally {
@@ -43,8 +51,15 @@ export default function LoginPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-background p-4">
       <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl">Sign In</CardTitle>
+        <CardHeader className="flex items-center justify-center">
+          <div className="mb-4">
+            <img 
+              src={petroLogo} 
+              alt="Petro Core Logo" 
+              className="h-24 w-auto shadow-lg" 
+            />
+          </div>
+          <CardTitle className="text-2xl text-center font-bold text-blue-900">PETRO CORE</CardTitle>
           <CardDescription>
             Enter your credentials to access your account
           </CardDescription>

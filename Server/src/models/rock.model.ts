@@ -25,6 +25,7 @@ export interface IRock {
   metamorphic_grade?: string;
   parent_rock?: string;
   foliation?: string;
+  protolith?: string;
   // Igneous rock specific fields
   silica_content?: string;
   cooling_rate?: string;

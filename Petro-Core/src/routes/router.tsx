@@ -14,6 +14,11 @@ import type { ReactNode } from "react";
 import { GeologyPage } from "@/modules/admin/geology";
 import UserPage from "@/modules/admin/users/users.page";
 import UsersList from "@/modules/admin/users/user-list";
+import FieldWorks from "@/modules/home/fieldworks/fieldworks.page";
+import FieldDetailView from "@/modules/home/fieldworks/field-detail-view";
+import LockdownPage from "@/modules/admin/lockdown/lockdown-page";
+import { LockdownGuard } from "@/components/lockdown-guard";
+
 // Higher order component to wrap routes with role guards
 const withRoleGuard = (Component: React.ComponentType, guard: React.FC<{children: ReactNode}>) => {
   const GuardComponent = guard;
@@ -24,31 +29,20 @@ const withRoleGuard = (Component: React.ComponentType, guard: React.FC<{children
   );
 };
 
+// Higher order component to wrap routes with lockdown guard
+const withLockdownGuard = (Component: React.ComponentType) => {
+  return () => (
+    <LockdownGuard>
+      <Component />
+    </LockdownGuard>
+  );
+};
+
 const router = createBrowserRouter([
+  // Root path redirects to login
   {
     path: "/",
-    Component: PageLayout,
-    children: [
-      { 
-        index: true,
-        path: "/",
-        Component: HeroSection,
-      },
-
-      {
-        path: "rock-minerals",
-        Component: RockMinerals,
-      },
-      {
-        path: "rock-minerals/rock/:id",
-        Component: RockDetailView,
-      },
-      {
-        path: "rock-minerals/mineral/:id",
-        Component: MineralDetailView,
-      },
-      
-    ]
+    element: <Navigate to="/login" replace />,
   },
   // Auth routes
   {
@@ -59,7 +53,37 @@ const router = createBrowserRouter([
     path: "/register",
     Component: RegisterPage,
   },
-
+  // Main application routes
+  {
+    path: "/",
+    Component: PageLayout,
+    children: [
+      { 
+        path: "home",
+        Component: HeroSection,
+      },
+      {
+        path: "rock-minerals",
+        Component: withLockdownGuard(RockMinerals),
+      },
+      {
+        path: "rock-minerals/rock/:id",
+        Component: withLockdownGuard(RockDetailView),
+      },
+      {
+        path: "rock-minerals/mineral/:id",
+        Component: withLockdownGuard(MineralDetailView),
+      },
+      {
+        path: "field-works",
+        Component: withLockdownGuard(FieldWorks),
+      },
+      {
+        path: "field-works/:fieldId",
+        Component: withLockdownGuard(FieldDetailView),
+      },
+    ]
+  },
   // Admin dashboard routes - only accessible by admins
   {
     path: '/dashboard-app',
@@ -67,7 +91,6 @@ const router = createBrowserRouter([
     children: [ 
       {
         path: '',
-
         children: [
           {
             index: true,
@@ -92,10 +115,9 @@ const router = createBrowserRouter([
             path: 'geology',
             Component: GeologyPage,
           },
-
           {
-            path: 'settings',
-            Component: () => <div>Admin Settings</div>,
+            path: 'lockdown',
+            Component: LockdownPage,
           },
         ]
       }

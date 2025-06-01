@@ -167,4 +167,77 @@ If you continue to experience issues:
 1. Check the Supabase logs for any errors
 2. Verify that your database schema matches the expected structure
 3. Ensure your service role key has the necessary permissions
-4. Try importing a small batch of minerals first to identify any specific issues 
+4. Try importing a small batch of minerals first to identify any specific issues
+
+## Migrations
+
+### Fixing Minerals Table Issues
+
+If you're encountering issues with the minerals functionality, particularly a 400 Bad Request error mentioning "Could not find the 'user' column of 'minerals' in the schema cache", you need to run the following migrations:
+
+1. First, ensure your environment variables are properly set up:
+   - `SUPABASE_URL`: Your Supabase project URL
+   - `SUPABASE_KEY`: Your Supabase service role key (not the anon key)
+
+2. Run the migration to add the user column to the minerals table:
+
+```bash
+node src/migrations/add-user-column-minerals.js
+```
+
+3. Run the migration to create RPC functions for safer mineral operations:
+
+```bash
+node src/migrations/create-mineral-rpc-functions.js
+```
+
+These migrations will:
+- Add a 'user' column to the minerals table
+- Set up Row Level Security policies
+- Create RPC functions to handle mineral operations safely
+
+After running these migrations, the minerals functionality should work correctly.
+
+### Alternative: Manual Database Update
+
+If you prefer to update the database directly through the Supabase interface:
+
+1. Log in to your Supabase dashboard
+2. Go to the SQL Editor
+3. Run the following SQL command:
+
+```sql
+-- Add user column if it doesn't exist
+ALTER TABLE minerals
+ADD COLUMN IF NOT EXISTS "user" UUID REFERENCES auth.users(id);
+
+-- Enable Row Level Security
+ALTER TABLE minerals ENABLE ROW LEVEL SECURITY;
+
+-- Create policy for authenticated users to see all minerals
+DROP POLICY IF EXISTS "Minerals are viewable by everyone" ON minerals;
+CREATE POLICY "Minerals are viewable by everyone" 
+  ON minerals FOR SELECT 
+  USING (true);
+  
+-- Create policy for authenticated users to insert their own minerals
+DROP POLICY IF EXISTS "Users can insert their own minerals" ON minerals;
+CREATE POLICY "Users can insert their own minerals" 
+  ON minerals FOR INSERT 
+  TO authenticated 
+  WITH CHECK ("user" = auth.uid());
+  
+-- Create policy for authenticated users to update their own minerals
+DROP POLICY IF EXISTS "Users can update their own minerals" ON minerals;
+CREATE POLICY "Users can update their own minerals" 
+  ON minerals FOR UPDATE 
+  TO authenticated 
+  USING ("user" = auth.uid());
+  
+-- Create policy for authenticated users to delete their own minerals
+DROP POLICY IF EXISTS "Users can delete their own minerals" ON minerals;
+CREATE POLICY "Users can delete their own minerals" 
+  ON minerals FOR DELETE 
+  TO authenticated 
+  USING ("user" = auth.uid());
+``` 

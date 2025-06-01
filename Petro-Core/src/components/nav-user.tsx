@@ -59,7 +59,7 @@ export function NavUser({
     Cookies.remove('profile_url');
     Cookies.remove('user');
 
-    navigate('/');
+    navigate('/login');
   };
 
   return (

@@ -39,13 +39,28 @@ const MineralEditForm = ({ mineral, onClose, category }: MineralEditFormProps) =
       console.log('Using ID:', mineral.id);
       console.log('Category:', category);
       
+      // Ensure category has no trailing spaces
+      const cleanCategory = typeof category === 'string' ? category.trim() : category;
+      
+      // Clean up the data object
+      const cleanedData = {
+        ...data,
+        // Remove any properties that are empty strings or undefined
+        ...Object.entries(data).reduce((acc, [key, value]) => {
+          if (value !== undefined && value !== '') {
+            acc[key] = typeof value === 'string' ? value.trim() : value;
+          }
+          return acc;
+        }, {} as Record<string, any>),
+        category: cleanCategory as string,
+        type: 'mineral'
+      };
+      
+      console.log('Cleaned data for update:', cleanedData);
+      
       await updateMineralAsync({ 
         id: mineral.id,
-        mineralData: {
-          ...data,
-          category: category as string,
-          type: 'mineral'
-        } 
+        mineralData: cleanedData
       });
       
       toast.success(`${data.mineral_name || 'Mineral'} updated successfully`);
