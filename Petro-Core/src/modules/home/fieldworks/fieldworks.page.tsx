@@ -55,7 +55,7 @@ export default function FieldWorks() {
         </div>
         
         {location.pathname === "/field-works" && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-lg shadow p-6 border border-muted">
             <FieldWorkGrid works={filteredWorks} />
           </div>
         )}

@@ -12,37 +12,38 @@ interface WorkCardProps {
 export function RockMineralsCard({ title, description, imageUrl, category }: WorkCardProps) {
   // Generate category badge color based on category name
   const getCategoryColor = (category?: string) => {
-    if (!category) return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100";
+    if (!category) return "bg-muted text-muted-foreground";
     
     switch (category.toLowerCase()) {
       case 'igneous':
-        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100";
+        return "bg-igneous/20 text-igneous border-igneous/30";
       case 'sedimentary':
-        return "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100";
+        return "bg-sedimentary/20 text-sedimentary border-sedimentary/30";
       case 'metamorphic':
-        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100";
+        return "bg-metamorphic/20 text-metamorphic border-metamorphic/30";
       case 'ore samples':
-        return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100";
+        return "bg-ore/20 text-ore border-ore/30";
+      // Mineral categories
       case 'silicates':
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100";
+        return "bg-primary/20 text-primary border-primary/30";
       case 'oxides':
-        return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100";
+        return "bg-metamorphic/20 text-metamorphic border-metamorphic/30";
       case 'sulfides':
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100";
+        return "bg-igneous/20 text-igneous border-igneous/30";
       case 'native elements':
-        return "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-100";
+        return "bg-ore/20 text-ore border-ore/30";
       case 'carbonates':
       case 'carbonates ':
-        return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100";
+        return "bg-sedimentary/20 text-sedimentary border-sedimentary/30";
       case 'halides':
-        return "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-100";
+        return "bg-accent/20 text-accent border-accent/30";
       default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100";
+        return "bg-muted text-muted-foreground";
     }
   };
 
   return (
-    <Card className="overflow-hidden h-full group border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-all duration-200">
+    <Card className="overflow-hidden h-full group border-muted shadow-sm hover:shadow-md transition-all duration-200 bg-white">
       <div className="relative h-48 overflow-hidden">
         <SupabaseImage
           src={imageUrl}
@@ -54,7 +55,7 @@ export function RockMineralsCard({ title, description, imageUrl, category }: Wor
         />
         {category && (
           <div className="absolute top-3 left-3 z-10">
-            <Badge className={`${getCategoryColor(category)} font-medium text-xs py-1 px-2 shadow-sm`}>
+            <Badge variant="outline" className={`${getCategoryColor(category)} font-medium text-xs py-1 px-2 shadow-sm`}>
               {category}
             </Badge>
           </div>

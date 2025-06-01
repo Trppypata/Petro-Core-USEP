@@ -63,10 +63,10 @@ const RockMinerals = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900 py-24 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background py-24 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-500 dark:to-indigo-400 text-transparent bg-clip-text mb-6">
+          <h1 className="text-4xl font-bold tracking-tight text-primary mb-6">
             Rocks and Minerals
           </h1>
           
@@ -83,8 +83,8 @@ const RockMinerals = () => {
               onClick={() => handleDisplayTypeChange("rocks")}
               className={`rounded-full px-6 py-2 transition-all duration-200 shadow-sm flex items-center gap-2 ${
                 displayType === "rocks" 
-                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium shadow-md" 
-                  : "bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
+                  ? "bg-primary text-primary-foreground shadow-md" 
+                  : "bg-card hover:bg-muted border border-border"
               }`}
             >
               Rocks
@@ -93,8 +93,8 @@ const RockMinerals = () => {
               onClick={() => handleDisplayTypeChange("minerals")}
               className={`rounded-full px-6 py-2 transition-all duration-200 shadow-sm flex items-center gap-2 ${
                 displayType === "minerals" 
-                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium shadow-md" 
-                  : "bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
+                  ? "bg-primary text-primary-foreground shadow-md" 
+                  : "bg-card hover:bg-muted border border-border"
               }`}
             >
               Minerals
@@ -103,8 +103,8 @@ const RockMinerals = () => {
               to="/rock-minerals/map"
               className={`rounded-full px-6 py-2 transition-all duration-200 shadow-sm flex items-center gap-2 ${
                 location.pathname === "/rock-minerals/map" 
-                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium shadow-md" 
-                  : "bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700"
+                  ? "bg-primary text-primary-foreground shadow-md" 
+                  : "bg-card hover:bg-muted border border-border"
               }`}
             >
               <MapPin className="h-4 w-4" />
@@ -120,7 +120,7 @@ const RockMinerals = () => {
               onFiltersChange={handleFiltersChange} 
             />
             
-            <div className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-sm rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
+            <div className="bg-card rounded-xl p-6 shadow-sm border border-muted">
               <RocksMineralsGrid 
                 items={items} 
                 isLoading={loading} 

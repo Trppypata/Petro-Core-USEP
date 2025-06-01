@@ -70,7 +70,7 @@ export function RockImagesGallery({
     >
       {/* Main Image */}
       <div 
-        className="relative rounded-lg overflow-hidden cursor-pointer mb-3 border border-muted flex items-center justify-center bg-gray-50"
+        className="relative rounded-lg overflow-hidden cursor-pointer mb-3 border border-muted flex items-center justify-center bg-white"
         style={{ 
           width: width || '100%',
           height: height,
@@ -132,7 +132,7 @@ export function RockImagesGallery({
             <div 
               key={index} 
               className={cn(
-                "h-20 w-20 flex-shrink-0 rounded-md overflow-hidden cursor-pointer border-2 transition-all duration-200 flex items-center justify-center bg-gray-100",
+                "h-20 w-20 flex-shrink-0 rounded-md overflow-hidden cursor-pointer border-2 transition-all duration-200 flex items-center justify-center bg-white",
                 index === activeIndex ? "border-primary ring-1 ring-primary" : "border-muted hover:border-muted-foreground/50"
               )}
               onClick={() => handleThumbnailClick(index)}
@@ -207,7 +207,7 @@ export function RockImagesGallery({
                   <div 
                     key={index} 
                     className={cn(
-                      "h-20 w-20 flex-shrink-0 rounded-md overflow-hidden cursor-pointer border-2 transition-all duration-200 flex items-center justify-center",
+                      "h-20 w-20 flex-shrink-0 rounded-md overflow-hidden cursor-pointer border-2 transition-all duration-200 flex items-center justify-center bg-white",
                       index === activeIndex ? "border-primary ring-1 ring-primary" : "border-transparent hover:border-muted-foreground/50"
                     )}
                     onClick={() => handleThumbnailClick(index)}

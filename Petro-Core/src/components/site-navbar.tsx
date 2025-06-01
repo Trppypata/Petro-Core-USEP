@@ -12,7 +12,7 @@ const SiteNavbar = () => {
   const isAdmin = user?.role === 'admin';
   
   return (
-    <nav className="fixed top-10 left-1/2 transform -translate-x-1/2 z-auto w-[80%] max-w-7xl bg-gray-100 backdrop-blur-md shadow-lg rounded-full">
+    <nav className="fixed top-10 left-1/2 transform -translate-x-1/2 z-auto w-[80%] max-w-7xl bg-primary shadow-lg rounded-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-8">
@@ -20,17 +20,17 @@ const SiteNavbar = () => {
               <img 
                 src={petroLogo} 
                 alt="Petro Core Logo" 
-                className="h-8 w-auto mr-2" 
+                className="h-8 w-auto mr-2 rounded-full" 
               />
-              <span className="font-bold text-blue-900">PETRO CORE</span>
+              <span className="font-bold text-primary-foreground">PETRO CORE</span>
             </Link>
-            <Link to="/home" className="text-sm font-medium">
+            <Link to="/home" className="text-sm font-medium text-primary-foreground hover:text-accent transition-colors">
               Home
             </Link>
-            <Link to="/field-works" className="text-sm font-medium">
+            <Link to="/field-works" className="text-sm font-medium text-primary-foreground hover:text-accent transition-colors">
               Field Works
             </Link>
-            <Link to="/rock-minerals" className="text-sm font-medium">
+            <Link to="/rock-minerals" className="text-sm font-medium text-primary-foreground hover:text-accent transition-colors">
               Rock and Minerals
             </Link>
           </div>
@@ -44,7 +44,7 @@ const SiteNavbar = () => {
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className={`ml-2 ${isLocked ? 'text-red-500' : 'text-green-500'}`}
+                        className={`ml-2 text-primary-foreground hover:bg-primary/80 ${isLocked ? 'text-destructive' : 'text-green-500'}`}
                       >
                         <Lock className="h-5 w-5" />
                         <span className="sr-only">Lockdown Status</span>
@@ -60,7 +60,11 @@ const SiteNavbar = () => {
             )}
             
             <Link to="/menu">
-              <Button variant="ghost" size="icon" className="ml-2">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="ml-2 text-primary-foreground hover:bg-primary/80"
+              >
                 <Menu className="h-5 w-5" />
                 <span className="sr-only">Toggle menu</span>
               </Button>

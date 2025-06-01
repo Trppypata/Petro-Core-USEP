@@ -37,10 +37,11 @@ export async function parseExcelToRocks(
           console.log(`Found ${jsonData.length} rows in sheet ${sheetName}`);
           
           if (jsonData.length > 0) {
-            console.log('First row headers:', Object.keys(jsonData[0]));
+            console.log('First row headers:', Object.keys(jsonData[0] as object));
           }
           
           jsonData.forEach((row: any, index: number) => {
+            // For all rock types
             // Get rock name from any of the possible column variants
             const rockName = row['Rock Name'] || row['Name'] || row['Sample Name'] || '';
             
@@ -62,6 +63,13 @@ export async function parseExcelToRocks(
               }
             }
             
+            // Set coordinates from latitude/longitude if available
+            let coordinates = row['Coordinates'] || '';
+            if (!coordinates && row['Latitude'] && row['Longitude']) {
+              coordinates = `${row['Latitude']}, ${row['Longitude']}`;
+            }
+            
+            // Base rock object with common fields
             const rock: IRock = {
               id: rockCode,
               rock_code: rockCode,
@@ -78,34 +86,52 @@ export async function parseExcelToRocks(
               longitude: row['Longitude'] || '',
               locality: row['Locality'] || '',
               mineral_composition: row['Mineral Composition'] || '',
-              description: row['Description'] || '',
+              description: row['Description'] || row['Overall Description'] || '',
               formation: row['Formation'] || '',
               geological_age: row['Geological Age'] || row['Age'] || '',
               status: 'active',
               image_url: row['Image URL'] || '',
+              coordinates: coordinates,
+              reaction_to_hcl: row['Reaction to HCl'] || row['Reaction to HCL'] || '',
+              luster: row['Luster'] || '',
+              magnetism: row['Magnetism'] || '',
+              streak: row['Streak'] || row['Streak '] || '',
+              associated_minerals: row['Associated Minerals'] || row['Associated Minerals '] || '',
+              mining_company: row['Mining Company'] || row['Mining Company/Donated by'] || '',
             };
             
             // Add category-specific fields
             if (sheetName === 'Metamorphic') {
-              rock.associated_minerals = row['Associated Minerals'] || '';
-              rock.metamorphism_type = row['Metamorphism Type'] || '';
+              // Use metamorphism_type instead of metamorphism for UI consistency
+              rock.metamorphism_type = row['Metamorphism'] || row['Metamorphism Type'] || '';
               rock.metamorphic_grade = row['Metamorphic Grade'] || '';
               rock.parent_rock = row['Parent Rock'] || '';
-              rock.foliation = row['Foliation'] || '';
-            } else if (sheetName === 'Igneous') {
+              rock.protolith = row['Protolith'] || row['Parent Rock'] || 'Unknown parent rock';
+              rock.foliation = row['Foliation'] || 'Present';
+              rock.foliation_type = row['Foliation Type'] || 'Not specified';
+            } 
+            else if (sheetName === 'Igneous') {
               rock.silica_content = row['Silica Content'] || '';
               rock.cooling_rate = row['Cooling Rate'] || '';
               rock.mineral_content = row['Mineral Content'] || '';
-            } else if (sheetName === 'Sedimentary') {
+              rock.origin = row['Origin'] || 'Igneous origin';
+            } 
+            else if (sheetName === 'Sedimentary') {
               rock.bedding = row['Bedding'] || '';
               rock.sorting = row['Sorting'] || '';
               rock.roundness = row['Roundness'] || '';
-              rock.fossil_content = row['Fossil Content'] || '';
+              rock.fossil_content = row['Fossils'] || row['Fossil Content'] || '';
               rock.sediment_source = row['Sediment Source'] || '';
-            } else if (sheetName === 'Ore Samples') {
-              rock.commodity_type = row['Commodity Type'] || '';
+            } 
+            else if (sheetName === 'Ore Samples') {
+              // Match the column names used in the table header
+              rock.commodity_type = row['Commodity Type'] || row['Type of Commodity'] || '';
               rock.ore_group = row['Ore Group'] || '';
-              rock.mining_company = row['Mining Company'] || '';
+              rock.mining_company = row['Mining Company'] || row['Mining Company/Donated by'] || 'Unspecified mining company';
+              // Ensure associated minerals is set for ore samples
+              if (!rock.associated_minerals) {
+                rock.associated_minerals = rock.mineral_composition || `Minerals associated with ${rock.commodity_type || 'ore'}`;
+              }
             }
             
             rocks.push(rock);
@@ -150,34 +176,92 @@ export async function importDefaultRockData(): Promise<IRock[]> {
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
       
-      jsonData.forEach((row: any) => {
+      jsonData.forEach((row: any, index: number) => {
         // Skip empty rows
-        if (!row['Rock Code'] && !row['Rock Name']) {
+        if (!row['Rock Code'] && !row['Rock Name'] && !row['Name']) {
           return;
         }
         
-        rocks.push({
-          id: row['Rock Code'] || '',
-          rock_code: row['Rock Code'] || '',
-          name: row['Rock Name'] || '',
-          type: row['Type'] || '',
+        // Set coordinates from latitude/longitude if available
+        let coordinates = row['Coordinates'] || '';
+        if (!coordinates && row['Latitude'] && row['Longitude']) {
+          coordinates = `${row['Latitude']}, ${row['Longitude']}`;
+        }
+        
+        const rockName = row['Rock Name'] || row['Name'] || '';
+        let rockCode = row['Rock Code'] || row['Code'] || '';
+        
+        if (!rockCode) {
+          // Generate a code if not present
+          if (sheetName === 'Ore Samples') {
+            rockCode = `O-${String(index + 1).padStart(4, '0')}`;
+          } else {
+            rockCode = `${sheetName.charAt(0)}-${String(index + 1).padStart(4, '0')}`;
+          }
+        }
+        
+        const rock: IRock = {
+          id: rockCode,
+          rock_code: rockCode,
+          name: rockName,
+          type: row['Type'] || row['Rock Type'] || '',
           depositional_environment: row['Depositional Environment'] || '',
           grain_size: row['Grain Size'] || '',
           chemical_formula: row['Chemical Formula'] || '',
           hardness: row['Hardness'] || '',
-          color: row['Color'] || '',
+          color: row['Color'] || row['Colour'] || '',
           texture: row['Texture'] || '',
           latitude: row['Latitude'] || '',
           longitude: row['Longitude'] || '',
           locality: row['Locality'] || '',
           mineral_composition: row['Mineral Composition'] || '',
-          description: row['Description'] || '',
+          description: row['Description'] || row['Overall Description'] || '',
           formation: row['Formation'] || '',
-          geological_age: row['Geological Age'] || '',
+          geological_age: row['Geological Age'] || row['Age'] || '',
           category: sheetName,
           status: 'active',
-          image_url: ''
-        });
+          image_url: '',
+          coordinates: coordinates,
+          reaction_to_hcl: row['Reaction to HCl'] || row['Reaction to HCL'] || '',
+          luster: row['Luster'] || '',
+          magnetism: row['Magnetism'] || '',
+          streak: row['Streak'] || row['Streak '] || '',
+          associated_minerals: row['Associated Minerals'] || row['Associated Minerals '] || '',
+          mining_company: row['Mining Company'] || row['Mining Company/Donated by'] || '',
+          fossil_content: row['Fossils'] || row['Fossil Content'] || ''
+        };
+        
+        // Add category-specific fields
+        if (sheetName === 'Metamorphic') {
+          rock.metamorphism_type = row['Metamorphism'] || row['Metamorphism Type'] || '';
+          rock.metamorphic_grade = row['Metamorphic Grade'] || '';
+          rock.parent_rock = row['Parent Rock'] || '';
+          rock.protolith = row['Protolith'] || row['Parent Rock'] || 'Unknown parent rock';
+          rock.foliation = row['Foliation'] || 'Present';
+          rock.foliation_type = row['Foliation Type'] || 'Not specified';
+        } 
+        else if (sheetName === 'Igneous') {
+          rock.silica_content = row['Silica Content'] || '';
+          rock.cooling_rate = row['Cooling Rate'] || '';
+          rock.mineral_content = row['Mineral Content'] || '';
+          rock.origin = row['Origin'] || 'Igneous origin';
+        } 
+        else if (sheetName === 'Sedimentary') {
+          rock.bedding = row['Bedding'] || '';
+          rock.sorting = row['Sorting'] || '';
+          rock.roundness = row['Roundness'] || '';
+        } 
+        else if (sheetName === 'Ore Samples') {
+          rock.commodity_type = row['Commodity Type'] || row['Type of Commodity'] || '';
+          rock.ore_group = row['Ore Group'] || '';
+          rock.mining_company = row['Mining Company'] || row['Mining Company/Donated by'] || 'Unspecified mining company';
+          // Ensure associated minerals is set for ore samples
+          if (!rock.associated_minerals) {
+            rock.associated_minerals = rock.mineral_composition || `Minerals associated with ${rock.commodity_type || 'ore'}`;
+          }
+        }
+        
+        rocks.push(rock);
       });
     });
     

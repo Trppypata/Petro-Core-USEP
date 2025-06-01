@@ -175,8 +175,8 @@ const FieldDetailView = () => {
             Back to Field Works
           </Button>
         </Link>
-        <div className="text-center py-8 bg-white rounded-lg shadow">
-          <h2 className="text-2xl font-bold text-red-500 mb-2">Error</h2>
+        <div className="text-center py-8 bg-card rounded-lg shadow">
+          <h2 className="text-2xl font-bold text-destructive mb-2">Error</h2>
           <p className="text-muted-foreground">Field work not found</p>
         </div>
       </div>
@@ -198,42 +198,42 @@ const FieldDetailView = () => {
       </div>
       
       {sections.map(section => (
-        <Card key={section.id} className="mb-4 overflow-hidden">
+        <Card key={section.id} className="mb-4 overflow-hidden border-sedimentary/30">
           <div 
-            className="p-4 bg-amber-400 flex justify-between items-center cursor-pointer"
+            className="p-4 bg-white text-foreground border-b border-sedimentary/30 flex justify-between items-center cursor-pointer"
             onClick={() => toggleSection(section.id)}
           >
-            <h2 className="text-xl font-semibold">{section.title}</h2>
+            <h2 className="text-xl font-semibold text-gray-800">{section.title}</h2>
             {expandedSections[section.id] ? (
-              <ChevronUp className="h-5 w-5" />
+              <ChevronUp className="h-5 w-5 text-gray-600" />
             ) : (
-              <ChevronDown className="h-5 w-5" />
+              <ChevronDown className="h-5 w-5 text-gray-600" />
             )}
           </div>
           
           {expandedSections[section.id] && (
-            <div className="p-4 bg-dark text-gray-200">
+            <div className="p-4 bg-white text-foreground border-t border-sedimentary/30">
               {/* Chapters */}
               {section.chapters.map(chapter => (
                 <div key={chapter.id} className="mb-4 flex items-center">
-                  <FileText className="h-5 w-5 mr-2 text-blue-400" />
+                  <FileText className="h-5 w-5 mr-2 text-primary" />
                   <a 
                     href={chapter.pdfUrl} 
-                    className="text-blue-400 hover:underline flex items-center"
+                    className="text-primary hover:underline flex items-center"
                     target="_blank" 
                     rel="noopener noreferrer"
                   >
-                    {chapter.title} <span className="ml-2 text-sm text-gray-400">PDF</span>
+                    {chapter.title} <span className="ml-2 text-sm text-muted-foreground">PDF</span>
                   </a>
                 </div>
               ))}
               
               {/* Assignments */}
               {section.assignments.map(assignment => (
-                <div key={assignment.id} className="mt-6 border-t border-gray-700 pt-4">
+                <div key={assignment.id} className="mt-6 border-t border-sedimentary/30 pt-4">
                   <div className="mb-3">
-                    <h3 className="text-lg font-semibold text-rose-400">{assignment.title}</h3>
-                    <div className="text-sm text-gray-400 mt-1">
+                    <h3 className="text-lg font-semibold text-accent">{assignment.title}</h3>
+                    <div className="text-sm text-muted-foreground mt-1">
                       <div>Opened: {assignment.openedDate}</div>
                       <div>Due: {assignment.dueDate}</div>
                     </div>

@@ -8,13 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -42,16 +35,6 @@ export default function RegisterPage() {
     }
   };
 
-  const handleRoleChange = (value: string) => {
-    // Cast the value to the specific type we need
-    const role = value === 'admin' ? 'admin' as const : 'student' as const;
-    
-    setCredentials({
-      ...credentials,
-      role,
-    });
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -65,7 +48,13 @@ export default function RegisterPage() {
     }
 
     try {
-      await authService.register(credentials);
+      // Always register as a student
+      const userCredentials = {
+        ...credentials,
+        role: 'student' as const
+      };
+      
+      await authService.register(userCredentials);
       setSuccess(true);
       // Navigate after a delay to show success message
       setTimeout(() => navigate('/login'), 3000);
@@ -135,21 +124,6 @@ export default function RegisterPage() {
                   onChange={handleChange}
                   required
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
-                <Select 
-                  value={credentials.role} 
-                  onValueChange={handleRoleChange}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="student">Student</SelectItem>
-                    <SelectItem value="admin">Administrator</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>

@@ -114,14 +114,14 @@ const RockMineralFilters = ({ displayType, onFiltersChange }: RockMineralFilters
     <div className="mb-8">
       {/* Filter Header */}
       <div 
-        className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 p-4 rounded-t-xl shadow-sm cursor-pointer border border-b-0 border-gray-100 dark:border-gray-800"
+        className="flex items-center justify-between bg-muted p-4 rounded-t-xl shadow-sm cursor-pointer border border-b-0 border-muted"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-2">
-          <Filter className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          <Filter className="h-5 w-5 text-primary" />
           <h3 className="font-medium">Filters</h3>
           {activeFilterCount > 0 && (
-            <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100">
+            <Badge variant="secondary" className="bg-primary/20 text-primary">
               {activeFilterCount}
             </Badge>
           )}
@@ -135,7 +135,7 @@ const RockMineralFilters = ({ displayType, onFiltersChange }: RockMineralFilters
                 e.stopPropagation();
                 clearAllFilters();
               }}
-              className="text-xs hover:bg-blue-100 dark:hover:bg-blue-900"
+              className="text-xs hover:bg-primary/10"
             >
               Clear all
             </Button>
@@ -146,12 +146,12 @@ const RockMineralFilters = ({ displayType, onFiltersChange }: RockMineralFilters
 
       {/* Filter Content */}
       {isExpanded && (
-        <div className="bg-gradient-to-br from-white to-blue-50/50 dark:from-gray-900/90 dark:to-blue-950/30 p-4 rounded-b-xl shadow-sm border border-t-0 border-gray-100 dark:border-gray-800 backdrop-blur-sm">
+        <div className="bg-card p-4 rounded-b-xl shadow-sm border border-t-0 border-muted">
           <Accordion type="multiple" className="w-full" defaultValue={['rock-type', 'color']}>
             {/* Rock Type Filter - show only for rocks or all */}
             {(displayType === 'rocks' || displayType === 'all') && (
               <AccordionItem value="rock-type" className="border-b-0 mb-2">
-                <AccordionTrigger className="text-sm font-medium py-2 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 px-2 rounded-lg transition-colors">
+                <AccordionTrigger className="text-sm font-medium py-2 hover:bg-muted/50 px-2 rounded-lg transition-colors">
                   Rock Type
                 </AccordionTrigger>
                 <AccordionContent className="pt-2">
@@ -160,7 +160,7 @@ const RockMineralFilters = ({ displayType, onFiltersChange }: RockMineralFilters
                       <Select 
                         onValueChange={(value) => addFilter('rockType', value)}
                       >
-                        <SelectTrigger className="w-full bg-white/80 dark:bg-gray-800/80 border-gray-200 dark:border-gray-700">
+                        <SelectTrigger className="w-full bg-background border-input">
                           <SelectValue placeholder="Select rock type" />
                         </SelectTrigger>
                         <SelectContent>
@@ -177,7 +177,20 @@ const RockMineralFilters = ({ displayType, onFiltersChange }: RockMineralFilters
                       {filters.rockType.map(type => (
                         <Badge 
                           key={type} 
-                          className="bg-blue-100 hover:bg-blue-200 text-blue-800 dark:bg-blue-900 dark:hover:bg-blue-800 dark:text-blue-100 px-3 py-1 flex items-center gap-1 transition-colors"
+                          variant="outline"
+                          className="px-3 py-1 flex items-center gap-1 transition-colors"
+                          style={{
+                            backgroundColor: type.toLowerCase() === 'igneous' ? 'hsl(var(--igneous)/0.2)' : 
+                                            type.toLowerCase() === 'metamorphic' ? 'hsl(var(--metamorphic)/0.2)' : 
+                                            type.toLowerCase() === 'sedimentary' ? 'hsl(var(--sedimentary)/0.2)' : 
+                                            type.toLowerCase() === 'ore samples' ? 'hsl(var(--ore)/0.2)' : 
+                                            'hsl(var(--muted))',
+                            color: type.toLowerCase() === 'igneous' ? 'hsl(var(--igneous))' : 
+                                  type.toLowerCase() === 'metamorphic' ? 'hsl(var(--metamorphic))' : 
+                                  type.toLowerCase() === 'sedimentary' ? 'hsl(var(--sedimentary))' : 
+                                  type.toLowerCase() === 'ore samples' ? 'hsl(var(--ore))' : 
+                                  'hsl(var(--foreground))',
+                          }}
                         >
                           {type}
                           <X 
@@ -195,7 +208,7 @@ const RockMineralFilters = ({ displayType, onFiltersChange }: RockMineralFilters
             {/* Mineral Category Filter - show only for minerals or all */}
             {(displayType === 'minerals' || displayType === 'all') && (
               <AccordionItem value="mineral-category" className="border-b-0 mb-2">
-                <AccordionTrigger className="text-sm font-medium py-2 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 px-2 rounded-lg transition-colors">
+                <AccordionTrigger className="text-sm font-medium py-2 hover:bg-muted/50 px-2 rounded-lg transition-colors">
                   Mineral Category
                 </AccordionTrigger>
                 <AccordionContent className="pt-2">
@@ -204,7 +217,7 @@ const RockMineralFilters = ({ displayType, onFiltersChange }: RockMineralFilters
                       <Select 
                         onValueChange={(value) => addFilter('mineralCategory', value)}
                       >
-                        <SelectTrigger className="w-full bg-white/80 dark:bg-gray-800/80 border-gray-200 dark:border-gray-700">
+                        <SelectTrigger className="w-full bg-background border-input">
                           <SelectValue placeholder="Select mineral category" />
                         </SelectTrigger>
                         <SelectContent>
@@ -221,7 +234,8 @@ const RockMineralFilters = ({ displayType, onFiltersChange }: RockMineralFilters
                       {filters.mineralCategory.map(category => (
                         <Badge 
                           key={category} 
-                          className="bg-indigo-100 hover:bg-indigo-200 text-indigo-800 dark:bg-indigo-900 dark:hover:bg-indigo-800 dark:text-indigo-100 px-3 py-1 flex items-center gap-1 transition-colors"
+                          variant="outline" 
+                          className="bg-primary/20 text-primary border-primary/30 px-3 py-1 flex items-center gap-1 transition-colors"
                         >
                           {category}
                           <X 
@@ -238,7 +252,7 @@ const RockMineralFilters = ({ displayType, onFiltersChange }: RockMineralFilters
 
             {/* Color Filter - show for both */}
             <AccordionItem value="color" className="border-b-0 mb-2">
-              <AccordionTrigger className="text-sm font-medium py-2 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 px-2 rounded-lg transition-colors">
+              <AccordionTrigger className="text-sm font-medium py-2 hover:bg-muted/50 px-2 rounded-lg transition-colors">
                 Color
               </AccordionTrigger>
               <AccordionContent className="pt-2">
@@ -247,7 +261,7 @@ const RockMineralFilters = ({ displayType, onFiltersChange }: RockMineralFilters
                     <Select 
                       onValueChange={(value) => addFilter('colors', value)}
                     >
-                      <SelectTrigger className="w-full bg-white/80 dark:bg-gray-800/80 border-gray-200 dark:border-gray-700">
+                      <SelectTrigger className="w-full bg-background border-input">
                         <SelectValue placeholder="Select color" />
                       </SelectTrigger>
                       <SelectContent>
@@ -267,7 +281,8 @@ const RockMineralFilters = ({ displayType, onFiltersChange }: RockMineralFilters
                     {filters.colors.map(color => (
                       <Badge 
                         key={color} 
-                        className="bg-white/90 hover:bg-white text-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-100 px-3 py-1 flex items-center gap-2 border border-gray-200 dark:border-gray-700 transition-colors"
+                        variant="outline"
+                        className="px-3 py-1 flex items-center gap-2 border-muted transition-colors"
                       >
                         <div className={`w-3 h-3 rounded-full ${COLOR_MAP[color]}`}></div>
                         {color}
@@ -284,7 +299,7 @@ const RockMineralFilters = ({ displayType, onFiltersChange }: RockMineralFilters
 
             {/* Associated Minerals - mainly for rocks but could be useful for both */}
             <AccordionItem value="associated-minerals" className="border-b-0 mb-2">
-              <AccordionTrigger className="text-sm font-medium py-2 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 px-2 rounded-lg transition-colors">
+              <AccordionTrigger className="text-sm font-medium py-2 hover:bg-muted/50 px-2 rounded-lg transition-colors">
                 Associated Minerals
               </AccordionTrigger>
               <AccordionContent className="pt-2">
@@ -293,7 +308,7 @@ const RockMineralFilters = ({ displayType, onFiltersChange }: RockMineralFilters
                     <Select 
                       onValueChange={(value) => addFilter('associatedMinerals', value)}
                     >
-                      <SelectTrigger className="w-full bg-white/80 dark:bg-gray-800/80 border-gray-200 dark:border-gray-700">
+                      <SelectTrigger className="w-full bg-background border-input">
                         <SelectValue placeholder="Select mineral" />
                       </SelectTrigger>
                       <SelectContent>
@@ -309,8 +324,9 @@ const RockMineralFilters = ({ displayType, onFiltersChange }: RockMineralFilters
                   <div className="flex flex-wrap gap-2 mt-2">
                     {filters.associatedMinerals.map(mineral => (
                       <Badge 
-                        key={mineral} 
-                        className="bg-green-100 hover:bg-green-200 text-green-800 dark:bg-green-900 dark:hover:bg-green-800 dark:text-green-100 px-3 py-1 flex items-center gap-1 transition-colors"
+                        key={mineral}
+                        variant="outline" 
+                        className="bg-accent/20 text-accent border-accent/30 px-3 py-1 flex items-center gap-1 transition-colors"
                       >
                         {mineral}
                         <X 

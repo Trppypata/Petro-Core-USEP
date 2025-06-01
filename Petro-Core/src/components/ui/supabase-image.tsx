@@ -59,7 +59,7 @@ export function SupabaseImage({
     return (
       <div 
         className={cn(
-          "bg-gray-200 flex items-center justify-center rounded-md",
+          "bg-white flex items-center justify-center rounded-md",
           fallbackClassName
         )}
         style={containerStyle}
@@ -73,9 +73,9 @@ export function SupabaseImage({
   }
 
   return (
-    <div style={containerStyle} className="overflow-hidden rounded-md">
+    <div style={containerStyle} className="overflow-hidden rounded-md bg-white">
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 animate-pulse rounded-md">
+        <div className="absolute inset-0 flex items-center justify-center bg-white animate-pulse rounded-md">
           <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
         </div>
       )}
@@ -92,7 +92,8 @@ export function SupabaseImage({
           maxWidth: '100%',
           maxHeight: height ? `${height}px` : 'none',
           width: objectFit === 'contain' ? 'auto' : (width || '100%'),
-          height: objectFit === 'contain' ? 'auto' : (height || 'auto')
+          height: objectFit === 'contain' ? 'auto' : (height || 'auto'),
+          backgroundColor: 'white'
         }}
         onError={handleError}
         onLoad={handleLoad}

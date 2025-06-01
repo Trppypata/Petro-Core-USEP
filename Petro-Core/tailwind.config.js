@@ -56,7 +56,28 @@ module.exports = {
   				'3': 'hsl(var(--chart-3))',
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
-  			}
+  			},
+        // Rock type specific colors
+        igneous: {
+          DEFAULT: 'hsl(var(--igneous))',
+          bg: 'hsl(var(--igneous-bg))',
+          accent: 'hsl(var(--igneous-accent))'
+        },
+        metamorphic: {
+          DEFAULT: 'hsl(var(--metamorphic))',
+          bg: 'hsl(var(--metamorphic-bg))',
+          accent: 'hsl(var(--metamorphic-accent))'
+        },
+        sedimentary: {
+          DEFAULT: 'hsl(var(--sedimentary))',
+          bg: 'hsl(var(--sedimentary-bg))',
+          accent: 'hsl(var(--sedimentary-accent))'
+        },
+        ore: {
+          DEFAULT: 'hsl(var(--ore))',
+          bg: 'hsl(var(--ore-bg))',
+          accent: 'hsl(var(--ore-accent))'
+        }
   		},
   		borderRadius: {
   			lg: 'var(--radius)',

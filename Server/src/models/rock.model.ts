@@ -25,11 +25,13 @@ export interface IRock {
   metamorphic_grade?: string;
   parent_rock?: string;
   foliation?: string;
+  foliation_type?: string;
   protolith?: string;
   // Igneous rock specific fields
   silica_content?: string;
   cooling_rate?: string;
   mineral_content?: string;
+  origin?: string;
   // Sedimentary rock specific fields
   bedding?: string;
   sorting?: string;
@@ -45,6 +47,7 @@ export interface IRock {
   luster?: string;
   reaction_to_hcl?: string;
   magnetism?: string;
+  streak?: string;
   created_at?: string;
   updated_at?: string;
 } 

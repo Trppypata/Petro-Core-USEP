@@ -7,6 +7,7 @@ import type { IRock } from "../../admin/rocks/rock.interface";
 import { SupabaseImage } from "@/components/ui/supabase-image";
 import { RockImagesGallery } from "@/components/ui/rock-images-gallery";
 import { getRockImages } from "@/services/rock-images.service";
+import { Badge } from "@/components/ui/badge";
 
 // Function to fetch a single rock by ID
 const fetchRockById = async (id: string): Promise<IRock | null> => {
@@ -23,6 +24,48 @@ const fetchRockById = async (id: string): Promise<IRock | null> => {
   } catch (error) {
     console.error("Error fetching rock details:", error);
     return null;
+  }
+};
+
+const getCategoryStyles = (category?: string) => {
+  const lowerCategory = category?.toLowerCase() || '';
+  
+  switch (lowerCategory) {
+    case 'igneous':
+      return {
+        cardClass: 'border-igneous/30',
+        headerClass: 'bg-white border-b border-igneous/30',
+        sectionClass: 'bg-white border-igneous/30',
+        badgeClass: 'bg-igneous/20 text-igneous border-igneous/30'
+      };
+    case 'metamorphic':
+      return {
+        cardClass: 'border-metamorphic/30',
+        headerClass: 'bg-white border-b border-metamorphic/30',
+        sectionClass: 'bg-white border-metamorphic/30',
+        badgeClass: 'bg-metamorphic/20 text-metamorphic border-metamorphic/30'
+      };
+    case 'sedimentary':
+      return {
+        cardClass: 'border-sedimentary/30',
+        headerClass: 'bg-white border-b border-sedimentary/30',
+        sectionClass: 'bg-white border-sedimentary/30',
+        badgeClass: 'bg-sedimentary/20 text-sedimentary border-sedimentary/30'
+      };
+    case 'ore samples':
+      return {
+        cardClass: 'border-ore/30',
+        headerClass: 'bg-white border-b border-ore/30',
+        sectionClass: 'bg-white border-ore/30',
+        badgeClass: 'bg-ore/20 text-ore border-ore/30'
+      };
+    default:
+      return {
+        cardClass: '',
+        headerClass: 'bg-white',
+        sectionClass: 'bg-white',
+        badgeClass: 'bg-blue-100 text-blue-800'
+      };
   }
 };
 
@@ -131,6 +174,8 @@ const RockDetailView = () => {
     );
   }
 
+  const styles = getCategoryStyles(rock.category);
+
   return (
     <div className="container mx-auto px-4 py-8">
       <Link to="/rock-minerals">
@@ -140,232 +185,438 @@ const RockDetailView = () => {
         </Button>
       </Link>
       
-      <Card className="p-8 mb-6">
-        <h1 className="text-3xl font-bold mb-2">{rock.name}</h1>
-        <p className="text-muted-foreground mb-6">
-          {rock.category} {rock.rock_code && `| Code: ${rock.rock_code}`}
-        </p>
-        
-        <div className="flex flex-col md:flex-row gap-8">
-          {/* Left: Rock Image */}
-          <div className="w-full md:w-1/2">
-            {loadingImages ? (
-              <div className="flex items-center justify-center bg-muted rounded-lg" style={{ height: "400px", width: "100%" }}>
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-              </div>
-            ) : rockImages.length > 0 ? (
-              <div className="flex justify-center items-center bg-gray-50 rounded-lg" style={{ minHeight: "400px", width: "100%" }}>
-                <RockImagesGallery 
-                  images={rockImages} 
-                  aspectRatio="square" 
-                  height={400}
-                  className="w-full max-w-md"
-                />
-              </div>
-            ) : (
-              <div className="flex items-center justify-center bg-muted rounded-lg" style={{ height: "400px", width: "100%" }}>
-                <p className="text-muted-foreground">No image available</p>
-              </div>
-            )}
-          </div>
-          
-          {/* Right: Rock Properties */}
-          <div className="w-full md:w-1/2">
-            {rock.type && (
-              <div className="mb-6">
-                <h3 className="text-base font-medium">Type</h3>
-                <p className="text-lg">{rock.type}</p>
-              </div>
-            )}
-            
-            {rock.category && (
-              <div className="mb-6">
-                <h3 className="text-base font-medium">Category</h3>
-                <p className="text-lg">{rock.category}</p>
-              </div>
-            )}
-            
-            {rock.color && (
-              <div className="mb-6">
-                <h3 className="text-base font-medium">Color</h3>
-                <p className="text-lg">{rock.color}</p>
-              </div>
-            )}
-            
-            {rock.texture && (
-              <div className="mb-6">
-                <h3 className="text-base font-medium">Texture</h3>
-                <p className="text-lg">{rock.texture}</p>
-              </div>
-            )}
-            
-            {rock.mineral_composition && (
-              <div className="mb-6">
-                <h3 className="text-base font-medium">Mineral Composition</h3>
-                <p className="text-lg">{rock.mineral_composition}</p>
-              </div>
-            )}
-            
-            {rock.hardness && (
-              <div className="mb-6">
-                <h3 className="text-base font-medium">Hardness</h3>
-                <p className="text-lg">{rock.hardness}</p>
-              </div>
-            )}
-            
-            {rock.grain_size && (
-              <div className="mb-6">
-                <h3 className="text-base font-medium">Grain Size</h3>
-                <p className="text-lg">{rock.grain_size}</p>
-              </div>
-            )}
-            
-            {rock.chemical_formula && (
-              <div className="mb-6">
-                <h3 className="text-base font-medium">Chemical Formula</h3>
-                <p className="text-lg">{rock.chemical_formula}</p>
-              </div>
+      <Card className={`p-0 mb-6 overflow-hidden ${styles.cardClass}`}>
+        <div className={`px-8 py-4 ${styles.headerClass}`}>
+          <h1 className="text-3xl font-bold">{rock.name}</h1>
+          <div className="flex items-center space-x-2 mt-2">
+            <Badge variant="outline" className={styles.badgeClass}>
+              {rock.category}
+            </Badge>
+            {rock.rock_code && (
+              <span className="text-sm text-muted-foreground">Code: {rock.rock_code}</span>
             )}
           </div>
         </div>
         
-        {rock.description && (
-          <div className="mt-6">
-            <h3 className="text-lg font-medium mb-2">Description</h3>
-            <p className="text-muted-foreground">{rock.description}</p>
+        <div className="p-8">
+          <div className="flex flex-col md:flex-row gap-8">
+            {/* Left: Rock Image */}
+            <div className="w-full md:w-1/2">
+              {loadingImages ? (
+                <div className="flex items-center justify-center bg-muted rounded-lg" style={{ height: "400px", width: "100%" }}>
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+                </div>
+              ) : rockImages.length > 0 ? (
+                <div className={`flex justify-center items-center rounded-lg ${styles.sectionClass}`} style={{ minHeight: "400px", width: "100%" }}>
+                  <RockImagesGallery 
+                    images={rockImages} 
+                    aspectRatio="square" 
+                    height={400}
+                    className="w-full max-w-md"
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center justify-center bg-muted rounded-lg" style={{ height: "400px", width: "100%" }}>
+                  <p className="text-muted-foreground">No image available</p>
+                </div>
+              )}
+            </div>
+            
+            {/* Right: Rock Properties */}
+            <div className="w-full md:w-1/2">
+              {/* Common Properties for All Rock Types */}
+              {rock.type && (
+                <div className="mb-6">
+                  <h3 className="text-base font-bold text-gray-700">Type</h3>
+                  <p className="text-lg">{rock.type}</p>
+                </div>
+              )}
+              
+              {rock.category && (
+                <div className="mb-6">
+                  <h3 className="text-base font-bold text-gray-700">Category</h3>
+                  <p className="text-lg">{rock.category}</p>
+                </div>
+              )}
+              
+              {rock.color && (
+                <div className="mb-6">
+                  <h3 className="text-base font-bold text-gray-700">Color</h3>
+                  <p className="text-lg">{rock.color}</p>
+                </div>
+              )}
+              
+              {rock.texture && (
+                <div className="mb-6">
+                  <h3 className="text-base font-bold text-gray-700">Texture</h3>
+                  <p className="text-lg">{rock.texture}</p>
+                </div>
+              )}
+              
+              {rock.mineral_composition && (
+                <div className="mb-6">
+                  <h3 className="text-base font-bold text-gray-700">Mineral Composition</h3>
+                  <p className="text-lg">{rock.mineral_composition}</p>
+                </div>
+              )}
+              
+              {rock.hardness && (
+                <div className="mb-6">
+                  <h3 className="text-base font-bold text-gray-700">Hardness</h3>
+                  <p className="text-lg">{rock.hardness}</p>
+                </div>
+              )}
+              
+              {rock.grain_size && (
+                <div className="mb-6">
+                  <h3 className="text-base font-bold text-gray-700">Grain Size</h3>
+                  <p className="text-lg">{rock.grain_size}</p>
+                </div>
+              )}
+              
+              {rock.chemical_formula && (
+                <div className="mb-6">
+                  <h3 className="text-base font-bold text-gray-700">Chemical Formula</h3>
+                  <p className="text-lg">{rock.chemical_formula}</p>
+                </div>
+              )}
+              
+              {/* Location info */}
+              {rock.locality && (
+                <div className="mb-6">
+                  <h3 className="text-base font-bold text-gray-700">Locality</h3>
+                  <p className="text-lg">{rock.locality}</p>
+                </div>
+              )}
+              
+              {rock.coordinates && (
+                <div className="mb-6">
+                  <h3 className="text-base font-bold text-gray-700">Coordinates</h3>
+                  <p className="text-lg">{rock.coordinates}</p>
+                </div>
+              )}
+              
+              {(!rock.coordinates && rock.latitude && rock.longitude) && (
+                <div className="mb-6">
+                  <h3 className="text-base font-bold text-gray-700">Coordinates</h3>
+                  <p className="text-lg">{rock.latitude}, {rock.longitude}</p>
+                </div>
+              )}
+            </div>
           </div>
-        )}
+          
+          {rock.description && (
+            <div className="mt-6">
+              <h3 className="text-lg font-bold text-gray-700 mb-2">Description</h3>
+              <p className="text-muted-foreground">{rock.description}</p>
+            </div>
+          )}
+        </div>
       </Card>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 gap-6 mb-8">
         {/* Location Information */}
         <Card className="p-6">
           <h2 className="text-xl font-bold mb-4">Location Information</h2>
           
-          {rock.locality && (
-            <div className="mb-4">
-              <h3 className="text-base font-medium">Locality</h3>
-              <p className="text-lg">{rock.locality}</p>
-            </div>
-          )}
-          
-          {rock.coordinates && (
-            <div className="mb-4">
-              <h3 className="text-base font-medium">Coordinates</h3>
-              <p className="text-lg">{rock.coordinates}</p>
-            </div>
-          )}
-          
-          {(!rock.coordinates && rock.latitude && rock.longitude) && (
-            <div className="mb-4">
-              <h3 className="text-base font-medium">Coordinates</h3>
-              <p className="text-lg">{rock.latitude}, {rock.longitude}</p>
-            </div>
-          )}
-          
           {rock.formation && (
             <div className="mb-4">
-              <h3 className="text-base font-medium">Formation</h3>
+              <h3 className="text-base font-bold text-gray-700">Formation</h3>
               <p className="text-lg">{rock.formation}</p>
             </div>
           )}
           
           {rock.geological_age && (
             <div className="mb-4">
-              <h3 className="text-base font-medium">Geological Age</h3>
+              <h3 className="text-base font-bold text-gray-700">Geological Age</h3>
               <p className="text-lg">{rock.geological_age}</p>
             </div>
           )}
           
-          {!rock.locality && !rock.coordinates && !rock.latitude && !rock.longitude && 
-           !rock.formation && !rock.geological_age && (
-            <p className="text-muted-foreground">No location information available</p>
+          {rock.depositional_environment && (
+            <div className="mb-4">
+              <h3 className="text-base font-bold text-gray-700">Depositional Environment</h3>
+              <p className="text-lg">{rock.depositional_environment}</p>
+            </div>
+          )}
+          
+          {!rock.formation && !rock.geological_age && !rock.depositional_environment && (
+            <p className="text-muted-foreground">No additional location information available</p>
           )}
         </Card>
 
-        {/* Additional Properties */}
+        {/* Associated Minerals */}
         <Card className="p-6">
-          <h2 className="text-xl font-bold mb-4">Additional Properties</h2>
+          <h2 className="text-xl font-bold mb-4">Mineral Information</h2>
           
-          <div className="space-y-4">
-            {rock.metamorphism_type && (
-              <div className="mb-4">
-                <h3 className="text-base font-medium">Metamorphism Type</h3>
-                <p className="text-lg">{rock.metamorphism_type}</p>
-              </div>
-            )}
-            
-            {rock.metamorphic_grade && (
-              <div className="mb-4">
-                <h3 className="text-base font-medium">Metamorphic Grade</h3>
-                <p className="text-lg">{rock.metamorphic_grade}</p>
-              </div>
-            )}
-            
-            {rock.parent_rock && (
-              <div className="mb-4">
-                <h3 className="text-base font-medium">Parent Rock</h3>
-                <p className="text-lg">{rock.parent_rock}</p>
-              </div>
-            )}
-            
-            {rock.foliation && (
-              <div className="mb-4">
-                <h3 className="text-base font-medium">Foliation</h3>
-                <p className="text-lg">{rock.foliation}</p>
-              </div>
-            )}
-            
-            {rock.silica_content && (
-              <div className="mb-4">
-                <h3 className="text-base font-medium">Silica Content</h3>
-                <p className="text-lg">{rock.silica_content}</p>
-              </div>
-            )}
-            
-            {rock.cooling_rate && (
-              <div className="mb-4">
-                <h3 className="text-base font-medium">Cooling Rate</h3>
-                <p className="text-lg">{rock.cooling_rate}</p>
-              </div>
-            )}
-            
-            {rock.bedding && (
-              <div className="mb-4">
-                <h3 className="text-base font-medium">Bedding</h3>
-                <p className="text-lg">{rock.bedding}</p>
-              </div>
-            )}
-            
-            {rock.sorting && (
-              <div className="mb-4">
-                <h3 className="text-base font-medium">Sorting</h3>
-                <p className="text-lg">{rock.sorting}</p>
-              </div>
-            )}
-            
-            {rock.roundness && (
-              <div className="mb-4">
-                <h3 className="text-base font-medium">Roundness</h3>
-                <p className="text-lg">{rock.roundness}</p>
-              </div>
-            )}
-            
-            {rock.fossil_content && (
-              <div className="mb-4">
-                <h3 className="text-base font-medium">Fossil Content</h3>
-                <p className="text-lg">{rock.fossil_content}</p>
-              </div>
-            )}
-            
-            {!rock.metamorphism_type && !rock.metamorphic_grade && !rock.parent_rock && 
-             !rock.foliation && !rock.silica_content && !rock.cooling_rate && 
-             !rock.bedding && !rock.sorting && !rock.roundness && !rock.fossil_content && (
-              <p className="text-muted-foreground">No additional properties available</p>
-            )}
-          </div>
+          {rock.associated_minerals && (
+            <div className="mb-4">
+              <h3 className="text-base font-bold text-gray-700">Associated Minerals</h3>
+              <p className="text-lg">{rock.associated_minerals}</p>
+            </div>
+          )}
+          
+          {rock.mineral_content && (
+            <div className="mb-4">
+              <h3 className="text-base font-bold text-gray-700">Mineral Content</h3>
+              <p className="text-lg">{rock.mineral_content}</p>
+            </div>
+          )}
+          
+          {rock.silica_content && (
+            <div className="mb-4">
+              <h3 className="text-base font-bold text-gray-700">Silica Content</h3>
+              <p className="text-lg">{rock.silica_content}</p>
+            </div>
+          )}
+          
+          {!rock.associated_minerals && !rock.mineral_content && !rock.silica_content && (
+            <p className="text-muted-foreground">No mineral information available</p>
+          )}
         </Card>
       </div>
+
+      {/* Category-specific properties section */}
+      {rock.category && (
+        <Card className="p-6 mb-8">
+          <h2 className="text-xl font-bold mb-4">{rock.category} Properties</h2>
+          
+          <div className="grid md:grid-cols-2 gap-x-8 gap-y-4">
+            {/* Igneous-specific fields */}
+            {rock.category.toLowerCase() === 'igneous' && (
+              <>
+                {rock.origin && (
+                  <div className="mb-4">
+                    <h3 className="text-base font-bold text-gray-700">Origin</h3>
+                    <p className="text-lg">{rock.origin}</p>
+                  </div>
+                )}
+                
+                {rock.cooling_rate && (
+                  <div className="mb-4">
+                    <h3 className="text-base font-bold text-gray-700">Cooling Rate</h3>
+                    <p className="text-lg">{rock.cooling_rate}</p>
+                  </div>
+                )}
+                
+                {rock.luster && (
+                  <div className="mb-4">
+                    <h3 className="text-base font-bold text-gray-700">Luster</h3>
+                    <p className="text-lg">{rock.luster}</p>
+                  </div>
+                )}
+                
+                {rock.streak && (
+                  <div className="mb-4">
+                    <h3 className="text-base font-bold text-gray-700">Streak</h3>
+                    <p className="text-lg">{rock.streak}</p>
+                  </div>
+                )}
+                
+                {rock.magnetism && (
+                  <div className="mb-4">
+                    <h3 className="text-base font-bold text-gray-700">Magnetism</h3>
+                    <p className="text-lg">{rock.magnetism}</p>
+                  </div>
+                )}
+              </>
+            )}
+            
+            {/* Metamorphic-specific fields */}
+            {rock.category.toLowerCase() === 'metamorphic' && (
+              <>
+                {rock.metamorphism_type && (
+                  <div className="mb-4">
+                    <h3 className="text-base font-bold text-gray-700">Metamorphism Type</h3>
+                    <p className="text-lg">{rock.metamorphism_type}</p>
+                  </div>
+                )}
+                
+                {rock.metamorphic_grade && (
+                  <div className="mb-4">
+                    <h3 className="text-base font-bold text-gray-700">Metamorphic Grade</h3>
+                    <p className="text-lg">{rock.metamorphic_grade}</p>
+                  </div>
+                )}
+                
+                {rock.parent_rock && (
+                  <div className="mb-4">
+                    <h3 className="text-base font-bold text-gray-700">Parent Rock</h3>
+                    <p className="text-lg">{rock.parent_rock}</p>
+                  </div>
+                )}
+                
+                {rock.protolith && !rock.parent_rock && (
+                  <div className="mb-4">
+                    <h3 className="text-base font-bold text-gray-700">Protolith</h3>
+                    <p className="text-lg">{rock.protolith}</p>
+                  </div>
+                )}
+                
+                {rock.foliation && (
+                  <div className="mb-4">
+                    <h3 className="text-base font-bold text-gray-700">Foliation</h3>
+                    <p className="text-lg">{rock.foliation}</p>
+                  </div>
+                )}
+                
+                {rock.foliation_type && (
+                  <div className="mb-4">
+                    <h3 className="text-base font-bold text-gray-700">Foliation Type</h3>
+                    <p className="text-lg">{rock.foliation_type}</p>
+                  </div>
+                )}
+                
+                {rock.reaction_to_hcl && (
+                  <div className="mb-4">
+                    <h3 className="text-base font-bold text-gray-700">Reaction to HCl</h3>
+                    <p className="text-lg">{rock.reaction_to_hcl}</p>
+                  </div>
+                )}
+                
+                {rock.magnetism && (
+                  <div className="mb-4">
+                    <h3 className="text-base font-bold text-gray-700">Magnetism</h3>
+                    <p className="text-lg">{rock.magnetism}</p>
+                  </div>
+                )}
+              </>
+            )}
+            
+            {/* Sedimentary-specific fields */}
+            {rock.category.toLowerCase() === 'sedimentary' && (
+              <>
+                {rock.bedding && (
+                  <div className="mb-4">
+                    <h3 className="text-base font-bold text-gray-700">Bedding</h3>
+                    <p className="text-lg">{rock.bedding}</p>
+                  </div>
+                )}
+                
+                {rock.sorting && (
+                  <div className="mb-4">
+                    <h3 className="text-base font-bold text-gray-700">Sorting</h3>
+                    <p className="text-lg">{rock.sorting}</p>
+                  </div>
+                )}
+                
+                {rock.roundness && (
+                  <div className="mb-4">
+                    <h3 className="text-base font-bold text-gray-700">Roundness</h3>
+                    <p className="text-lg">{rock.roundness}</p>
+                  </div>
+                )}
+                
+                {rock.fossil_content && (
+                  <div className="mb-4">
+                    <h3 className="text-base font-bold text-gray-700">Fossil Content</h3>
+                    <p className="text-lg">{rock.fossil_content}</p>
+                  </div>
+                )}
+                
+                {rock.sediment_source && (
+                  <div className="mb-4">
+                    <h3 className="text-base font-bold text-gray-700">Sediment Source</h3>
+                    <p className="text-lg">{rock.sediment_source}</p>
+                  </div>
+                )}
+                
+                {rock.reaction_to_hcl && (
+                  <div className="mb-4">
+                    <h3 className="text-base font-bold text-gray-700">Reaction to HCl</h3>
+                    <p className="text-lg">{rock.reaction_to_hcl}</p>
+                  </div>
+                )}
+              </>
+            )}
+            
+            {/* Ore Samples specific fields */}
+            {rock.category.toLowerCase() === 'ore samples' && (
+              <>
+                {rock.commodity_type && (
+                  <div className="mb-4">
+                    <h3 className="text-base font-bold text-gray-700">Commodity Type</h3>
+                    <p className="text-lg">{rock.commodity_type}</p>
+                  </div>
+                )}
+                
+                {rock.ore_group && (
+                  <div className="mb-4">
+                    <h3 className="text-base font-bold text-gray-700">Ore Group</h3>
+                    <p className="text-lg">{rock.ore_group}</p>
+                  </div>
+                )}
+                
+                {rock.mining_company && (
+                  <div className="mb-4">
+                    <h3 className="text-base font-bold text-gray-700">Mining Company</h3>
+                    <p className="text-lg">{rock.mining_company}</p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          
+          {/* Show a message if no category-specific properties are available */}
+          {(rock.category.toLowerCase() === 'igneous' && 
+            !rock.origin && !rock.cooling_rate && !rock.luster && !rock.streak && !rock.magnetism) ||
+           (rock.category.toLowerCase() === 'metamorphic' && 
+            !rock.metamorphism_type && !rock.metamorphic_grade && !rock.parent_rock && !rock.protolith &&
+            !rock.foliation && !rock.foliation_type && !rock.reaction_to_hcl && !rock.magnetism) ||
+           (rock.category.toLowerCase() === 'sedimentary' && 
+            !rock.bedding && !rock.sorting && !rock.roundness && !rock.fossil_content && 
+            !rock.sediment_source && !rock.reaction_to_hcl) ||
+           (rock.category.toLowerCase() === 'ore samples' && 
+            !rock.commodity_type && !rock.ore_group && !rock.mining_company) && (
+             <p className="text-muted-foreground">No specific properties available for this {rock.category} rock</p>
+           )}
+        </Card>
+      )}
+
+      {/* Physical Properties */}
+      <Card className="p-6">
+        <h2 className="text-xl font-bold mb-4">Physical Properties</h2>
+        
+        <div className="grid md:grid-cols-2 gap-x-8 gap-y-4">
+          {/* Only show properties that haven't been shown in category-specific sections */}
+          {rock.luster && rock.category.toLowerCase() !== 'igneous' && (
+            <div className="mb-4">
+              <h3 className="text-base font-bold text-gray-700">Luster</h3>
+              <p className="text-lg">{rock.luster}</p>
+            </div>
+          )}
+          
+          {rock.streak && rock.category.toLowerCase() !== 'igneous' && (
+            <div className="mb-4">
+              <h3 className="text-base font-bold text-gray-700">Streak</h3>
+              <p className="text-lg">{rock.streak}</p>
+            </div>
+          )}
+          
+          {rock.reaction_to_hcl && 
+           rock.category.toLowerCase() !== 'metamorphic' && 
+           rock.category.toLowerCase() !== 'sedimentary' && (
+            <div className="mb-4">
+              <h3 className="text-base font-bold text-gray-700">Reaction to HCl</h3>
+              <p className="text-lg">{rock.reaction_to_hcl}</p>
+            </div>
+          )}
+          
+          {rock.magnetism && 
+           rock.category.toLowerCase() !== 'igneous' && 
+           rock.category.toLowerCase() !== 'metamorphic' && (
+            <div className="mb-4">
+              <h3 className="text-base font-bold text-gray-700">Magnetism</h3>
+              <p className="text-lg">{rock.magnetism}</p>
+            </div>
+          )}
+          
+          {/* Show empty state if no physical properties are available */}
+          {!rock.luster && !rock.streak && !rock.reaction_to_hcl && !rock.magnetism && (
+            <p className="text-muted-foreground col-span-2">No additional physical properties available</p>
+          )}
+        </div>
+      </Card>
     </div>
   );
 };

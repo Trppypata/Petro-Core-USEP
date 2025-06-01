@@ -185,9 +185,13 @@ export const updateRock = async (id: string, rockData: Partial<IRock>) => {
     console.log('⭐ Update rock data:', JSON.stringify(rockData, null, 2));
     
     // Remove problematic fields that don't exist in the database schema
-    const { user, origin, user_id, ...filteredData } = rockData;
+    // Use type assertion to handle potential extra properties
+    const { user, user_id, ...filteredData } = rockData as Partial<IRock> & { 
+      user?: any; 
+      user_id?: any;
+    };
     
-    console.log('🧹 Filtered problematic fields (user, origin, user_id)');
+    console.log('🧹 Filtered problematic fields (user, user_id)');
     console.log('🧹 Cleaned data for update:', JSON.stringify(filteredData, null, 2));
     
     // Get a fresh axios instance with auth headers
