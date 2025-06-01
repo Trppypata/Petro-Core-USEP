@@ -13,6 +13,10 @@ export interface RocksMineralsItem {
   latitude?: string;
   longitude?: string;
   locality?: string;
+  // Category-specific properties
+  texture?: string;         // For igneous rocks
+  foliation?: string;       // For metamorphic rocks
+  rockType?: string;        // For sedimentary rocks
 }
 
 export type RocksMineralsFilter = {

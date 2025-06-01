@@ -7,9 +7,13 @@ interface WorkCardProps {
   description: string;
   imageUrl?: string; // Optional image URL
   category?: string; // We'll keep the category prop but won't display it as a badge
+  type?: 'rock' | 'mineral'; // Add type to distinguish between rocks and minerals
+  texture?: string; // For igneous rocks
+  foliation?: string; // For metamorphic rocks
+  rockType?: string; // For sedimentary rocks
 }
 
-export function RockMineralsCard({ title, description, imageUrl, category }: WorkCardProps) {
+export function RockMineralsCard({ title, description, imageUrl, category, type = 'rock', texture, foliation, rockType }: WorkCardProps) {
   // Generate category badge color based on category name
   const getCategoryColor = (category?: string) => {
     if (!category) return "bg-muted text-muted-foreground";
@@ -41,6 +45,42 @@ export function RockMineralsCard({ title, description, imageUrl, category }: Wor
         return "bg-muted text-muted-foreground";
     }
   };
+  
+  // Determine which property to highlight based on rock category
+  const getCategorySpecificInfo = () => {
+    if (type !== 'rock' || !category) return null;
+    
+    const lowerCategory = category.toLowerCase();
+    
+    switch (lowerCategory) {
+      case 'igneous':
+        return texture ? (
+          <div className="text-xs text-gray-500 mt-1">
+            <span className="font-semibold">Texture:</span> {texture}
+          </div>
+        ) : null;
+      case 'metamorphic':
+        return foliation ? (
+          <div className="text-xs text-gray-500 mt-1">
+            <span className="font-semibold">Foliation:</span> {foliation}
+          </div>
+        ) : null;
+      case 'sedimentary':
+        return rockType ? (
+          <div className="text-xs text-gray-500 mt-1">
+            <span className="font-semibold">Type:</span> {rockType}
+          </div>
+        ) : null;
+      case 'ore samples':
+        return (
+          <div className="text-xs text-gray-500 mt-1">
+            <span className="font-semibold">Overall Description</span>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <Card className="overflow-hidden h-full group border-muted shadow-sm hover:shadow-md transition-all duration-200 bg-white">
@@ -68,6 +108,7 @@ export function RockMineralsCard({ title, description, imageUrl, category }: Wor
         <CardDescription className="text-sm text-muted-foreground line-clamp-2">
           {description}
         </CardDescription>
+        {getCategorySpecificInfo()}
       </CardContent>
       
       <CardFooter className="p-4 pt-0 text-xs text-muted-foreground">
