@@ -40,6 +40,7 @@ export const importMineralsFromExcel = async (req: Request, res: Response) => {
     }
 
     // Process the uploaded Excel file
+    console.log('Processing Excel file:', excelFile.originalname);
     const workbook = XLSX.read(excelFile.buffer, { type: 'buffer' });
     const minerals: IMineral[] = [];
     const sheetCounts: Record<string, { total: number, processed: number, skipped: number }> = {};
@@ -48,12 +49,32 @@ export const importMineralsFromExcel = async (req: Request, res: Response) => {
     console.log(workbook.SheetNames);
     console.log(`Total sheets: ${workbook.SheetNames.length}`);
     
+    // Check specifically for BORATES and CARBONATES sheets (or their singular forms)
+    const hasBorates = workbook.SheetNames.some(sheet => 
+      sheet.toUpperCase() === 'BORATES' || 
+      sheet.toUpperCase() === 'BORATE');
+    
+    const hasCarbonates = workbook.SheetNames.some(sheet => 
+      sheet.toUpperCase() === 'CARBONATES' || 
+      sheet.toUpperCase() === 'CARBONATE');
+    
+    console.log(`Borate sheet present (singular or plural): ${hasBorates}`);
+    console.log(`Carbonate sheet present (singular or plural): ${hasCarbonates}`);
+    
     // Process each sheet
     workbook.SheetNames.forEach((sheetName) => {
       // Skip only special sheets, be more permissive
       if (sheetName.startsWith('_')) {
         console.log(`Skipping special sheet: ${sheetName}`);
         return;
+      }
+      
+      // Special logging for our problem sheets
+      if (sheetName.toUpperCase() === 'BORATES' || 
+          sheetName.toUpperCase() === 'BORATE' || 
+          sheetName.toUpperCase() === 'CARBONATES' || 
+          sheetName.toUpperCase() === 'CARBONATE') {
+        console.log(`Processing special attention sheet: ${sheetName}`);
       }
       
       const worksheet = workbook.Sheets[sheetName];
@@ -65,6 +86,8 @@ export const importMineralsFromExcel = async (req: Request, res: Response) => {
       // Check if the first row exists and log its headers
       if (jsonData.length > 0) {
         console.log(`First row headers for ${sheetName}:`, Object.keys(jsonData[0] as object));
+      } else {
+        console.warn(`WARNING: Sheet ${sheetName} has no data rows`);
       }
       
       jsonData.forEach((row: any, index: number) => {
@@ -208,6 +231,8 @@ export const importDefaultMinerals = async (_req: Request, res: Response) => {
       });
     }
 
+    console.log('Reading default Excel file from:', excelPath);
+    
     // Read the Excel file
     const workbook = XLSX.read(fs.readFileSync(excelPath), { type: 'buffer' });
     
@@ -215,6 +240,51 @@ export const importDefaultMinerals = async (_req: Request, res: Response) => {
     console.log("Excel file contains the following sheets:");
     console.log(workbook.SheetNames);
     console.log(`Total sheets: ${workbook.SheetNames.length}`);
+    
+    // Check for case variations of sheet names
+    const findSheet = (name: string): string | undefined => {
+      // Check exact match
+      if (workbook.SheetNames.includes(name)) {
+        return name;
+      }
+      
+      // Check uppercase
+      const upperName = name.toUpperCase();
+      if (workbook.SheetNames.includes(upperName)) {
+        return upperName;
+      }
+      
+      // Check lowercase
+      const lowerName = name.toLowerCase();
+      if (workbook.SheetNames.includes(lowerName)) {
+        return lowerName;
+      }
+      
+      // Check singular/plural variations
+      // If looking for plural, check singular too (e.g., "BORATES" -> "BORATE")
+      if (name.endsWith('S') && workbook.SheetNames.includes(name.slice(0, -1))) {
+        return name.slice(0, -1);
+      }
+      
+      // If looking for singular, check plural too (e.g., "BORATE" -> "BORATES")
+      if (workbook.SheetNames.includes(name + 's')) {
+        return name + 's';
+      }
+      
+      // Check mixed case variations
+      return workbook.SheetNames.find(s => 
+        s.toLowerCase() === lowerName || 
+        s.toLowerCase() === lowerName + 's' || 
+        s.toLowerCase() + 's' === lowerName
+      );
+    };
+    
+    // Check specifically for problematic sheets
+    const borateSheet = findSheet('BORATE') || findSheet('BORATES');
+    const carbonateSheet = findSheet('CARBONATE') || findSheet('CARBONATES');
+    
+    console.log(`Borate sheet found as: ${borateSheet || 'NOT FOUND'}`);
+    console.log(`Carbonate sheet found as: ${carbonateSheet || 'NOT FOUND'}`);
     
     const minerals: IMineral[] = [];
     const sheetCounts: Record<string, number> = {};
@@ -227,11 +297,22 @@ export const importDefaultMinerals = async (_req: Request, res: Response) => {
         return;
       }
       
+      // Special logging for our problem sheets
+      if (sheetName.toUpperCase() === 'BORATES' || sheetName.toUpperCase() === 'CARBONATES') {
+        console.log(`Processing special attention sheet: ${sheetName}`);
+      }
+      
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
       
       console.log(`Processing sheet: ${sheetName} with ${jsonData.length} entries`);
       sheetCounts[sheetName] = jsonData.length;
+      
+      // Check if sheet has data
+      if (jsonData.length === 0) {
+        console.warn(`WARNING: Sheet ${sheetName} has no data rows`);
+        return;
+      }
       
       jsonData.forEach((row: any) => {
         // Skip empty rows
@@ -341,9 +422,29 @@ export const getAllMinerals = async (req: Request, res: Response) => {
     
     // Apply category filter if provided
     if (category && category !== 'ALL') {
-      // Use ilike for case-insensitive matching to prevent issues with casing
-      query = query.ilike('category', `%${category}%`);
-      console.log(`Filtering minerals by category: ${category} (case-insensitive)`);
+      console.log(`Original category request: ${category}`);
+      
+      // Handle singular/plural variations of category names
+      let categoryPattern = (category as string).trim(); // Trim any whitespace
+      
+      // Special handling for Borate/Borates and Carbonate/Carbonates
+      if (categoryPattern.toUpperCase() === 'BORATE') {
+        categoryPattern = 'Borate';
+        console.log('Processing special category: Borate (singular)');
+      } else if (categoryPattern.toUpperCase() === 'BORATES') {
+        categoryPattern = 'Borate';
+        console.log('Processing special category: Borates (plural) -> using Borate');
+      } else if (categoryPattern.toUpperCase() === 'CARBONATE') {
+        categoryPattern = 'Carbonate';
+        console.log('Processing special category: Carbonate (singular)');
+      } else if (categoryPattern.toUpperCase() === 'CARBONATES') {
+        categoryPattern = 'Carbonate';
+        console.log('Processing special category: Carbonates (plural) -> using Carbonate');
+      }
+      
+      // Use ilike for case-insensitive matching with wildcards to handle spaces
+      query = query.ilike('category', `%${categoryPattern}%`);
+      console.log(`Filtering minerals by normalized category: ${categoryPattern} (using case-insensitive pattern match)`);
     }
     
     // Get total count first

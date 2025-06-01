@@ -6,7 +6,8 @@ import {
   addMineral,
   updateMineral,
   deleteMineral,
-  getMineralById
+  getMineralById,
+  importDefaultMinerals
 } from '../controllers/minerals.controller';
 import { verifyToken } from '../middleware/auth.middleware';
 
@@ -35,6 +36,7 @@ const upload = multer({
 router.get('/', getAllMinerals);
 router.get('/:id', getMineralById);
 router.post('/import', upload.single('file'), importMineralsFromExcel); // Import without auth
+router.post('/import-default', importDefaultMinerals); // Import default data without auth
 
 // Protected routes (authentication required)
 router.post('/', verifyToken, addMineral);

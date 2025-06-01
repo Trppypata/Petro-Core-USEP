@@ -30,7 +30,7 @@ export interface IMineral {
 export type MineralCategory = 
   | 'ALL'
   | 'SULFOSALTS'
-  | 'BORATES'
+  | 'BORATES' | 'BORATE'
   | 'SULFATES'
   | 'CHROMATES'
   | 'MOLYBDATE'
@@ -45,7 +45,7 @@ export type MineralCategory =
   | 'SILICATES'
   | 'ORGANICS'
   | 'HALIDES'
-  | 'CARBONATES';
+  | 'CARBONATES' | 'CARBONATE';
 
 export const MINERAL_CATEGORIES: MineralCategory[] = [
   'ALL',

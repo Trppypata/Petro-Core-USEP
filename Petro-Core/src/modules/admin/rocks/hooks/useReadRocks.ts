@@ -18,17 +18,22 @@ export interface UseReadRocksResult {
   pagination: PaginationState;
   setPage: (page: number) => void;
   setPageSize: (pageSize: number) => void;
+  refetch: () => Promise<void>;
 }
 
 export function useReadRocks(category: string | RockCategory): UseReadRocksResult {
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch: queryRefetch } = useQuery({
     queryKey: [Q_KEYS.ROCKS, category, page, pageSize],
     queryFn: () => fetchRocks(category, page, pageSize),
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
+
+  const refetch = async (): Promise<void> => {
+    await queryRefetch();
+  };
 
   return {
     data: data?.data || [],
@@ -36,6 +41,7 @@ export function useReadRocks(category: string | RockCategory): UseReadRocksResul
     error: error as Error | null,
     pagination: data?.pagination || { page, pageSize, total: 0, totalPages: 0 },
     setPage,
-    setPageSize
+    setPageSize,
+    refetch
   };
 } 

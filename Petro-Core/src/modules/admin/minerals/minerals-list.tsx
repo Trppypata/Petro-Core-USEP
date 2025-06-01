@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Table, 
   TableBody, 
@@ -36,6 +37,7 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { fetchMinerals } from './services/minerals.service';
 
 interface MineralsListProps {
   category: MineralCategory | string;
@@ -60,37 +62,61 @@ const MineralsList = ({
   // This will be implemented in the hooks folder
   const { data: minerals, isLoading, error, pagination, setPage, setPageSize, refetch } = useReadMinerals(category);
   
+  // Helper function to normalize category names
+  const normalizeCategory = (categoryName?: string): string => {
+    if (!categoryName) return '';
+    
+    // First trim any whitespace to handle cases like "BORATES "
+    const trimmed = categoryName.trim();
+    const upperCat = trimmed.toUpperCase();
+    
+    // Handle specific singular/plural cases
+    if (upperCat === 'BORATE' || upperCat === 'BORATES') {
+      return 'borate';
+    } else if (upperCat === 'CARBONATE' || upperCat === 'CARBONATES') {
+      return 'carbonate';
+    }
+    
+    // General case - remove trailing 'S' if present
+    return upperCat.endsWith('S') ? upperCat.slice(0, -1).toLowerCase() : upperCat.toLowerCase();
+  };
+  
   // Enhanced debugging for minerals data
   useEffect(() => {
-    console.log('MineralsList received data:', minerals);
-    console.log('MineralsList category:', category);
-    console.log('MineralsList error:', error);
-    
-    if (minerals && Array.isArray(minerals)) {
-      console.log(`Found ${minerals.length} total minerals`);
+    if (minerals) {
+      console.log('MineralsList received data:', minerals);
+      console.log('MineralsList category:', category);
+      console.log('MineralsList error:', error);
       
-      // Count minerals by category
-      const categories = [...new Set(minerals.map(m => m.category))];
-      console.log('Categories in data:', categories);
-      
-      const categoryCounts = categories.reduce((acc, cat) => {
-        acc[cat] = minerals.filter(m => m.category === cat).length;
-        return acc;
-      }, {} as Record<string, number>);
-      console.log('Minerals per category:', categoryCounts);
-      
-      // Check if we have minerals in the requested category
-      const inRequestedCategory = minerals.filter(m => 
-        m.category?.toLowerCase() === category?.toLowerCase()
-      ).length;
-      console.log(`Minerals in requested category "${category}": ${inRequestedCategory}`);
-      
-      // Log sample mineral data
-      if (minerals.length > 0) {
-        console.log('Sample mineral data:', minerals[0]);
+      if (Array.isArray(minerals)) {
+        console.log(`Found ${minerals.length} total minerals`);
+        
+        // Check all unique categories in the data for debugging
+        const uniqueCategories = [...new Set(minerals.map(mineral => mineral.category))];
+        console.log('Categories in data:', uniqueCategories);
+        
+        // Group minerals by category for debugging
+        const categoryGroups = uniqueCategories.reduce((acc, cat) => {
+          acc[cat] = minerals.filter(m => m.category === cat).length;
+          return acc;
+        }, {} as Record<string, number>);
+        console.log('Minerals per category:', categoryGroups);
+        
+        // Check if we have minerals in the requested category
+        // Normalize category for comparison (handle singular/plural forms)
+        const normalizedRequestedCategory = normalizeCategory(category);
+        const inRequestedCategory = minerals.filter(m => 
+          normalizeCategory(m.category) === normalizedRequestedCategory
+        ).length;
+        console.log(`Minerals in normalized category "${normalizedRequestedCategory}" (from "${category}"): ${inRequestedCategory}`);
+        
+        // Log sample mineral data
+        if (minerals.length > 0) {
+          console.log('Sample mineral data:', minerals[0]);
+        }
+      } else {
+        console.warn('No minerals data or data is not an array');
       }
-    } else {
-      console.warn('No minerals data or data is not an array');
     }
   }, [minerals, category, error]);
   
@@ -103,9 +129,9 @@ const MineralsList = ({
     }
     
     // If not searching, return all minerals (ALL category) or just this category
-    // Using case-insensitive comparison for more reliable matching
+    // Using normalized comparison for more reliable matching
     return category === 'ALL' || 
-           mineral.category?.toLowerCase() === category?.toLowerCase();
+           normalizeCategory(mineral.category) === normalizeCategory(category);
   }) || [];
   
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -329,10 +355,11 @@ const MineralsList = ({
           <Pagination>
             <PaginationContent>
               <PaginationItem>
-                <PaginationPrevious 
-                  onClick={() => handlePageChange(pagination.page - 1)}
-                  disabled={pagination.page <= 1}
-                />
+                {pagination.page <= 1 ? (
+                  <PaginationPrevious className="pointer-events-none opacity-50" />
+                ) : (
+                  <PaginationPrevious onClick={() => handlePageChange(pagination.page - 1)} />
+                )}
               </PaginationItem>
               
               {Array.from({ length: Math.min(5, pagination.totalPages || 1) }).map((_, i) => {
@@ -379,10 +406,11 @@ const MineralsList = ({
               )}
               
               <PaginationItem>
-                <PaginationNext 
-                  onClick={() => handlePageChange(pagination.page + 1)}
-                  disabled={pagination.page >= (pagination.totalPages || 1)}
-                />
+                {pagination.page >= (pagination.totalPages || 1) ? (
+                  <PaginationNext className="pointer-events-none opacity-50" />
+                ) : (
+                  <PaginationNext onClick={() => handlePageChange(pagination.page + 1)} />
+                )}
               </PaginationItem>
             </PaginationContent>
           </Pagination>

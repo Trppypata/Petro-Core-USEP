@@ -22,12 +22,32 @@ export const getMinerals = async (
     console.log('🔍 Fetching minerals from API...');
     console.log('🔗 API URL:', `${API_URL}/minerals`);
     
+    // Normalize category name if it's Borate/Borates or Carbonate/Carbonates
+    let normalizedCategory = category;
+    
+    if (category) {
+      // First trim any whitespace
+      const trimmedCategory = category.trim();
+      const categoryUpper = trimmedCategory.toUpperCase();
+      
+      if (categoryUpper === 'BORATE' || categoryUpper === 'BORATES') {
+        console.log(`Normalizing category from ${category} to Borate`);
+        normalizedCategory = 'Borate';
+      } else if (categoryUpper === 'CARBONATE' || categoryUpper === 'CARBONATES') {
+        console.log(`Normalizing category from ${category} to Carbonate`);
+        normalizedCategory = 'Carbonate';
+      } else {
+        // For other categories, just use the trimmed version
+        normalizedCategory = trimmedCategory;
+      }
+    }
+    
     // Add category as a query parameter if provided and not ALL
-    const url = category && category !== 'ALL' 
-      ? `${API_URL}/minerals?category=${encodeURIComponent(category)}` 
+    const url = normalizedCategory && normalizedCategory !== 'ALL' 
+      ? `${API_URL}/minerals?category=${encodeURIComponent(normalizedCategory)}` 
       : `${API_URL}/minerals`;
     
-    console.log('🔍 Request URL with category:', url);
+    console.log('🔍 Request URL with normalized category:', url);
     
     const response = await axios.get(url);
     console.log('✅ Raw API Response status:', response.status);
@@ -60,19 +80,77 @@ export const importMineralsFromExcel = async (
   file: File
 ): Promise<{ success: boolean; message: string }> => {
   try {
+    console.log(`Uploading Excel file: ${file.name}, size: ${file.size} bytes`);
+    
     const formData = new FormData();
     formData.append('file', file);
 
+    console.log('Making request to API endpoint:', `${API_URL}/minerals/import`);
+    
     const response = await axios.post(`${API_URL}/minerals/import`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
 
+    console.log('Import response received:', response.data);
+    
+    // Log sheet information if available
+    if (response.data.counts) {
+      console.log('Imported sheet counts:', response.data.counts);
+      // Check if BORATES and CARBONATES were processed
+      if (response.data.counts['BORATES']) {
+        console.log('BORATES sheet stats:', response.data.counts['BORATES']);
+      } else {
+        console.warn('WARNING: BORATES sheet was not processed');
+      }
+      
+      if (response.data.counts['CARBONATES']) {
+        console.log('CARBONATES sheet stats:', response.data.counts['CARBONATES']);
+      } else {
+        console.warn('WARNING: CARBONATES sheet was not processed');
+      }
+    }
+
     return response.data;
   } catch (error: any) {
     console.error('Error importing minerals from Excel:', error);
     throw new Error(error.response?.data?.message || 'Failed to import minerals');
+  }
+};
+
+// Import default minerals from built-in database
+export const importDefaultMinerals = async (): Promise<{ success: boolean; message: string }> => {
+  try {
+    console.log('Starting import from default minerals database...');
+    
+    // Make request to the default import endpoint
+    console.log('Making request to API endpoint:', `${API_URL}/minerals/import-default`);
+    const response = await axios.post(`${API_URL}/minerals/import-default`);
+    
+    console.log('Default minerals import response:', response.data);
+    
+    // Log sheet information if available
+    if (response.data.counts) {
+      console.log('Imported sheet counts:', response.data.counts);
+      // Check if BORATES and CARBONATES were processed
+      if (response.data.counts['BORATES']) {
+        console.log('BORATES sheet stats:', response.data.counts['BORATES']);
+      } else {
+        console.warn('WARNING: BORATES sheet was not processed');
+      }
+      
+      if (response.data.counts['CARBONATES']) {
+        console.log('CARBONATES sheet stats:', response.data.counts['CARBONATES']);
+      } else {
+        console.warn('WARNING: CARBONATES sheet was not processed');
+      }
+    }
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('Error importing default minerals data:', error);
+    throw new Error(error.response?.data?.message || 'Failed to import default minerals data');
   }
 };
 
@@ -165,7 +243,8 @@ export const cleanMineralData = (mineralData: any): Partial<IMineral> => {
   // Add each valid field if it exists in the input data
   for (const key of validKeys) {
     if (mineralData[key] !== undefined) {
-      cleanedData[key] = mineralData[key];
+      // Fix the TypeScript error by using type assertion
+      (cleanedData as any)[key] = mineralData[key];
     }
   }
   
@@ -346,27 +425,48 @@ export const fetchMinerals = async (
   pageSize: number = 10
 ): Promise<{ data: IMineral[]; pagination: { total: number; page: number; pageSize: number; totalPages: number } }> => {
   try {
-    let params = new URLSearchParams();
-    if (category && category !== 'ALL') {
-      params.append('category', category);
+    console.log('🔍 Fetching minerals with pagination...');
+    console.log('🔗 API URL:', `${API_URL}/minerals`);
+    console.log('📄 Pagination:', { page, pageSize });
+    
+    // Normalize category name if it's Borate/Borates or Carbonate/Carbonates
+    let normalizedCategory = category;
+    
+    if (category) {
+      // First trim any whitespace
+      const trimmedCategory = category.trim();
+      const categoryUpper = trimmedCategory.toUpperCase();
+      
+      if (categoryUpper === 'BORATE' || categoryUpper === 'BORATES') {
+        console.log(`Normalizing category from ${category} to Borate`);
+        normalizedCategory = 'Borate';
+      } else if (categoryUpper === 'CARBONATE' || categoryUpper === 'CARBONATES') {
+        console.log(`Normalizing category from ${category} to Carbonate`);
+        normalizedCategory = 'Carbonate';
+      } else {
+        // For other categories, just use the trimmed version
+        normalizedCategory = trimmedCategory;
+      }
     }
+    
+    // Build query parameters
+    let params = new URLSearchParams();
+    
+    // Add category if provided
+    if (normalizedCategory && normalizedCategory !== 'ALL') {
+      params.append('category', normalizedCategory);
+      console.log('🔍 Using normalized category for filtering:', normalizedCategory);
+    }
+    
+    // Add pagination parameters
     params.append('page', page.toString());
     params.append('pageSize', pageSize.toString());
+    
+    // Construct URL with query parameters
     const url = `${API_URL}/minerals?${params.toString()}`;
+    console.log('🔗 Full URL:', url);
     
-    // Get the authentication token
-    const token = getAuthToken();
-    
-    // Set up request headers with authentication
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-    
-    console.log('Fetch minerals headers:', headers);
-    console.log('Fetch minerals URL:', url);
-    
-    const response = await axios.get(url, { headers });
+    const response = await axios.get(url);
     
     if (!response.data || !response.data.data) {
       return { data: [], pagination: { total: 0, page, pageSize, totalPages: 0 } };

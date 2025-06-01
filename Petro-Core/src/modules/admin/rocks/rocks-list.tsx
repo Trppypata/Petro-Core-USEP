@@ -50,6 +50,7 @@ import {
   SheetTitle,
   SheetFooter,
 } from "@/components/ui/sheet";
+import { toast } from 'sonner';
 
 interface RocksListProps {
   category: RockCategory | string;
@@ -80,10 +81,11 @@ const RocksList = ({
     error, 
     pagination, 
     setPage, 
-    setPageSize 
+    setPageSize,
+    refetch
   } = useReadRocks(category);
   
-  const { mutateAsync: deleteRockAsync, isDeleting } = useDeleteRock();
+  const { isDeleting, deleteRock } = useDeleteRock();
   
   // Debug logs to help diagnose issues
   useEffect(() => {
@@ -161,10 +163,15 @@ const RocksList = ({
   const handleCloseEdit = () => setRockToEdit(null);
   const handleDelete = async () => {
     if (!rockToDelete || !rockToDelete.id) return;
+    
     try {
-      await deleteRockAsync(rockToDelete.id);
-      setRockToDelete(null);
+      await deleteRock(rockToDelete.id);
+      toast.success(`${rockToDelete.name} has been removed successfully.`);
+      refetch();
     } catch (error) {
+      console.error('Error deleting rock:', error);
+      toast.error("Failed to delete rock. Please try again.");
+    } finally {
       setRockToDelete(null);
     }
   };
@@ -240,46 +247,50 @@ const RocksList = ({
     
     return processedRocks.map((rock: IRock) => (
       <TableRow key={rock.id || rock.name} className="cursor-pointer hover:bg-gray-50" onClick={() => handleRockSelect(rock)}>
-        {rock.image_url ? (
-          <TableCell>
-            <div className="w-10 h-10 relative">
-              <img 
-                src={rock.image_url} 
-                alt={rock.name}
-                className="w-10 h-10 object-cover rounded-md"
-                onError={(e) => {
-                  console.error('Image failed to load:', rock.image_url);
-                  // Replace with fallback image icon
-                  e.currentTarget.style.display = 'none';
-                  e.currentTarget.parentElement?.classList.add('bg-gray-200', 'flex', 'items-center', 'justify-center');
-                  // Create and append fallback icon
-                  const icon = document.createElement('div');
-                  icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-image text-gray-500"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>';
-                  e.currentTarget.parentElement?.appendChild(icon);
-                }}
-              />
-            </div>
-          </TableCell>
-        ) : (
-          <TableCell>
-            <div className="w-10 h-10 bg-gray-200 rounded-md flex items-center justify-center">
-              <ImageIcon className="w-5 h-5 text-gray-500" />
-            </div>
-          </TableCell>
+        {category !== 'Sedimentary' && (
+          <>
+            {rock.image_url ? (
+              <TableCell>
+                <div className="w-10 h-10 relative">
+                  <img 
+                    src={rock.image_url} 
+                    alt={rock.name}
+                    className="w-10 h-10 object-cover rounded-md"
+                    onError={(e) => {
+                      console.error('Image failed to load:', rock.image_url);
+                      // Replace with fallback image icon
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.parentElement?.classList.add('bg-gray-200', 'flex', 'items-center', 'justify-center');
+                      // Create and append fallback icon
+                      const icon = document.createElement('div');
+                      icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-image text-gray-500"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>';
+                      e.currentTarget.parentElement?.appendChild(icon);
+                    }}
+                  />
+                </div>
+              </TableCell>
+            ) : (
+              <TableCell>
+                <div className="w-10 h-10 bg-gray-200 rounded-md flex items-center justify-center">
+                  <ImageIcon className="w-5 h-5 text-gray-500" />
+                </div>
+              </TableCell>
+            )}
+            <TableCell className="font-medium break-words">{rock.name}</TableCell>
+            <TableCell className="break-words">{rock.rock_code ? rock.rock_code.replace(/\s+/g, '') : '-'}</TableCell>
+            
+            {/* Only show Category column when not in Ore Samples view */}
+            {category !== 'Ore Samples' && (
+              <TableCell>
+                <Badge variant="outline" className="bg-blue-100 text-blue-800">
+                  {rock.category}
+                </Badge>
+              </TableCell>
+            )}
+            
+            <TableCell className="break-words">{rock.type || '-'}</TableCell>
+          </>
         )}
-        <TableCell className="font-medium break-words">{rock.name}</TableCell>
-        <TableCell className="break-words">{rock.rock_code ? rock.rock_code.replace(/\s+/g, '') : '-'}</TableCell>
-        
-        {/* Only show Category column when not in Ore Samples view */}
-        {category !== 'Ore Samples' && (
-          <TableCell>
-            <Badge variant="outline" className="bg-blue-100 text-blue-800">
-              {rock.category}
-            </Badge>
-          </TableCell>
-        )}
-        
-        <TableCell className="break-words">{rock.type || '-'}</TableCell>
         
         {/* Ore Samples specific fields */}
         {category === 'Ore Samples' && (
@@ -290,86 +301,187 @@ const RocksList = ({
           </>
         )}
         
-        <TableCell className="break-words">{rock.chemical_formula || '-'}</TableCell>
-        <TableCell className="break-words">{rock.color || '-'}</TableCell>
-        <TableCell className="break-words">{rock.hardness || '-'}</TableCell>
-        
-        {/* Only show texture and grain size for non-ore samples */}
-        {category !== 'Ore Samples' && (
-          <>
-            <TableCell className="break-words">{rock.texture || '-'}</TableCell>
-            <TableCell className="break-words">{rock.grain_size || '-'}</TableCell>
-          </>
-        )}
-        
         {/* Igneous-specific fields */}
         {category === 'Igneous' && (
           <>
-            <TableCell className="break-words">{rock.silica_content || '-'}</TableCell>
-            <TableCell className="break-words">{rock.cooling_rate || '-'}</TableCell>
-            <TableCell className="break-words">{rock.mineral_content || '-'}</TableCell>
+            <TableCell className="break-words">{rock.texture || '-'}</TableCell>
+            <TableCell className="break-words">{rock.locality || '-'}</TableCell>
+            <TableCell className="break-words">
+              {rock.coordinates || 
+               (rock.latitude && rock.longitude ? 
+                `${rock.latitude}, ${rock.longitude}` : 
+                '-')}
+            </TableCell>
+            <TableCell className="break-words">{rock.associated_minerals || '-'}</TableCell>
+            <TableCell className="break-words">{rock.color || '-'}</TableCell>
+            <TableCell className="break-words">{rock.luster || '-'}</TableCell>
+            <TableCell className="break-words">{rock.streak || '-'}</TableCell>
+            <TableCell className="break-words">{rock.hardness || '-'}</TableCell>
+            <TableCell className="break-words">{rock.type || '-'}</TableCell>
+            <TableCell className="break-words">{rock.origin || '-'}</TableCell>
+            <TableCell className="break-words">{rock.magnetism || '-'}</TableCell>
           </>
         )}
         
         {/* Sedimentary-specific fields */}
         {category === 'Sedimentary' && (
           <>
-            <TableCell className="break-words">{rock.bedding || '-'}</TableCell>
+            {/* Image cell */}
+            {rock.image_url ? (
+              <TableCell>
+                <div className="w-10 h-10 relative">
+                  <img 
+                    src={rock.image_url} 
+                    alt={rock.name}
+                    className="w-10 h-10 object-cover rounded-md"
+                    onError={(e) => {
+                      console.error('Image failed to load:', rock.image_url);
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.parentElement?.classList.add('bg-gray-200', 'flex', 'items-center', 'justify-center');
+                      const icon = document.createElement('div');
+                      icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-image text-gray-500"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>';
+                      e.currentTarget.parentElement?.appendChild(icon);
+                    }}
+                  />
+                </div>
+              </TableCell>
+            ) : (
+              <TableCell>
+                <div className="w-10 h-10 bg-gray-200 rounded-md flex items-center justify-center">
+                  <ImageIcon className="w-5 h-5 text-gray-500" />
+                </div>
+              </TableCell>
+            )}
+            <TableCell className="font-medium break-words">{rock.name || '-'}</TableCell>
+            <TableCell className="break-words">{rock.rock_code ? rock.rock_code.replace(/\s+/g, '') : '-'}</TableCell>
+            <TableCell>
+              <Badge variant="outline" className="bg-blue-100 text-blue-800">
+                {rock.category}
+              </Badge>
+            </TableCell>
+            <TableCell className="break-words">{rock.type || '-'}</TableCell>
+            <TableCell className="break-words">{rock.depositional_environment || '-'}</TableCell>
+            <TableCell className="break-words">{rock.grain_size || '-'}</TableCell>
+            <TableCell className="break-words">{rock.texture || '-'}</TableCell>
             <TableCell className="break-words">{rock.sorting || '-'}</TableCell>
-            <TableCell className="break-words">{rock.roundness || '-'}</TableCell>
+            <TableCell className="break-words">{rock.associated_minerals || '-'}</TableCell>
+            <TableCell className="break-words">{rock.color || '-'}</TableCell>
             <TableCell className="break-words">{rock.fossil_content || '-'}</TableCell>
-            <TableCell className="break-words">{rock.sediment_source || '-'}</TableCell>
+            <TableCell className="break-words">{rock.reaction_to_hcl || '-'}</TableCell>
+            <TableCell className="break-words">{rock.locality || '-'}</TableCell>
+            <TableCell className="break-words">
+              {rock.coordinates || 
+               (rock.latitude && rock.longitude ? 
+                `${rock.latitude}, ${rock.longitude}` : 
+                '-')}
+            </TableCell>
           </>
         )}
         
         {/* Metamorphic-specific fields */}
         {category === 'Metamorphic' && (
           <>
+            {/* Image cell */}
+            {rock.image_url ? (
+              <TableCell>
+                <div className="w-10 h-10 relative">
+                  <img 
+                    src={rock.image_url} 
+                    alt={rock.name}
+                    className="w-10 h-10 object-cover rounded-md"
+                    onError={(e) => {
+                      console.error('Image failed to load:', rock.image_url);
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.parentElement?.classList.add('bg-gray-200', 'flex', 'items-center', 'justify-center');
+                      const icon = document.createElement('div');
+                      icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-image text-gray-500"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>';
+                      e.currentTarget.parentElement?.appendChild(icon);
+                    }}
+                  />
+                </div>
+              </TableCell>
+            ) : (
+              <TableCell>
+                <div className="w-10 h-10 bg-gray-200 rounded-md flex items-center justify-center">
+                  <ImageIcon className="w-5 h-5 text-gray-500" />
+                </div>
+              </TableCell>
+            )}
+            <TableCell className="break-words">{rock.rock_code || '-'}</TableCell>
+            <TableCell className="break-words">{rock.name || '-'}</TableCell>
+            <TableCell className="break-words">{rock.foliation || '-'}</TableCell>
+            <TableCell className="break-words">{rock.foliation_type || '-'}</TableCell>
+            <TableCell className="break-words">{rock.grain_size || '-'}</TableCell>
+            <TableCell className="break-words">{rock.color || '-'}</TableCell>
+            <TableCell className="break-words">{rock.associated_minerals || '-'}</TableCell>
             <TableCell className="break-words">{rock.metamorphism_type || '-'}</TableCell>
             <TableCell className="break-words">{rock.metamorphic_grade || '-'}</TableCell>
-            <TableCell className="break-words">{rock.parent_rock || '-'}</TableCell>
-            <TableCell className="break-words">{rock.foliation || '-'}</TableCell>
+            <TableCell className="break-words">{rock.reaction_to_hcl || '-'}</TableCell>
+            <TableCell className="break-words">{rock.magnetism || '-'}</TableCell>
+            <TableCell className="break-words">{rock.parent_rock || rock.protolith || '-'}</TableCell>
+            <TableCell className="break-words">
+              {rock.coordinates || 
+               (rock.latitude && rock.longitude ? 
+                `${rock.latitude}, ${rock.longitude}` : 
+                '-')}
+            </TableCell>
+            <TableCell className="break-words">{rock.locality || '-'}</TableCell>
           </>
         )}
         
-        {/* Show Associated Minerals for all rock types */}
-        <TableCell className="break-words">{rock.associated_minerals || '-'}</TableCell>
-        
-        {/* Conditionally show different environment label for ore samples */}
-        {category === 'Ore Samples' ? (
-          <TableCell className="break-words">{rock.description || '-'}</TableCell>
-        ) : (
-          <TableCell className="break-words">{rock.depositional_environment || '-'}</TableCell>
-        )}
-        
-        <TableCell className="break-words">{rock.locality || '-'}</TableCell>
-        
-        {/* Only show geological age and formation for non-ore samples */}
-        {category !== 'Ore Samples' && (
+        {/* Display fields for non-igneous, non-sedimentary, and non-metamorphic rocks */}
+        {category !== 'Igneous' && category !== 'Sedimentary' && category !== 'Metamorphic' && (
           <>
-            <TableCell className="break-words">{rock.geological_age || '-'}</TableCell>
-            <TableCell className="break-words">{rock.formation || '-'}</TableCell>
+            {/* Show Associated Minerals for non-igneous rock types */}
+            <TableCell className="break-words">{rock.associated_minerals || '-'}</TableCell>
+            
+            {/* Conditionally show different environment label for ore samples */}
+            {category === 'Ore Samples' ? (
+              <TableCell className="break-words">{rock.description || '-'}</TableCell>
+            ) : (
+              <TableCell className="break-words">{rock.depositional_environment || '-'}</TableCell>
+            )}
+            
+            <TableCell className="break-words">{rock.locality || '-'}</TableCell>
+            
+            {/* Only show geological age and formation for non-ore samples */}
+            {category !== 'Ore Samples' && (
+              <>
+                <TableCell className="break-words">{rock.geological_age || '-'}</TableCell>
+                <TableCell className="break-words">{rock.formation || '-'}</TableCell>
+              </>
+            )}
+            
+            {/* Show coordinates for all rock types except igneous (already included above) */}
+            <TableCell className="break-words">
+              {rock.coordinates || 
+               (rock.latitude && rock.longitude ? 
+                `${rock.latitude}, ${rock.longitude}` : 
+                '-')}
+            </TableCell>
+            
+            <TableCell className="break-words">{rock.color || '-'}</TableCell>
+            <TableCell className="break-words">{rock.hardness || '-'}</TableCell>
+            
+            {/* Only show texture and grain size for non-ore and non-igneous samples */}
+            {category !== 'Ore Samples' && (
+              <>
+                <TableCell className="break-words">{rock.texture || '-'}</TableCell>
+                <TableCell className="break-words">{rock.grain_size || '-'}</TableCell>
+              </>
+            )}
           </>
         )}
         
-        {/* Show coordinates for all rock types */}
-        <TableCell className="break-words">
-          {rock.coordinates || 
-           (rock.latitude && rock.longitude ? 
-            `${rock.latitude}, ${rock.longitude}` : 
-            '-')}
-        </TableCell>
-        
+        {/* Status column */}
         <TableCell>
           <Badge variant={rock.status === 'active' ? 'success' : 'destructive'}>
             {rock.status || 'inactive'}
           </Badge>
         </TableCell>
         
-        {/* New fields */}
-        <TableCell>{rock.reaction_to_hcl || '-'}</TableCell>
-        {category === 'Metamorphic' && <TableCell>{rock.foliation_type || '-'}</TableCell>}
-        {category === 'Igneous' && <TableCell>{rock.origin || '-'}</TableCell>}
+                      {/* Additional fields - only show if not already shown in other sections */}
+              {category !== 'Igneous' && category !== 'Sedimentary' && category !== 'Metamorphic' && <TableCell>{rock.reaction_to_hcl || '-'}</TableCell>}
         <TableCell>
           <div className="flex space-x-2">
             <Button
@@ -428,14 +540,18 @@ const RocksList = ({
         <Table id="rocks-table">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[50px]">Image</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Code</TableHead>
-              
-              {/* Only show Category column when not in Ore Samples view */}
-              {category !== 'Ore Samples' && <TableHead>Category</TableHead>}
-              
-              <TableHead>Type</TableHead>
+              {category !== 'Sedimentary' && (
+                <>
+                  <TableHead className="w-[50px]">Image</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Code</TableHead>
+                  
+                  {/* Only show Category column when not in Ore Samples view */}
+                  {category !== 'Ore Samples' && <TableHead>Category</TableHead>}
+                  
+                  <TableHead>Type</TableHead>
+                </>
+              )}
               
               {/* Ore Samples specific fields */}
               {category === 'Ore Samples' && (
@@ -446,76 +562,108 @@ const RocksList = ({
                 </>
               )}
               
-              <TableHead>Chemical Formula</TableHead>
-              <TableHead>Color</TableHead>
-              <TableHead>Hardness</TableHead>
-              
-              {/* Only show texture and grain size for non-ore samples */}
-              {category !== 'Ore Samples' && (
-                <>
-                  <TableHead>Texture</TableHead>
-                  <TableHead>Grain Size</TableHead>
-                </>
-              )}
-              
               {/* Igneous-specific fields */}
               {category === 'Igneous' && (
                 <>
-                  <TableHead>Silica Content</TableHead>
-                  <TableHead>Cooling Rate</TableHead>
-                  <TableHead>Mineral Content</TableHead>
+                  <TableHead>Texture</TableHead>
+                  <TableHead>Locality</TableHead>
+                  <TableHead>Coordinates</TableHead>
+                  <TableHead>Associated Minerals</TableHead>
+                  <TableHead>Color</TableHead>
+                  <TableHead>Luster</TableHead>
+                  <TableHead>Streak</TableHead>
+                  <TableHead>Hardness</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Origin</TableHead>
+                  <TableHead>Magnetism</TableHead>
                 </>
               )}
               
-              {/* Sedimentary-specific fields */}
-              {category === 'Sedimentary' && (
-                <>
-                  <TableHead>Bedding</TableHead>
-                  <TableHead>Sorting</TableHead>
-                  <TableHead>Roundness</TableHead>
-                  <TableHead>Fossil Content</TableHead>
-                  <TableHead>Sediment Source</TableHead>
-                </>
-              )}
+                        {/* For Sedimentary category, we just show these exact headers */}
+          {category === 'Sedimentary' && (
+            <>
+              <TableHead className="w-[50px]">Image</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Code</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Depositional Environment</TableHead>
+              <TableHead>Grain Size</TableHead>
+              <TableHead>Texture</TableHead>
+              <TableHead>Sorting</TableHead>
+              <TableHead>Associated Minerals</TableHead>
+              <TableHead>Color</TableHead>
+              <TableHead>Fossils</TableHead>
+              <TableHead>Reaction to HCl</TableHead>
+              <TableHead>Locality</TableHead>
+              <TableHead>Coordinates</TableHead>
+            </>
+          )}
               
               {/* Metamorphic-specific fields */}
               {category === 'Metamorphic' && (
                 <>
-                  <TableHead>Metamorphism Type</TableHead>
-                  <TableHead>Metamorphic Grade</TableHead>
-                  <TableHead>Parent Rock</TableHead>
+                  <TableHead className="w-[50px]">Image</TableHead>
+                  <TableHead>Rock Code</TableHead>
+                  <TableHead>Rock Name</TableHead>
                   <TableHead>Foliation</TableHead>
+                  <TableHead>Foliation Type</TableHead>
+                  <TableHead>Grain Size</TableHead>
+                  <TableHead>Color</TableHead>
+                  <TableHead>Associated Minerals</TableHead>
+                  <TableHead>Metamorphism</TableHead>
+                  <TableHead>Metamorphic Grade</TableHead>
+                  <TableHead>Reaction to HCl</TableHead>
+                  <TableHead>Magnetism</TableHead>
+                  <TableHead>Protolith</TableHead>
+                  <TableHead>Coordinates</TableHead>
+                  <TableHead>Locality</TableHead>
                 </>
               )}
               
-              {/* Show Associated Minerals for all rock types */}
-              <TableHead>Associated Minerals</TableHead>
-              
-              {/* Conditionally show different environment label for ore samples */}
-              {category === 'Ore Samples' ? (
-                <TableHead>Description</TableHead>
-              ) : (
-                <TableHead>Depositional Environment</TableHead>
-              )}
-              
-              <TableHead>Locality</TableHead>
-              
-              {/* Only show geological age and formation for non-ore samples */}
-              {category !== 'Ore Samples' && (
+              {/* Show fields based on category */}
+              {category !== 'Igneous' && category !== 'Sedimentary' && category !== 'Metamorphic' && (
                 <>
-                  <TableHead>Geological Age</TableHead>
-                  <TableHead>Formation</TableHead>
+                  {/* Show Associated Minerals for non-igneous rock types */}
+                  <TableHead>Associated Minerals</TableHead>
+                  
+                  {/* Conditionally show different environment label for ore samples */}
+                  {category === 'Ore Samples' ? (
+                    <TableHead>Description</TableHead>
+                  ) : (
+                    <TableHead>Depositional Environment</TableHead>
+                  )}
+                  
+                  <TableHead>Locality</TableHead>
+                  
+                  {/* Only show geological age and formation for non-ore samples */}
+                  {category !== 'Ore Samples' && (
+                    <>
+                      <TableHead>Geological Age</TableHead>
+                      <TableHead>Formation</TableHead>
+                    </>
+                  )}
+                  
+                  {/* Show coordinates for all rock types except igneous (already included above) */}
+                  <TableHead>Coordinates</TableHead>
+                  
+                  <TableHead>Color</TableHead>
+                  <TableHead>Hardness</TableHead>
+                  
+                  {/* Only show texture and grain size for non-ore and non-igneous samples */}
+                  {category !== 'Ore Samples' && (
+                    <>
+                      <TableHead>Texture</TableHead>
+                      <TableHead>Grain Size</TableHead>
+                    </>
+                  )}
                 </>
               )}
               
-              {/* Show coordinates for all rock types */}
-              <TableHead>Coordinates</TableHead>
               <TableHead>Status</TableHead>
               
-              {/* Additional fields */}
-              <TableHead>Reaction to HCl</TableHead>
-              {category === 'Metamorphic' && <TableHead>Foliation Type</TableHead>}
-              {category === 'Igneous' && <TableHead>Origin</TableHead>}
+              {/* Additional fields - only show if not already shown in other sections */}
+              {category !== 'Igneous' && category !== 'Sedimentary' && category !== 'Metamorphic' && <TableHead>Reaction to HCl</TableHead>}
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
