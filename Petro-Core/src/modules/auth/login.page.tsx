@@ -59,7 +59,7 @@ export default function LoginPage() {
               className="h-24 w-auto shadow-lg" 
             />
           </div>
-          <CardTitle className="text-2xl text-center font-bold text-blue-900">PETRO CORE</CardTitle>
+          <CardTitle className="text-2xl text-center font-bold ">LOGIN </CardTitle>
           <CardDescription>
             Enter your credentials to access your account
           </CardDescription>
