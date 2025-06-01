@@ -9,6 +9,10 @@ export interface RocksMineralsItem {
   additionalImages?: string[]; // Array of additional image URLs
   color?: string;
   associatedMinerals?: string;
+  coordinates?: string;
+  latitude?: string;
+  longitude?: string;
+  locality?: string;
 }
 
 export type RocksMineralsFilter = {

@@ -62,7 +62,11 @@ const transformRockData = async (rock: IRock): Promise<RocksMineralsItem> => {
         type: 'rock',
         additionalImages: allImageUrls,
         color: rock.color,
-        associatedMinerals: rock.associated_minerals
+        associatedMinerals: rock.associated_minerals,
+        coordinates: rock.coordinates,
+        latitude: rock.latitude,
+        longitude: rock.longitude,
+        locality: rock.locality
       };
     }
   } catch (error) {
@@ -79,7 +83,11 @@ const transformRockData = async (rock: IRock): Promise<RocksMineralsItem> => {
     category: rock.category,
     type: 'rock',
     color: rock.color,
-    associatedMinerals: rock.associated_minerals
+    associatedMinerals: rock.associated_minerals,
+    coordinates: rock.coordinates,
+    latitude: rock.latitude,
+    longitude: rock.longitude,
+    locality: rock.locality
   };
 };
 

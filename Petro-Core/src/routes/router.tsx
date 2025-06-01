@@ -8,6 +8,7 @@ import ProtectedRoute from "@/components/protected-route";
 import RockMinerals from "@/modules/home/rocks-minerals/rocks-minerals-page";
 import RockDetailView from "@/modules/home/rocks-minerals/rock-detail-view";
 import MineralDetailView from "@/modules/home/rocks-minerals/mineral-detail-view";
+import RocksMineralsMap from "@/modules/home/map/maps-page";
 import { AdminGuard, StudentGuard } from "@/components/role-guard";
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import type { ReactNode } from "react";
@@ -73,6 +74,10 @@ const router = createBrowserRouter([
       {
         path: "rock-minerals/mineral/:id",
         Component: withLockdownGuard(MineralDetailView),
+      },
+      {
+        path: "rock-minerals/map",
+        Component: withLockdownGuard(RocksMineralsMap),
       },
       {
         path: "field-works",
