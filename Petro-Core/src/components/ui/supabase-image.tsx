@@ -27,9 +27,11 @@ export function SupabaseImage({
   // Reset states when src changes
   useEffect(() => {
     if (src) {
+      console.log(`🖼️ Image source changed: ${src}`);
       setImageError(false);
       setIsLoading(true);
     } else {
+      console.log('🖼️ No image source provided');
       setImageError(true);
       setIsLoading(false);
     }
@@ -37,13 +39,14 @@ export function SupabaseImage({
 
   // Handle image load error
   const handleError = () => {
-    console.error('Failed to load image:', src);
+    console.error('❌ Failed to load image:', src);
     setImageError(true);
     setIsLoading(false);
   };
 
   // Handle image load success
   const handleLoad = () => {
+    console.log(`✅ Image loaded successfully: ${src}`);
     setIsLoading(false);
   };
 
@@ -59,13 +62,13 @@ export function SupabaseImage({
     return (
       <div 
         className={cn(
-          "bg-white flex items-center justify-center rounded-md",
+          "bg-white flex items-center justify-center rounded-md border border-gray-200",
           fallbackClassName
         )}
         style={containerStyle}
       >
         <div className="text-center p-4">
-          <ImageIcon className="mx-auto h-10 w-10 text-gray-400 mb-2" />
+          <ImageIcon className="mx-auto h-12 w-12 text-gray-400 mb-2" />
           <p className="text-sm text-gray-500">{alt || 'Image not available'}</p>
         </div>
       </div>
@@ -73,7 +76,7 @@ export function SupabaseImage({
   }
 
   return (
-    <div style={containerStyle} className="overflow-hidden rounded-md bg-white">
+    <div style={containerStyle} className="overflow-hidden rounded-md bg-white border border-gray-200">
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-white animate-pulse rounded-md">
           <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>

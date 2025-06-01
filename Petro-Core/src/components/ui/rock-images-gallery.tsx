@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, ChevronLeft, ChevronRight, ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from './button';
 import { SupabaseImage } from './supabase-image';
@@ -21,20 +21,54 @@ export function RockImagesGallery({
 }: RockImagesGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [showFullscreen, setShowFullscreen] = useState(false);
+  const [validImages, setValidImages] = useState<string[]>([]);
   
-  // Don't render if no images
-  if (!images || images.length === 0) {
-    return null;
+  // Filter and validate images
+  useEffect(() => {
+    if (!images || images.length === 0) {
+      console.log('🖼️ Gallery: No images provided');
+      return;
+    }
+    
+    console.log(`🖼️ Gallery: Received ${images.length} images:`, images);
+    
+    // Filter out any null, undefined or empty strings
+    const filtered = images.filter(img => img && img.trim().length > 0);
+    console.log(`🖼️ Gallery: After filtering, ${filtered.length} valid images remain`);
+    
+    setValidImages(filtered);
+  }, [images]);
+  
+  // Don't render if no valid images
+  if (!validImages || validImages.length === 0) {
+    console.log('🖼️ Gallery: No valid images to display');
+    return (
+      <div 
+        className={cn(
+          "w-full bg-white flex items-center justify-center rounded-md border border-gray-200",
+          className
+        )}
+        style={{ 
+          height: height || 300,
+          width: width || '100%'
+        }}
+      >
+        <div className="text-center p-4">
+          <ImageIcon className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+          <p className="text-sm text-gray-500">No images available</p>
+        </div>
+      </div>
+    );
   }
   
   const handlePrevious = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setActiveIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+    setActiveIndex((prev) => (prev === 0 ? validImages.length - 1 : prev - 1));
   };
   
   const handleNext = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setActiveIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+    setActiveIndex((prev) => (prev === validImages.length - 1 ? 0 : prev + 1));
   };
   
   const handleThumbnailClick = (index: number) => {
@@ -80,7 +114,7 @@ export function RockImagesGallery({
       >
         <div className="w-full h-full flex items-center justify-center">
           <SupabaseImage 
-            src={images[activeIndex]} 
+            src={validImages[activeIndex]} 
             alt="Rock image" 
             objectFit="contain"
             className="max-w-full max-h-full"
@@ -90,7 +124,7 @@ export function RockImagesGallery({
         </div>
         
         {/* Navigation buttons */}
-        {images.length > 1 && (
+        {validImages.length > 1 && (
           <>
             <Button 
               variant="outline" 
@@ -118,17 +152,17 @@ export function RockImagesGallery({
         )}
         
         {/* Image counter */}
-        {images.length > 1 && (
+        {validImages.length > 1 && (
           <div className="absolute bottom-2 right-2 bg-background/80 rounded-full px-2 py-1 text-xs">
-            {activeIndex + 1} / {images.length}
+            {activeIndex + 1} / {validImages.length}
           </div>
         )}
       </div>
       
       {/* Thumbnails */}
-      {images.length > 1 && (
+      {validImages.length > 1 && (
         <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-thin scrollbar-thumb-muted-foreground/30 scrollbar-track-transparent">
-          {images.map((image, index) => (
+          {validImages.map((image, index) => (
             <div 
               key={index} 
               className={cn(
@@ -171,14 +205,14 @@ export function RockImagesGallery({
             
             <div className="relative w-full max-w-5xl max-h-[80vh] flex items-center justify-center">
               <SupabaseImage 
-                src={images[activeIndex]} 
+                src={validImages[activeIndex]} 
                 alt="Rock image fullscreen" 
                 objectFit="contain"
                 className="max-w-full max-h-full"
               />
               
               {/* Fullscreen Navigation buttons */}
-              {images.length > 1 && (
+              {validImages.length > 1 && (
                 <>
                   <Button 
                     variant="outline" 
@@ -201,9 +235,9 @@ export function RockImagesGallery({
             </div>
             
             {/* Fullscreen Thumbnails */}
-            {images.length > 1 && (
+            {validImages.length > 1 && (
               <div className="flex overflow-x-auto gap-2 mt-4 max-w-full p-2 bg-background/50 rounded-lg">
-                {images.map((image, index) => (
+                {validImages.map((image, index) => (
                   <div 
                     key={index} 
                     className={cn(

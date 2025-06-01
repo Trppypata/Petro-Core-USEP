@@ -30,10 +30,30 @@ const getAuthToken = (): string | null => {
  */
 export const getRockImages = async (rockId: string): Promise<IRockImage[]> => {
   try {
+    console.log(`🖼️ Fetching images for rock ID: ${rockId}`);
+    console.log(`🖼️ API URL: ${API_URL}/rock-images/${rockId}`);
+    
     const response = await axios.get(`${API_URL}/rock-images/${rockId}`);
-    return response.data.data || [];
+    
+    console.log(`🖼️ Images fetch response status: ${response.status}`);
+    console.log(`🖼️ Data received: ${JSON.stringify(response.data)}`);
+    
+    if (response.data && response.data.data) {
+      console.log(`🖼️ Found ${response.data.data.length} images`);
+      return response.data.data || [];
+    } else {
+      console.log('🖼️ No images found in response data');
+      return [];
+    }
   } catch (error) {
-    console.error('Error fetching rock images:', error);
+    console.error('❌ Error fetching rock images:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('❌ Axios error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data
+      });
+    }
     return [];
   }
 };
