@@ -17,7 +17,13 @@ const createSupabaseClient = () => {
     if (!supabaseUrl || !supabaseKey) {
       throw new Error('Missing Supabase credentials');
     }
-    return createClient(supabaseUrl, supabaseKey);
+    return createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        storage: localStorage
+      }
+    });
   } catch (error) {
     console.error('Failed to initialize Supabase client:', error);
     
@@ -32,7 +38,9 @@ const createSupabaseClient = () => {
       },
       auth: {
         signIn: async () => ({ error: new Error('Supabase not configured') }),
-        signOut: async () => ({ error: new Error('Supabase not configured') })
+        signOut: async () => ({ error: new Error('Supabase not configured') }),
+        getSession: async () => ({ data: { session: null }, error: new Error('Supabase not configured') }),
+        setSession: async () => ({ data: { session: null }, error: new Error('Supabase not configured') })
       }
     } as any;
   }

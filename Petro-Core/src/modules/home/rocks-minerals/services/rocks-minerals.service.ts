@@ -6,24 +6,30 @@ import type { RocksMineralsItem } from '../types';
 import { getRockImages } from '@/services/rock-images.service';
 import type { FiltersState } from '../filters/RockMineralFilters';
 
-// Default image placeholder
-const DEFAULT_ROCK_IMAGE = '/images/rocks-minerals/default-rock.jpg';
-const DEFAULT_MINERAL_IMAGE = '/images/rocks-minerals/default-mineral.jpg';
+// Default image placeholder - updated paths to use static assets from petro-static folder
+const DEFAULT_ROCK_IMAGE = '/petro-static/default-rock.jpg';
+const DEFAULT_MINERAL_IMAGE = '/petro-static/default-mineral.jpg';
 
-// Check if an image URL is from Supabase and valid
+// Check if an image URL is valid
 const isValidImageUrl = (url: string | null | undefined): boolean => {
   if (!url) return false;
   
-  // Check if it's a Supabase URL (we'll assume it's valid if it is)
+  // Handle relative paths in public directory
+  if (url.startsWith('/')) {
+    return true;
+  }
+  
+  // Check if it's a Supabase URL
   if (url.includes('supabase.co')) {
     return true;
   }
   
-  // Check if it's a valid URL
+  // Check if it's a valid absolute URL
   try {
     new URL(url);
     return true;
   } catch (e) {
+    console.log('Invalid URL:', url);
     return false;
   }
 };
@@ -32,18 +38,22 @@ const isValidImageUrl = (url: string | null | undefined): boolean => {
  * Transform rock data to display format with additional images
  */
 const transformRockData = async (rock: IRock): Promise<RocksMineralsItem> => {
+  console.log('Processing rock:', rock.name, 'Image URL:', rock.image_url);
+  
   // Try to fetch additional images for the rock
   let firstImageUrl = rock.image_url; // Default to main image
   
   try {
     // Get additional images for this rock
     const additionalImages = await getRockImages(rock.id || '');
+    console.log('Additional images for', rock.name, ':', additionalImages.length);
     
     // If there are additional images, use the first one (if main image is missing)
     if (additionalImages && additionalImages.length > 0) {
       // If no main image, use the first additional image
       if (!isValidImageUrl(firstImageUrl)) {
         firstImageUrl = additionalImages[0].image_url;
+        console.log('Using first additional image instead:', firstImageUrl);
       }
       
       // Store all image URLs for gallery view
@@ -80,12 +90,16 @@ const transformRockData = async (rock: IRock): Promise<RocksMineralsItem> => {
     console.error('Error fetching additional images for rock:', rock.id, error);
   }
   
+  // Use a static image if rock doesn't have a valid image URL
+  const imageUrl = isValidImageUrl(rock.image_url) ? rock.image_url : DEFAULT_ROCK_IMAGE;
+  console.log('Final image URL for', rock.name, ':', imageUrl);
+  
   // Default return if no additional images or error occurred
   return {
     id: rock.id || rock.rock_code,
     title: rock.name,
     description: rock.description || `${rock.category} rock from ${rock.locality || 'unknown location'}`,
-    imageUrl: isValidImageUrl(rock.image_url) ? rock.image_url : DEFAULT_ROCK_IMAGE,
+    imageUrl: imageUrl,
     path: `/rock-minerals/rock/${rock.id}`,
     category: rock.category,
     type: 'rock',
@@ -105,11 +119,15 @@ const transformRockData = async (rock: IRock): Promise<RocksMineralsItem> => {
  * Transform mineral data to display format
  */
 const transformMineralData = (mineral: IMineral): RocksMineralsItem => {
+  // Use a static image if mineral doesn't have a valid image URL
+  const imageUrl = isValidImageUrl(mineral.image_url) ? mineral.image_url : DEFAULT_MINERAL_IMAGE;
+  console.log('Final image URL for', mineral.mineral_name, ':', imageUrl);
+  
   return {
     id: mineral.id || mineral.mineral_code,
     title: mineral.mineral_name,
     description: `${mineral.mineral_group} mineral with formula ${mineral.chemical_formula || 'N/A'}`,
-    imageUrl: isValidImageUrl(mineral.image_url) ? mineral.image_url : DEFAULT_MINERAL_IMAGE,
+    imageUrl: imageUrl,
     path: `/rock-minerals/mineral/${mineral.id}`,
     category: mineral.category,
     type: 'mineral',
@@ -177,6 +195,8 @@ export const getRocks = async (searchTerm: string = '', filters?: FiltersState):
       }
     }
     
+    console.log(`Fetched ${filteredRocks.length} rocks after filtering`);
+    
     // Transform all rocks with promise.all since transformRockData is now async
     const transformedRocks = await Promise.all(filteredRocks.map(transformRockData));
     return transformedRocks;
@@ -234,6 +254,8 @@ export const getMinerals = async (searchTerm: string = '', filters?: FiltersStat
         });
       }
     }
+    
+    console.log(`Fetched ${filteredMinerals.length} minerals after filtering`);
     
     return filteredMinerals.map(transformMineralData);
   } catch (error) {

@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { uploadMultipleFiles, deleteMultipleFiles } from './storage.service';
 import Cookies from 'js-cookie';
+import { toast } from 'sonner';
 
 // Define the interface directly in this file
 interface IRockImage {
@@ -17,10 +18,45 @@ const API_URL = import.meta.env.VITE_local_url || 'http://localhost:8001/api';
 
 // Helper function to get the authentication token
 const getAuthToken = (): string | null => {
-  return localStorage.getItem('access_token') || 
+  const token = localStorage.getItem('access_token') || 
          Cookies.get('access_token') || 
          localStorage.getItem('token') || 
          localStorage.getItem('auth_token');
+  
+  if (!token) {
+    console.warn('⚠️ No auth token found in storage');
+  } else {
+    console.log(`🔑 Auth token found: ${token.substring(0, 10)}...`);
+  }
+  
+  return token;
+};
+
+/**
+ * Set the auth token for Supabase client
+ */
+const setAuthTokenManually = async () => {
+  try {
+    const token = getAuthToken();
+    if (!token) return false;
+    
+    const { supabase } = await import('@/lib/supabase');
+    const { data, error } = await supabase.auth.setSession({
+      access_token: token,
+      refresh_token: '',
+    });
+    
+    if (error) {
+      console.error('❌ Error setting Supabase session:', error);
+      return false;
+    }
+    
+    console.log('✅ Manual Supabase session set successfully');
+    return true;
+  } catch (err) {
+    console.error('❌ Failed to set auth token manually:', err);
+    return false;
+  }
 };
 
 /**
@@ -33,6 +69,10 @@ export const getRockImages = async (rockId: string): Promise<IRockImage[]> => {
     console.log(`🖼️ Fetching images for rock ID: ${rockId}`);
     console.log(`🖼️ API URL: ${API_URL}/rock-images/${rockId}`);
     
+    // Try to authenticate with Supabase first for storage access
+    await setAuthTokenManually();
+    
+    // Proceed with fetching images from the API
     const response = await axios.get(`${API_URL}/rock-images/${rockId}`);
     
     console.log(`🖼️ Images fetch response status: ${response.status}`);
@@ -75,13 +115,16 @@ export const uploadRockImages = async (
     console.log(`📸 Number of files to upload: ${files.length}`);
     console.log(`📸 File details:`, files.map(f => ({ name: f.name, size: f.size, type: f.type })));
     
-    // Get token
+    // Set auth token for Supabase client
+    await setAuthTokenManually();
+    
+    // Get token for API calls
     const token = getAuthToken();
     if (!token) {
       console.error('📸 Authentication token missing');
-      throw new Error('Authentication required');
+      toast.error('Authentication required. Please log in again.');
+      return [];
     }
-    console.log('📸 Auth token found:', token.substring(0, 10) + '...');
 
     // 1. Upload files to storage
     console.log('📸 Uploading files to storage...');
@@ -90,6 +133,61 @@ export const uploadRockImages = async (
     
     if (!imageUrls.length) {
       console.error('📸 No image URLs returned from storage upload');
+      
+      // Fallback to direct Supabase storage upload
+      try {
+        console.log('📸 Trying direct Supabase storage upload as fallback');
+        const { supabase } = await import('@/lib/supabase');
+        
+        // Manually create a session if not exists
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData.session && token) {
+          console.log('📸 No active session, setting token manually for direct upload');
+          await supabase.auth.setSession({
+            access_token: token,
+            refresh_token: '',
+          });
+        }
+        
+        // Upload files directly
+        const directUrls = await Promise.all(files.map(async (file) => {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${rockId}-${Date.now()}.${fileExt}`;
+          const filePath = `rocks/${fileName}`;
+          
+          const { data, error } = await supabase.storage
+            .from('rocks-minerals')
+            .upload(filePath, file, {
+              cacheControl: '3600',
+              upsert: true
+            });
+            
+          if (error) {
+            console.error('📸 Direct upload error:', error);
+            return null;
+          }
+          
+          const { data: urlData } = supabase.storage
+            .from('rocks-minerals')
+            .getPublicUrl(data.path);
+            
+          return urlData.publicUrl;
+        }));
+        
+        const validUrls = directUrls.filter(url => url !== null) as string[];
+        if (validUrls.length > 0) {
+          console.log('📸 Direct upload successful for some files:', validUrls);
+          
+          // Continue with these URLs
+          imageUrls.push(...validUrls);
+        }
+      } catch (directError) {
+        console.error('📸 Direct upload fallback failed:', directError);
+      }
+    }
+    
+    // If we still don't have any URLs, return empty array
+    if (!imageUrls.length) {
       return [];
     }
     
@@ -123,8 +221,40 @@ export const uploadRockImages = async (
           data: apiError.response?.data,
           headers: apiError.response?.headers
         });
+        
+        // Try direct database insert if API fails
+        try {
+          console.log('📸 Trying direct database insert as fallback');
+          const { supabase } = await import('@/lib/supabase');
+          
+          // Try each image one by one
+          const results = await Promise.all(imageData.map(async (image) => {
+            const { data, error } = await supabase
+              .from('rock_images')
+              .insert([image])
+              .select();
+              
+            if (error) {
+              console.error('📸 Direct insert error:', error);
+              return null;
+            }
+            
+            return data[0];
+          }));
+          
+          const successfulInserts = results.filter(r => r !== null) as IRockImage[];
+          if (successfulInserts.length > 0) {
+            console.log('📸 Direct insert successful for some images:', successfulInserts);
+            return successfulInserts;
+          }
+        } catch (directDbError) {
+          console.error('📸 Direct database insert fallback failed:', directDbError);
+        }
       }
-      throw apiError;
+      
+      // If URLs were created but database save failed, still return the URLs
+      // The frontend can show the images even if they're not saved in the database
+      return imageData;
     }
   } catch (error) {
     console.error('❌ Error uploading rock images:', error);

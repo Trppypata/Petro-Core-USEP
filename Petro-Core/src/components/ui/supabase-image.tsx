@@ -23,11 +23,13 @@ export function SupabaseImage({
 }: SupabaseImageProps) {
   const [imageError, setImageError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [imageUrl, setImageUrl] = useState<string | null | undefined>(src);
 
   // Reset states when src changes
   useEffect(() => {
     if (src) {
-      console.log(`🖼️ Image source changed: ${src}`);
+      console.log(`🖼️ Loading image: ${src}`);
+      setImageUrl(src);
       setImageError(false);
       setIsLoading(true);
     } else {
@@ -39,14 +41,34 @@ export function SupabaseImage({
 
   // Handle image load error
   const handleError = () => {
-    console.error('❌ Failed to load image:', src);
+    console.error(`❌ Failed to load image: ${imageUrl}`);
+    
+    // If the URL is a Supabase URL and it failed, try a different approach
+    if (imageUrl?.includes('supabase.co')) {
+      console.log('Trying to fix Supabase URL format...');
+      
+      // If we already tried to fix it once, just give up
+      if (imageUrl !== src) {
+        setImageError(true);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Try to modify the URL format slightly for Supabase URLs
+      const fixedUrl = imageUrl.replace('/storage/v1/object/public/', '/storage/v1/object/sign/');
+      console.log('Trying with modified URL:', fixedUrl);
+      setImageUrl(fixedUrl);
+      return; // Don't set error yet, let it try the new URL
+    }
+    
+    // For all other URLs, just set the error state
     setImageError(true);
     setIsLoading(false);
   };
 
   // Handle image load success
   const handleLoad = () => {
-    console.log(`✅ Image loaded successfully: ${src}`);
+    console.log(`✅ Image loaded successfully: ${imageUrl}`);
     setIsLoading(false);
   };
 
@@ -57,7 +79,7 @@ export function SupabaseImage({
     position: 'relative'
   };
 
-  if (!src || imageError) {
+  if (!imageUrl || imageError) {
     // Render fallback when image URL is missing or failed to load
     return (
       <div 
@@ -83,7 +105,7 @@ export function SupabaseImage({
         </div>
       )}
       <img
-        src={src}
+        src={imageUrl}
         alt={alt}
         className={cn(
           "rounded-md transition-opacity",

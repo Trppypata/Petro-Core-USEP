@@ -70,6 +70,7 @@ const RocksList = ({
   const [rockToDelete, setRockToDelete] = useState<IRock | null>(null);
   const [rockToView, setRockToView] = useState<IRock | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [rockImages, setRockImages] = useState<Record<string, string[]>>({});
   
   // Use external search term if provided, otherwise use internal
   const searchTerm = externalSearchTerm !== undefined ? externalSearchTerm : internalSearchTerm;
@@ -185,6 +186,45 @@ const RocksList = ({
     }
   };
   
+  // Fetch images for rocks when the data changes
+  useEffect(() => {
+    const loadImagesForRocks = async () => {
+      if (!filteredRocks?.length) return;
+      
+      // Limit to first 10 rocks to avoid too many requests
+      const rocksToLoad = filteredRocks.slice(0, 10);
+      
+      try {
+        // Import service dynamically to avoid circular dependencies
+        const { getRockImages } = await import('@/services/rock-images.service');
+        
+        // Create a map to store images for each rock
+        const imagesMap: Record<string, string[]> = {};
+        
+        // Load images for each rock
+        await Promise.all(rocksToLoad.map(async (rock) => {
+          if (!rock.id) return;
+          
+          try {
+            const images = await getRockImages(rock.id);
+            if (images && images.length > 0) {
+              imagesMap[rock.id] = images.map(img => img.image_url);
+              console.log(`Loaded ${images.length} images for rock ${rock.name}`);
+            }
+          } catch (err) {
+            console.error(`Failed to load images for rock ${rock.name}:`, err);
+          }
+        }));
+        
+        setRockImages(imagesMap);
+      } catch (error) {
+        console.error('Failed to import rock-images service:', error);
+      }
+    };
+    
+    loadImagesForRocks();
+  }, [filteredRocks]);
+  
   const renderTableContent = () => {
     if (isLoading) {
       return (
@@ -270,33 +310,7 @@ const RocksList = ({
         >
           {category !== 'Sedimentary' && (
             <>
-        {rock.image_url ? (
-          <TableCell>
-            <div className="w-10 h-10 relative">
-              <img 
-                src={rock.image_url} 
-                alt={rock.name}
-                className="w-10 h-10 object-cover rounded-md"
-                onError={(e) => {
-                  console.error('Image failed to load:', rock.image_url);
-                  // Replace with fallback image icon
-                  e.currentTarget.style.display = 'none';
-                  e.currentTarget.parentElement?.classList.add('bg-gray-200', 'flex', 'items-center', 'justify-center');
-                  // Create and append fallback icon
-                  const icon = document.createElement('div');
-                  icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-image text-gray-500"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>';
-                  e.currentTarget.parentElement?.appendChild(icon);
-                }}
-              />
-            </div>
-          </TableCell>
-        ) : (
-          <TableCell>
-            <div className="w-10 h-10 bg-gray-200 rounded-md flex items-center justify-center">
-              <ImageIcon className="w-5 h-5 text-gray-500" />
-            </div>
-          </TableCell>
-        )}
+        {renderRockImage(rock)}
         <TableCell className="font-medium break-words">{rock.name}</TableCell>
         <TableCell className="break-words">{rock.rock_code ? rock.rock_code.replace(/\s+/g, '') : '-'}</TableCell>
         
@@ -553,6 +567,48 @@ const RocksList = ({
       </TableRow>
       );
     });
+  };
+  
+  // Render the rock image or fallback
+  const renderRockImage = (rock: IRock) => {
+    // Check if we have additional images for this rock
+    const additionalImages = rock.id ? rockImages[rock.id] : [];
+    
+    // Use main image or first additional image if available
+    const imageUrl = rock.image_url || (additionalImages && additionalImages.length > 0 ? additionalImages[0] : null);
+    
+    if (imageUrl) {
+      return (
+        <div className="w-10 h-10 relative">
+          <img 
+            src={imageUrl} 
+            alt={rock.name}
+            className="w-10 h-10 object-cover rounded-md"
+            onError={(e) => {
+              console.error('Image failed to load:', imageUrl);
+              // Replace with fallback image icon
+              e.currentTarget.style.display = 'none';
+              e.currentTarget.parentElement?.classList.add('bg-gray-200', 'flex', 'items-center', 'justify-center');
+              // Create and append fallback icon
+              const icon = document.createElement('div');
+              icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-image text-gray-500"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>';
+              e.currentTarget.parentElement?.appendChild(icon);
+            }}
+          />
+          {additionalImages && additionalImages.length > 1 && (
+            <div className="absolute -top-1 -right-1 bg-primary text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">
+              {additionalImages.length}
+            </div>
+          )}
+        </div>
+      );
+    } else {
+      return (
+        <div className="w-10 h-10 bg-gray-200 rounded-md flex items-center justify-center">
+          <ImageIcon className="w-5 h-5 text-gray-500" />
+        </div>
+      );
+    }
   };
   
   return (

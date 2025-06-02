@@ -19,6 +19,7 @@ import FieldWorks from "@/modules/home/fieldworks/fieldworks.page";
 import FieldDetailView from "@/modules/home/fieldworks/field-detail-view";
 import LockdownPage from "@/modules/admin/lockdown/lockdown-page";
 import { LockdownGuard } from "@/components/lockdown-guard";
+import { SupabaseTester } from "@/supabase-tester";
 
 // Higher order component to wrap routes with role guards
 const withRoleGuard = (Component: React.ComponentType, guard: React.FC<{children: ReactNode}>) => {
@@ -53,6 +54,11 @@ const router = createBrowserRouter([
   {
     path: "/register",
     Component: RegisterPage,
+  },
+  // Supabase testing route
+  {
+    path: "/supabase-test",
+    element: <SupabaseTester />,
   },
   // Main application routes
   {

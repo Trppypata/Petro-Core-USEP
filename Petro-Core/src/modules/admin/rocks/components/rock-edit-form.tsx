@@ -108,6 +108,12 @@ const RockEditForm = ({ rock, onClose, category }: RockEditFormProps) => {
         type: formData.type || rock.type,
       });
       
+      // Ensure image_url is included in the update data
+      if (formData.image_url) {
+        cleanData.image_url = formData.image_url;
+        console.log("Including image URL in update:", formData.image_url);
+      }
+      
       const result = await updateRock({
         id: rock.id,
         rockData: cleanData
@@ -117,6 +123,124 @@ const RockEditForm = ({ rock, onClose, category }: RockEditFormProps) => {
       toast.dismiss();
       toast.success(`Rock "${cleanData.name || rock.name}" updated successfully!`);
       console.log("Update successful, result:", result);
+      
+      // Save the main image to rock_images table if it's a new image
+      if (formData.image_url && formData.image_url !== rock.image_url) {
+        console.log('📸 Detected new main image. Saving to rock_images table:', formData.image_url);
+        
+        // First: Try API service approach (more reliable with auth)
+        try {
+          const { uploadRockImages } = await import('@/services/rock-images.service');
+          try {
+            // Create a File object from the image URL
+            const res = await fetch(formData.image_url);
+            const blob = await res.blob();
+            const imageFile = new File([blob], `rock-${rock.id}-main.png`, { type: blob.type });
+            const result = await uploadRockImages(rock.id, [imageFile]);
+            console.log('✅ Main image saved via API service:', result);
+            // If API service succeeds, we don't need to try Supabase direct approach
+            if (result && result.length > 0) {
+              console.log('✅ Successfully saved image through API, skipping direct Supabase approach');
+              // Proceed to additional images upload if any
+              if (additionalImages.length > 0) {
+                await handleAdditionalImagesUpload();
+              }
+              
+              // Invalidate queries to refresh the data
+              queryClient.invalidateQueries({ queryKey: [Q_KEYS.ROCKS] });
+              
+              // Close the sheet
+              onClose();
+              return; // Exit early since we succeeded
+            }
+          } catch (fetchError) {
+            console.error('Error fetching or processing main image:', fetchError);
+            // Continue to try direct Supabase approach
+          }
+        } catch (serviceErr) {
+          console.error('Error importing rock-images service:', serviceErr);
+          // Continue to try direct Supabase approach
+        }
+        
+        // Second: If API approach failed, try direct Supabase approach
+        try {
+          // Import Supabase client dynamically
+          const { supabase } = await import('@/lib/supabase');
+          
+          // Try to get auth session before proceeding
+          const { data: sessionData } = await supabase.auth.getSession();
+          
+          // Manually set auth token if no active session
+          if (!sessionData.session) {
+            console.log('No active session found, attempting to set token manually');
+            const token = localStorage.getItem('access_token');
+            if (token) {
+              try {
+                await supabase.auth.setSession({
+                  access_token: token,
+                  refresh_token: '',
+                });
+                console.log('✅ Manual session set with token from localStorage');
+              } catch (err) {
+                console.error('Failed to set session manually:', err);
+              }
+            }
+          }
+          
+          // Save to rock_images table
+          const { error } = await supabase
+            .from('rock_images')
+            .insert([
+              { 
+                rock_id: rock.id,
+                image_url: formData.image_url,
+                caption: `Main rock image (updated)`,
+                display_order: 0
+              }
+            ]);
+            
+          if (error) {
+            console.error('Error saving main image to rock_images table:', error);
+            
+            // As a fallback, try a direct fetch to the backend API
+            if (error.code === '42501') { // Permission denied error
+              console.log('🛠️ Attempting direct API call as fallback');
+              const token = localStorage.getItem('access_token');
+              try {
+                const apiUrl = import.meta.env.VITE_local_url || 'http://localhost:8001/api';
+                const response = await fetch(`${apiUrl}/rock-images`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                  },
+                  body: JSON.stringify({
+                    images: [{
+                      rock_id: rock.id,
+                      image_url: formData.image_url,
+                      caption: `Main rock image (direct API fallback)`,
+                      display_order: 0
+                    }]
+                  })
+                });
+                
+                const result = await response.json();
+                if (response.ok) {
+                  console.log('✅ Image saved via direct API call:', result);
+                } else {
+                  console.error('❌ Direct API call failed:', result);
+                }
+              } catch (apiErr) {
+                console.error('❌ Error making direct API call:', apiErr);
+              }
+            }
+          } else {
+            console.log('✅ Main image saved to rock_images table successfully');
+          }
+        } catch (err) {
+          console.error('Error using Supabase client to save main image:', err);
+        }
+      }
       
       // Upload additional images if there are any
       if (additionalImages.length > 0) {
@@ -164,6 +288,10 @@ const RockEditForm = ({ rock, onClose, category }: RockEditFormProps) => {
         rock_code: originalRockCode, // Explicitly set original rock_code
       });
       
+      // Debug log for image URL tracking
+      console.log("🔍 Image URL in submit data:", data.image_url || 'none');
+      console.log("🔍 Prepared data image URL:", cleanData.image_url || 'none');
+      
       console.log("Submitting rock update with data:", cleanData);
       
       // Update the rock
@@ -173,6 +301,124 @@ const RockEditForm = ({ rock, onClose, category }: RockEditFormProps) => {
       });
       
       console.log("Rock updated successfully, result:", result);
+      
+      // Save the main image to rock_images table if it's a new image
+      if (cleanData.image_url && cleanData.image_url !== rock.image_url) {
+        console.log('📸 Detected new main image in form submission. Saving to rock_images table:', cleanData.image_url);
+        
+        // First: Try API service approach (more reliable with auth)
+        try {
+          const { uploadRockImages } = await import('@/services/rock-images.service');
+          try {
+            // Create a File object from the image URL
+            const res = await fetch(cleanData.image_url);
+            const blob = await res.blob();
+            const imageFile = new File([blob], `rock-${rock.id}-main.png`, { type: blob.type });
+            const result = await uploadRockImages(rock.id, [imageFile]);
+            console.log('✅ Main image saved via API service:', result);
+            // If API service succeeds, we don't need to try Supabase direct approach
+            if (result && result.length > 0) {
+              console.log('✅ Successfully saved image through API, skipping direct Supabase approach');
+              // Proceed to additional images upload if any
+              if (additionalImages.length > 0) {
+                await handleAdditionalImagesUpload();
+              }
+              
+              // Invalidate queries to refresh the data
+              queryClient.invalidateQueries({ queryKey: [Q_KEYS.ROCKS] });
+              
+              // Close the sheet
+              onClose();
+              return; // Exit early since we succeeded
+            }
+          } catch (fetchError) {
+            console.error('Error fetching or processing main image:', fetchError);
+            // Continue to try direct Supabase approach
+          }
+        } catch (serviceErr) {
+          console.error('Error importing rock-images service:', serviceErr);
+          // Continue to try direct Supabase approach
+        }
+        
+        // Second: If API approach failed, try direct Supabase approach
+        try {
+          // Import Supabase client dynamically
+          const { supabase } = await import('@/lib/supabase');
+          
+          // Try to get auth session before proceeding
+          const { data: sessionData } = await supabase.auth.getSession();
+          
+          // Manually set auth token if no active session
+          if (!sessionData.session) {
+            console.log('No active session found, attempting to set token manually');
+            const token = localStorage.getItem('access_token');
+            if (token) {
+              try {
+                await supabase.auth.setSession({
+                  access_token: token,
+                  refresh_token: '',
+                });
+                console.log('✅ Manual session set with token from localStorage');
+              } catch (err) {
+                console.error('Failed to set session manually:', err);
+              }
+            }
+          }
+          
+          // Save to rock_images table
+          const { error } = await supabase
+            .from('rock_images')
+            .insert([
+              { 
+                rock_id: rock.id,
+                image_url: cleanData.image_url,
+                caption: `Main rock image (form submission)`,
+                display_order: 0
+              }
+            ]);
+            
+          if (error) {
+            console.error('Error saving main image to rock_images table:', error);
+            
+            // As a fallback, try a direct fetch to the backend API
+            if (error.code === '42501') { // Permission denied error
+              console.log('🛠️ Attempting direct API call as fallback');
+              const token = localStorage.getItem('access_token');
+              try {
+                const apiUrl = import.meta.env.VITE_local_url || 'http://localhost:8001/api';
+                const response = await fetch(`${apiUrl}/rock-images`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                  },
+                  body: JSON.stringify({
+                    images: [{
+                      rock_id: rock.id,
+                      image_url: cleanData.image_url,
+                      caption: `Main rock image (direct API fallback)`,
+                      display_order: 0
+                    }]
+                  })
+                });
+                
+                const result = await response.json();
+                if (response.ok) {
+                  console.log('✅ Image saved via direct API call:', result);
+                } else {
+                  console.error('❌ Direct API call failed:', result);
+                }
+              } catch (apiErr) {
+                console.error('❌ Error making direct API call:', apiErr);
+              }
+            }
+          } else {
+            console.log('✅ Main image saved to rock_images table successfully');
+          }
+        } catch (err) {
+          console.error('Error using Supabase client to save main image:', err);
+        }
+      }
       
       // Upload additional images if there are any
       if (additionalImages.length > 0) {
