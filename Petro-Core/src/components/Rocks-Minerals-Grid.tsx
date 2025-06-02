@@ -45,6 +45,10 @@ const RocksMineralsGrid = ({ items, isLoading = false }: RocksMineralsGridProps)
                 title={item.title}
                 description={item.description}
                 category={item.category}
+                type={item.type}
+                texture={item.texture}
+                foliation={item.foliation}
+                rockType={item.rockType}
               />
             </Link>
           ) : (
@@ -54,6 +58,10 @@ const RocksMineralsGrid = ({ items, isLoading = false }: RocksMineralsGridProps)
                 title={item.title}
                 description={item.description}
                 category={item.category}
+                type={item.type}
+                texture={item.texture}
+                foliation={item.foliation}
+                rockType={item.rockType}
               />
             </div>
           )

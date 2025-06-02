@@ -52,10 +52,14 @@ const transformRockData = async (rock: IRock): Promise<RocksMineralsItem> => {
         ...additionalImages.map(img => img.image_url)
       ];
       
+      // Create description based on category
+      let categorySpecificDescription = rock.description || `${rock.category} rock from ${rock.locality || 'unknown location'}`;
+      
+      // Create transformed rock data
       return {
         id: rock.id || rock.rock_code,
         title: rock.name,
-        description: rock.description || `${rock.category} rock from ${rock.locality || 'unknown location'}`,
+        description: categorySpecificDescription,
         imageUrl: isValidImageUrl(firstImageUrl) ? firstImageUrl : DEFAULT_ROCK_IMAGE,
         path: `/rock-minerals/rock/${rock.id}`,
         category: rock.category,
@@ -66,7 +70,10 @@ const transformRockData = async (rock: IRock): Promise<RocksMineralsItem> => {
         coordinates: rock.coordinates,
         latitude: rock.latitude,
         longitude: rock.longitude,
-        locality: rock.locality
+        locality: rock.locality,
+        texture: rock.texture,
+        foliation: rock.foliation,
+        rockType: rock.type
       };
     }
   } catch (error) {
@@ -87,7 +94,10 @@ const transformRockData = async (rock: IRock): Promise<RocksMineralsItem> => {
     coordinates: rock.coordinates,
     latitude: rock.latitude,
     longitude: rock.longitude,
-    locality: rock.locality
+    locality: rock.locality,
+    texture: rock.texture,
+    foliation: rock.foliation,
+    rockType: rock.type
   };
 };
 

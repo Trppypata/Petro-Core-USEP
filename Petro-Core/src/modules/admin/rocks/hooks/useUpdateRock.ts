@@ -15,6 +15,19 @@ export const useUpdateRock = () => {
         // Show loading toast
         toast.loading('Updating rock...');
         
+        // Fetch the original rock to get its rock_code
+        const originalRock = await queryClient.getQueryData<IRock>(['rock', id]);
+        
+        // If we're changing rock_code, check if we have the original code to preserve
+        if (rockData.rock_code && originalRock && originalRock.rock_code) {
+          // Ensure we're not changing the rock_code to prevent unique constraint violations
+          console.log(`Preserving original rock_code: ${originalRock.rock_code}`);
+          rockData = {
+            ...rockData,
+            rock_code: originalRock.rock_code
+          };
+        }
+        
         // The rock.service updateRock function already handles data cleaning
         const result = await updateRock(id, rockData);
         

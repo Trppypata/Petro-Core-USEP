@@ -27,6 +27,24 @@ const fetchRockById = async (id: string): Promise<IRock | null> => {
   }
 };
 
+// Function to get the primary property label based on rock category
+const getPrimaryPropertyLabel = (category?: string): string => {
+  const lowerCategory = category?.toLowerCase() || '';
+  
+  switch (lowerCategory) {
+    case 'igneous':
+      return 'Texture';
+    case 'metamorphic':
+      return 'Foliation';
+    case 'sedimentary':
+      return 'Type';
+    case 'ore samples':
+      return 'Overall Description';
+    default:
+      return 'Type';
+  }
+};
+
 const getCategoryStyles = (category?: string) => {
   const lowerCategory = category?.toLowerCase() || '';
   
@@ -175,6 +193,25 @@ const RockDetailView = () => {
   }
 
   const styles = getCategoryStyles(rock.category);
+  const primaryLabel = getPrimaryPropertyLabel(rock.category);
+  const isOre = rock.category.toLowerCase() === 'ore samples';
+
+  // Determine which value to show for the primary property label
+  const getPrimaryPropertyValue = () => {
+    const category = rock.category.toLowerCase();
+    switch(category) {
+      case 'igneous':
+        return rock.texture || 'Not specified';
+      case 'metamorphic':
+        return rock.foliation || 'Not specified';
+      case 'sedimentary':
+        return rock.type || 'Not specified';
+      case 'ore samples':
+        return rock.description || 'No description available';
+      default:
+        return rock.type || 'Not specified';
+    }
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -224,11 +261,17 @@ const RockDetailView = () => {
             
             {/* Right: Rock Properties */}
             <div className="w-full md:w-1/2">
-              {/* Common Properties for All Rock Types */}
-              {rock.type && (
+              {/* Primary Property Label (based on rock category) */}
+              <div className="mb-6">
+                <h3 className="text-base font-bold text-gray-700">{primaryLabel}</h3>
+                <p className="text-lg">{getPrimaryPropertyValue()}</p>
+              </div>
+              
+              {/* Ore-specific: Type of Commodity */}
+              {isOre && rock.commodity_type && (
                 <div className="mb-6">
-                  <h3 className="text-base font-bold text-gray-700">Type</h3>
-                  <p className="text-lg">{rock.type}</p>
+                  <h3 className="text-base font-bold text-gray-700">Type of Commodity</h3>
+                  <p className="text-lg">{rock.commodity_type}</p>
                 </div>
               )}
               
@@ -246,7 +289,8 @@ const RockDetailView = () => {
                 </div>
               )}
               
-              {rock.texture && (
+              {/* Only show texture if not already shown as the primary property */}
+              {rock.texture && rock.category.toLowerCase() !== 'igneous' && (
                 <div className="mb-6">
                   <h3 className="text-base font-bold text-gray-700">Texture</h3>
                   <p className="text-lg">{rock.texture}</p>
@@ -305,7 +349,7 @@ const RockDetailView = () => {
             </div>
           </div>
           
-          {rock.description && (
+          {rock.description && !isOre && ( // Don't show description here for ore samples since it's shown as the primary property
             <div className="mt-6">
               <h3 className="text-lg font-bold text-gray-700 mb-2">Description</h3>
               <p className="text-muted-foreground">{rock.description}</p>

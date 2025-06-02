@@ -46,9 +46,10 @@ const RockEditForm = ({ rock, onClose, category }: RockEditFormProps) => {
     isLoading: isLoadingImages
   } = useRockImages(rock.id);
   
+  // Update formData when the rock prop changes
   useEffect(() => {
-    console.log("Current form data:", formData);
-  }, [formData]);
+    setFormData(rock);
+  }, [rock]);
   
   // Periodically refresh token to prevent expiration during long forms
   useEffect(() => {

@@ -71,15 +71,54 @@ export const uploadFile = async (file: File, folder: string): Promise<string> =>
     const fileName = `${uuidv4()}.${fileExt}`;
     const filePath = `${folder}/${fileName}`;
 
+    console.log(`🔄 Uploading file to ${filePath} (Size: ${(file.size / 1024).toFixed(2)} KB)`);
+
+    // Create folder if it doesn't exist (for some storage providers)
+    try {
+      const { data: folderData, error: folderError } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .list(folder);
+        
+      if (folderError && !folderError.message.includes("The resource was not found")) {
+        console.warn(`⚠️ Folder check warning: ${folderError.message}`);
+      }
+    } catch (folderErr) {
+      console.warn(`⚠️ Folder check exception: ${folderErr}`);
+      // Continue anyway as some providers create folders automatically
+    }
+
+    // Add auth headers explicitly for this request
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     // Upload the file
     const { data, error } = await client.storage
       .from(STORAGE_BUCKET)
       .upload(filePath, file, {
         cacheControl: '3600',
-        upsert: true
+        upsert: true,
+        ...(token ? { headers } : {})
       });
 
     if (error) {
+      if (error.statusCode === 400) {
+        console.error(`❌ Upload 400 error - Policy violation: ${error.message}`);
+        console.error('This is likely a permissions issue. Please check your storage bucket policies.');
+        
+        // Additional information about potential solutions
+        console.error(`
+          Solutions to try:
+          1. Make sure the '${STORAGE_BUCKET}' bucket exists in your Supabase project
+          2. Check Row Level Security policies for the storage.objects table
+          3. Make sure you're properly authenticated
+          4. Try creating a policy allowing anonymous uploads if needed
+        `);
+        
+        toast.error('Storage permission denied. Please contact administrator.');
+        return '';
+      }
       throw error;
     }
 
@@ -88,6 +127,7 @@ export const uploadFile = async (file: File, folder: string): Promise<string> =>
       .from(STORAGE_BUCKET)
       .getPublicUrl(data.path);
 
+    console.log(`✅ File uploaded successfully: ${publicURL.publicUrl}`);
     return publicURL.publicUrl;
   } catch (error) {
     console.error('Error uploading file:', error);
@@ -119,9 +159,24 @@ export const uploadMultipleFiles = async (files: File[], folder: string): Promis
 
     console.log(`🗄️ Supabase URL: ${import.meta.env.VITE_SUPABASE_URL}`);
     console.log(`🗄️ Storage bucket: ${STORAGE_BUCKET}`);
+    console.log(`🗄️ User authenticated: ${!!sessionData.session}`);
 
     // Show a loading toast
     toast.loading(`Uploading ${files.length} images...`);
+
+    // Try to create folder if needed
+    try {
+      const { data: folderData, error: folderError } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .list(folder);
+        
+      if (folderError && !folderError.message.includes("The resource was not found")) {
+        console.warn(`⚠️ Folder check warning: ${folderError.message}`);
+      }
+    } catch (folderErr) {
+      console.warn(`⚠️ Folder check exception: ${folderErr}`);
+      // Continue anyway as some providers create folders automatically
+    }
 
     // Upload each file concurrently
     const uploadPromises = files.map(async (file, index) => {
@@ -141,6 +196,11 @@ export const uploadMultipleFiles = async (files: File[], folder: string): Promis
           });
 
         if (error) {
+          if (error.statusCode === 400) {
+            console.error(`❌ 400 error - likely permissions issue: ${error.message}`);
+            console.error('Please check your Supabase storage bucket RLS policies.');
+            return '';
+          }
           console.error(`❌ [${index + 1}/${files.length}] Error uploading ${file.name}:`, error);
           return '';
         }
@@ -239,7 +299,7 @@ export const deleteMultipleFiles = async (fileUrls: string[]): Promise<void> => 
       return;
     }
 
-    // Skip if no URLs provided
+    // Skip if no fileUrls provided
     if (!fileUrls.length) {
       console.warn('No file URLs provided, skipping deletion');
       return;
@@ -262,12 +322,11 @@ export const deleteMultipleFiles = async (fileUrls: string[]): Promise<void> => 
         .from(STORAGE_BUCKET)
         .remove(filePaths);
 
-      if (error) {
-        throw error;
-      }
+    if (error) {
+      throw error;
     }
   } catch (error) {
     console.error('Error deleting files:', error);
-    toast.error('Failed to delete some files. Please try again.');
+    toast.error('Failed to delete files. Please try again.');
   }
 }; 
