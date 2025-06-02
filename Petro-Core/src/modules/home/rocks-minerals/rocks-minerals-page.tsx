@@ -6,9 +6,8 @@ import { getRocks, getMinerals } from "./services/rocks-minerals.service";
 import type { RocksMineralsItem } from "./types";
 import RockMineralFilters from "./filters/RockMineralFilters";
 import type { FiltersState } from "./filters/RockMineralFilters";
-import { MapPin, Lightbulb } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { TriviaToast } from "@/components/trivia/TriviaToast";
-import { TriviaButton } from "@/components/trivia/TriviaButton";
 
 const RockMinerals = () => {
   const location = useLocation();
@@ -119,13 +118,6 @@ const RockMinerals = () => {
               <MapPin className="h-4 w-4" />
               Map
             </Link>
-            
-            <TriviaButton 
-              category={displayType === "rocks" ? "rocks" : "minerals"}
-              variant="outline"
-              label={`${displayType === "rocks" ? "Rock" : "Mineral"} Trivia`}
-              className="ml-auto"
-            />
           </div>
         </div>
         

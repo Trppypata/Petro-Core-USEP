@@ -4,7 +4,6 @@ import { fieldWorksList } from "./types";
 import { Outlet, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { TriviaToast } from "@/components/trivia/TriviaToast";
-import { TriviaButton } from "@/components/trivia/TriviaButton";
 
 export default function FieldWorks() { 
   const location = useLocation();
@@ -60,14 +59,6 @@ export default function FieldWorks() {
           <h1 className="text-4xl font-bold tracking-tight mb-6">Field Works</h1>
           <div className="flex justify-center mb-8">
             <SearchBar onSearch={handleSearch} placeholder="Search field works..." />
-          </div>
-          
-          <div className="flex justify-center mb-4">
-            <TriviaButton 
-              category="fieldwork" 
-              label="Field Work Trivia" 
-              variant="outline"
-            />
           </div>
         </div>
         

@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom'; // Import Link from react-router-dom
 import { TriviaToast } from '@/components/trivia/TriviaToast';
-import { TriviaButton } from '@/components/trivia/TriviaButton';
 
 const HeroSection = () => {
   return (
@@ -14,11 +13,6 @@ const HeroSection = () => {
           <p className="text-md text-gray-600 mb-6">
             Empowering collaborative petrographic analysis and accessible educational resources
           </p>
-          
-          {/* Add trivia button */}
-          <div className="flex justify-center mb-4">
-            <TriviaButton label="Show Geology Trivia" variant="default" size="default" />
-          </div>
         </section>
 
         <div className="max-w-6xl mx-auto px-4 pb-16 grid md:grid-cols-2 gap-8">
