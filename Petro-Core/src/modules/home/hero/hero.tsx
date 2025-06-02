@@ -1,13 +1,18 @@
 import { Link } from 'react-router-dom'; // Import Link from react-router-dom
+import { Trivia } from './trivia';
+
 const HeroSection = () => {
   return (
     <>
         <div className="min-h-screen bg-background py-16 px-4 sm:px-6 lg:px-8">
     <section className="max-w-5xl mx-auto px-4 pb-12 text-center">
         <h1 className="text-6xl font-bold mb-6">Explore Petrographic Knowledge</h1>
-        <p className="text-md text-gray-600">
+        <p className="text-md text-gray-600 mb-8">
           Empowering collaborative petrographic analysis and accessible educational resources
         </p>
+        
+        {/* Trivia component - now shows as toast notifications */}
+        <Trivia />
       </section>
 
  <div className="max-w-6xl mx-auto px-4 pb-16 grid md:grid-cols-2 gap-8">

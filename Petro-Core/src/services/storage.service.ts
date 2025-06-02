@@ -2,7 +2,39 @@ import { supabase } from '../lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
 
-const STORAGE_BUCKET = 'rocks-minerals';
+// Define the bucket name as a constant to ensure consistency throughout the app
+export const STORAGE_BUCKET = 'rocks-minerals';
+
+/**
+ * Get the authentication token from various storage locations
+ */
+const getAuthToken = (): string | null => {
+  // Try multiple storage locations for the token
+  return localStorage.getItem('access_token') || 
+         localStorage.getItem('auth_token') || 
+         localStorage.getItem('token') || 
+         localStorage.getItem('accessToken');
+};
+
+/**
+ * Creates a Supabase client with the current auth token
+ */
+const getAuthenticatedSupabaseClient = () => {
+  const token = getAuthToken();
+  
+  if (token) {
+    console.log('Using authenticated Supabase client with token:', token.substring(0, 10) + '...' + token.substring(token.length - 5));
+    // Set the auth header in the supabase client
+    supabase.auth.setSession({
+      access_token: token,
+      refresh_token: '',
+    });
+  } else {
+    console.warn('No authentication token found. Storage operations may fail.');
+  }
+  
+  return supabase;
+};
 
 /**
  * Uploads a file to Supabase storage
@@ -31,13 +63,16 @@ export const uploadFile = async (file: File, folder: string): Promise<string> =>
       return '';
     }
 
+    // Get authenticated client
+    const client = getAuthenticatedSupabaseClient();
+
     // Generate a unique filename
     const fileExt = file.name.split('.').pop();
     const fileName = `${uuidv4()}.${fileExt}`;
     const filePath = `${folder}/${fileName}`;
 
     // Upload the file
-    const { data, error } = await supabase.storage
+    const { data, error } = await client.storage
       .from(STORAGE_BUCKET)
       .upload(filePath, file, {
         cacheControl: '3600',
@@ -49,7 +84,7 @@ export const uploadFile = async (file: File, folder: string): Promise<string> =>
     }
 
     // Get the public URL
-    const { data: publicURL } = supabase.storage
+    const { data: publicURL } = client.storage
       .from(STORAGE_BUCKET)
       .getPublicUrl(data.path);
 
@@ -79,6 +114,9 @@ export const uploadMultipleFiles = async (files: File[], folder: string): Promis
       return [];
     }
 
+    // Get authenticated client
+    const client = getAuthenticatedSupabaseClient();
+
     console.log(`🗄️ Supabase URL: ${import.meta.env.VITE_SUPABASE_URL}`);
     console.log(`🗄️ Storage bucket: ${STORAGE_BUCKET}`);
 
@@ -95,7 +133,7 @@ export const uploadMultipleFiles = async (files: File[], folder: string): Promis
         console.log(`🗄️ [${index + 1}/${files.length}] Uploading ${file.name} to ${filePath}`);
 
         // Upload the file
-        const { data, error } = await supabase.storage
+        const { data, error } = await client.storage
           .from(STORAGE_BUCKET)
           .upload(filePath, file, {
             cacheControl: '3600',
@@ -108,7 +146,7 @@ export const uploadMultipleFiles = async (files: File[], folder: string): Promis
         }
 
         // Get the public URL
-        const { data: publicURL } = supabase.storage
+        const { data: publicURL } = client.storage
           .from(STORAGE_BUCKET)
           .getPublicUrl(data.path);
 
@@ -167,12 +205,15 @@ export const deleteFile = async (fileUrl: string): Promise<void> => {
       return;
     }
 
+    // Get authenticated client
+    const client = getAuthenticatedSupabaseClient();
+
     // Extract the path from the URL
-    const storageUrl = supabase.storage.from(STORAGE_BUCKET).getPublicUrl('').data.publicUrl;
+    const storageUrl = client.storage.from(STORAGE_BUCKET).getPublicUrl('').data.publicUrl;
     const filePath = fileUrl.replace(storageUrl, '');
 
     // Delete the file
-    const { error } = await supabase.storage
+    const { error } = await client.storage
       .from(STORAGE_BUCKET)
       .remove([filePath]);
 
@@ -204,8 +245,11 @@ export const deleteMultipleFiles = async (fileUrls: string[]): Promise<void> => 
       return;
     }
 
+    // Get authenticated client
+    const client = getAuthenticatedSupabaseClient();
+
     // Extract the storage URL
-    const storageUrl = supabase.storage.from(STORAGE_BUCKET).getPublicUrl('').data.publicUrl;
+    const storageUrl = client.storage.from(STORAGE_BUCKET).getPublicUrl('').data.publicUrl;
     
     // Extract the paths from the URLs
     const filePaths = fileUrls
@@ -214,7 +258,7 @@ export const deleteMultipleFiles = async (fileUrls: string[]): Promise<void> => 
 
     if (filePaths.length) {
       // Delete the files
-      const { error } = await supabase.storage
+      const { error } = await client.storage
         .from(STORAGE_BUCKET)
         .remove(filePaths);
 

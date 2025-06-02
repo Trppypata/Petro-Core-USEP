@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Toast Test</title>
+  <!-- Include React and ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <!-- Include Babel for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Include Sonner -->
+  <script src="https://unpkg.com/sonner"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    button {
+      padding: 10px 15px;
+      background-color: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    h1 {
+      color: #1e3a8a;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    // Simple React component
+    function ToastTester() {
+      const showBasicToast = () => {
+        // Access Sonner toast function from the global window object
+        window.Sonner.toast('Hello, this is a basic toast!');
+      };
+
+      const showSuccessToast = () => {
+        window.Sonner.toast.success('Success!', {
+          description: 'Operation completed successfully',
+        });
+      };
+
+      const showErrorToast = () => {
+        window.Sonner.toast.error('Error!', {
+          description: 'Something went wrong',
+        });
+      };
+
+      return (
+        <div className="container">
+          <h1>Sonner Toast Tester</h1>
+          <p>Click the buttons below to test different toast notifications:</p>
+          
+          <div className="buttons">
+            <button onClick={showBasicToast}>Basic Toast</button>
+            <button onClick={showSuccessToast}>Success Toast</button>
+            <button onClick={showErrorToast}>Error Toast</button>
+          </div>
+
+          {/* Render the Sonner toast container */}
+          <window.Sonner.Toaster />
+        </div>
+      );
+    }
+
+    // Render the app
+    ReactDOM.render(<ToastTester />, document.getElementById('root'));
+  </script>
+</body>
+</html> 

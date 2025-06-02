@@ -3,6 +3,7 @@ import { FieldWorkGrid } from "@/components/FieldWorkGrid";
 import { fieldWorksList } from "./types";
 import { Outlet, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { Trivia } from "../../home/hero/trivia";
 
 export default function FieldWorks() { 
   const location = useLocation();
@@ -49,6 +50,10 @@ export default function FieldWorks() {
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold tracking-tight mb-6">Field Works</h1>
+          
+          {/* Trivia component - shows as toast notifications */}
+          <Trivia category="fieldwork" />
+          
           <div className="flex justify-center mb-8">
             <SearchBar onSearch={handleSearch} placeholder="Search field works..." />
           </div>

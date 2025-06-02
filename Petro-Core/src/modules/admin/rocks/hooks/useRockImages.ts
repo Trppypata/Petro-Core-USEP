@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getRockImages, uploadRockImages, deleteRockImage } from '@/services/rock-images.service';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
-import { uploadMultipleFiles } from '@/services/storage.service';
+import { uploadMultipleFiles, STORAGE_BUCKET } from '@/services/storage.service';
 
 // Define the interface directly in this file
 interface IRockImage {
@@ -15,6 +15,42 @@ interface IRockImage {
   created_at?: string;
   updated_at?: string;
 }
+
+/**
+ * Get authentication token from various storage locations
+ */
+const getAuthToken = (): string | null => {
+  // Try multiple storage locations for the token
+  const token = localStorage.getItem('access_token') || 
+         localStorage.getItem('auth_token') || 
+         localStorage.getItem('token') || 
+         localStorage.getItem('accessToken');
+  
+  if (token) {
+    console.log('Auth token found for rock images operations');
+  } else {
+    console.error('No auth token found for rock images operations');
+  }
+  
+  return token;
+};
+
+/**
+ * Creates authenticated Supabase client
+ */
+const getAuthenticatedSupabaseClient = () => {
+  const token = getAuthToken();
+  
+  if (token) {
+    // Set the auth header in the supabase client
+    supabase.auth.setSession({
+      access_token: token,
+      refresh_token: '',
+    });
+  }
+  
+  return supabase;
+};
 
 /**
  * Hook to fetch and manage rock images
@@ -48,6 +84,9 @@ export const useRockImages = (rockId?: string) => {
       }
       
       try {
+        // Get authenticated client
+        const client = getAuthenticatedSupabaseClient();
+        
         // 1. Upload files to storage
         console.log('📤 Uploading files to Supabase storage...');
         const imageUrls = await uploadMultipleFiles(files, 'rocks');
@@ -67,8 +106,15 @@ export const useRockImages = (rockId?: string) => {
           display_order: index
         }));
         
+        // Get token and check auth status before inserting
+        const token = getAuthToken();
+        if (!token) {
+          console.error('❌ Authentication required for database operations');
+          throw new Error('Authentication required');
+        }
+        
         // Insert directly using Supabase client
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from('rock_images')
           .insert(imageData)
           .select();
@@ -108,6 +154,47 @@ export const useRockImages = (rockId?: string) => {
     }
   });
 
+  // Delete all images mutation
+  const deleteAllMutation = useMutation({
+    mutationFn: async () => {
+      if (!rockId) {
+        throw new Error('Rock ID is required');
+      }
+      
+      // Get all image URLs
+      const images = await getRockImages(rockId);
+      const imageIds = images.map(img => img.id).filter(Boolean) as string[];
+      
+      if (imageIds.length === 0) {
+        return { success: true, count: 0 };
+      }
+      
+      // Get authenticated client
+      const client = getAuthenticatedSupabaseClient();
+      
+      // Delete database records
+      const { error } = await client
+        .from('rock_images')
+        .delete()
+        .in('id', imageIds);
+      
+      if (error) {
+        throw error;
+      }
+      
+      return { success: true, count: imageIds.length };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rock-images', rockId] });
+      toast.success('All images deleted successfully');
+      setImages([]);
+    },
+    onError: (error) => {
+      console.error('Failed to delete all images:', error);
+      toast.error('Failed to delete all images');
+    }
+  });
+
   useEffect(() => {
     if (data) {
       setImages(data);
@@ -143,6 +230,16 @@ export const useRockImages = (rockId?: string) => {
       return false;
     }
   };
+  
+  const deleteAllImages = async () => {
+    try {
+      await deleteAllMutation.mutateAsync();
+      return true;
+    } catch (error) {
+      console.error('Error deleting all images:', error);
+      return false;
+    }
+  };
 
   return {
     images,
@@ -152,6 +249,7 @@ export const useRockImages = (rockId?: string) => {
     uploadImages,
     isUploading: uploadMutation.isPending,
     deleteImage,
-    isDeleting: deleteMutation.isPending
+    deleteAllImages,
+    isDeleting: deleteMutation.isPending || deleteAllMutation.isPending
   };
 }; 

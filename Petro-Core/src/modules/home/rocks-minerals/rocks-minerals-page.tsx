@@ -7,6 +7,7 @@ import type { RocksMineralsItem } from "./types";
 import RockMineralFilters from "./filters/RockMineralFilters";
 import type { FiltersState } from "./filters/RockMineralFilters";
 import { MapPin } from "lucide-react";
+import { Trivia } from "../../home/hero/trivia";
 
 const RockMinerals = () => {
   const location = useLocation();
@@ -62,6 +63,18 @@ const RockMinerals = () => {
     setFilters(newFilters);
   };
 
+  // Get trivia category based on display type
+  const getTriviaCategory = () => {
+    switch (displayType) {
+      case "rocks":
+        return "rocks";
+      case "minerals":
+        return "minerals";
+      default:
+        return "all";
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background py-24 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -69,6 +82,9 @@ const RockMinerals = () => {
           <h1 className="text-4xl font-bold tracking-tight text-primary mb-6">
             Rocks and Minerals
           </h1>
+          
+          {/* Trivia component - shows as toast notifications */}
+          <Trivia category={getTriviaCategory()} />
           
           <div className="flex justify-center mb-6">
             <SearchBar 

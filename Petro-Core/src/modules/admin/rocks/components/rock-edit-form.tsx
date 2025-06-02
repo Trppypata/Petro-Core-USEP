@@ -4,6 +4,7 @@ import {
   SheetFooter,
   SheetHeader,
   SheetTitle,
+  SheetDescription,
 } from "@/components/ui/sheet";
 import { useUpdateRock } from "../hooks/useUpdateRock";
 import RockForm from "../rock-form";
@@ -17,6 +18,11 @@ import { toast } from "sonner";
 import { authService } from "@/services/auth.service";
 import { uploadFile } from "@/services/storage.service";
 import { useRockImages } from "../hooks/useRockImages";
+import { TabsContent, Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RockImagesManager } from './rock-images-manager';
+import { Separator } from '@/components/ui/separator';
+import { MultiFileUpload } from '@/components/ui/file-upload';
+import { RockImagesGallery } from '@/components/ui/rock-images-gallery';
 
 interface RockEditFormProps {
   rock: IRock;
@@ -28,393 +34,299 @@ const RockEditForm = ({ rock, onClose, category }: RockEditFormProps) => {
   const { updateRock, isUpdating } = useUpdateRock();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [currentTab, setCurrentTab] = useState('details');
+  const [formData, setFormData] = useState<Partial<IRock>>(rock);
   const formRef = useRef<HTMLFormElement>(null);
-  const [formData, setFormData] = useState<Partial<IRock>>({...rock});
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [additionalImages, setAdditionalImages] = useState<File[]>([]);
   
-  // Use the rock images hook to handle image management
   const { 
-    images: existingImages, 
+    images, 
     uploadImages, 
-    isUploading,
-    deleteImage,
-    isDeleting,
-    refetch: refetchImages
+    isLoading: isLoadingImages
   } = useRockImages(rock.id);
-  
-  // Save the rock ID for reference
-  const rockId = rock.id;
   
   useEffect(() => {
     console.log("Current form data:", formData);
   }, [formData]);
   
-  // Check authentication status
+  // Periodically refresh token to prevent expiration during long forms
+  useEffect(() => {
+    const tokenRefreshInterval = setInterval(refreshToken, 15 * 60 * 1000); // Refresh every 15 minutes
+    return () => clearInterval(tokenRefreshInterval);
+  }, []);
+  
   const refreshToken = async () => {
     try {
-      // Check if user is authenticated first
-      const isAuth = authService.isAuthenticated();
-      if (!isAuth) {
-        toast.error("You need to be logged in to update rocks");
-        // Here you would redirect to login
-        return false;
-      }
-      
-      // Get current user to verify token
-      const user = await authService.getCurrentUser();
-      if (!user) {
-        toast.error("Session expired. Please log in again.");
-        // Here you would redirect to login
-        return false;
-      }
-      
-      return true;
-    } catch (error) {
-      console.error("Auth check failed:", error);
-      return false;
-    }
-  };
-  
-  // Add this function at the top of the component, before the return statement
-  const prepareDataForSubmission = (data: Partial<IRock>): Partial<IRock> => {
-    // Create a new object with the original data
-    const safeData: Partial<IRock> = { ...data };
-    
-    // Explicitly remove problematic fields using any type cast to avoid TypeScript errors
-    delete (safeData as any).user;
-    delete (safeData as any).user_id;
-    delete (safeData as any).user_metadata;
-    delete safeData.origin; // This one is in the interface
-    
-    // Temporarily remove protolith field until the database schema is updated
-    delete safeData.protolith;
-    
-    // Remove any null/undefined values using type-safe approach
-    Object.keys(safeData).forEach(key => {
-      const typedKey = key as keyof IRock;
-      if (safeData[typedKey] === null || safeData[typedKey] === undefined) {
-        delete safeData[typedKey];
-      }
-    });
-    
-    console.log("Prepared safe data for submission:", safeData);
-    return safeData;
-  };
-  
-  // Direct update handler that bypasses form submission
-  const handleDirectUpdate = async () => {
-    if (!rockId) {
-      console.error("Cannot update rock: missing id");
-      toast.error("Cannot update rock: missing ID");
-      return;
-    }
-    
-    // Verify authentication first
-    const isAuthenticated = await refreshToken();
-    if (!isAuthenticated) {
-      return;
-    }
-    
-    setIsSubmitting(true);
-    try {
-      // Make sure we're working with the latest form data
-      console.log("Direct update initiated with raw data:", formData);
-      
-      // Ensure required fields
-      if (!formData.name) {
-        toast.error("Rock name is required");
-        return;
-      }
-      
-      // Show loading toast
-      toast.loading("Updating rock...");
-      
-      // Handle image upload if a new image file has been selected
-      let imageUrl = formData.image_url || '';
-      
-      if (imageFile) {
-        try {
-          console.log("Direct update: Uploading image file:", imageFile.name);
-          
-          // Check if Supabase is properly configured before attempting upload
-          if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-            console.warn("Supabase storage is not configured. Skipping image upload.");
-            toast.warning("Image upload skipped due to missing Supabase configuration");
-          } else {
-            // Upload to Supabase storage
-            imageUrl = await uploadFile(imageFile, 'rocks');
-            console.log('Direct update: Uploaded image URL:', imageUrl);
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        // Perform a simple API call to refresh the token session
+        // This depends on your auth system, but could be a call to get user profile
+        // or a specific refresh endpoint
+        const response = await fetch(import.meta.env.VITE_local_url + '/auth/refresh', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
-        } catch (error) {
-          console.error('Error uploading image:', error);
-          toast.error('Failed to upload image, but will continue updating rock data.');
-          // Continue with the update even if image upload fails
+        });
+        
+        const data = await response.json();
+        if (data.token) {
+          localStorage.setItem('access_token', data.token);
+          console.log('Token refreshed successfully');
         }
       }
-      
-      // Update formData with the new image URL
-      const updatedFormData = {
-        ...formData,
-        image_url: imageUrl
-      };
-      
-      // Prepare data for update - explicitly clean it
-      const cleanData = prepareDataForSubmission({
-        ...updatedFormData,
-        category: category as string,
-        type: formData.type || rock.type,
-      });
-      
-      const result = await updateRock({
-        id: rockId,
-        rockData: cleanData
-      });
-      
-      // Dismiss loading toast and show success
-      toast.dismiss();
-      toast.success(`Rock "${cleanData.name || rock.name}" updated successfully!`);
-      console.log("Update successful, result:", result);
-      
-      // Upload additional images if there are any
-      if (additionalImages.length > 0) {
-        await handleAdditionalImagesUpload();
-      }
-      
-      // Invalidate queries to refresh the data
-      queryClient.invalidateQueries({ queryKey: [Q_KEYS.ROCKS] });
-      
-      // Close the sheet
-      onClose();
-    } catch (error: any) {
-      toast.dismiss();
-      console.error("Error updating rock:", error);
-      toast.error(`Failed to update rock: ${error.message || "Unknown error"}`);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-  
-  const handleSubmit = async (data: Partial<IRock>) => {
-    console.log("Form submission received with data:", data);
-    setFormData(data);
-    
-    if (!rockId) {
-      console.error("Cannot update rock: missing id");
-      toast.error("Cannot update rock: missing ID");
-      return;
-    }
-    
-    // Verify authentication first
-    const isAuthenticated = await refreshToken();
-    if (!isAuthenticated) {
-      return;
-    }
-    
-    console.log("Starting rock update:", { id: rockId, data });
-    console.log("Image file for regular submission:", imageFile ? imageFile.name : "none");
-    
-    setIsSubmitting(true);
-    try {
-      console.log("Calling updateRock with:", { id: rockId, rockData: data });
-      
-      // Show loading toast
-      toast.loading("Updating rock...");
-      
-      const result = await updateRock({
-        id: rockId,
-        rockData: {
-          ...data,
-          category: category as string
-        }
-      });
-      
-      // Dismiss loading toast
-      toast.dismiss();
-      
-      console.log("Update successful, result:", result);
-      
-      // Show success notification
-      toast.success(`Rock "${data.name}" has been updated successfully`);
-      
-      // Invalidate queries to refresh the data
-      queryClient.invalidateQueries({ queryKey: [Q_KEYS.ROCKS] });
-      
-      // Close the sheet
-      onClose();
-    } catch (error: any) {
-      // Dismiss loading toast
-      toast.dismiss();
-      
-      console.error("Error updating rock:", error);
-      toast.error(`Failed to update rock: ${error.message || "Unknown error"}`);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-  
-  // Manually trigger form submission
-  const handleManualSubmit = async () => {
-    console.log("Manual form submission triggered");
-    
-    // Check authentication first
-    const isAuthenticated = await refreshToken();
-    if (!isAuthenticated) {
-      return;
-    }
-    
-    // Use direct update as fallback approach
-    if (!formRef.current) {
-      console.log("Form reference not found, using direct update instead");
-      handleDirectUpdate();
-      return;
-    }
-    
-    // Try regular form submission first
-    try {
-      formRef.current.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-      
-      // Set a timeout to check if submission was successful
-      setTimeout(() => {
-        if (!isSubmitting) {
-          console.log("Form submission may have failed, trying direct update");
-          handleDirectUpdate();
-        }
-      }, 500);
     } catch (error) {
-      console.error("Error during form submission:", error);
-      handleDirectUpdate();
+      console.error('Error refreshing token:', error);
     }
   };
   
-  // Handle additional images upload
-  const handleAdditionalImagesUpload = async () => {
-    if (additionalImages.length === 0 || !rockId) return;
+  // Function to prepare data for submission by removing unwanted fields
+  const prepareDataForSubmission = (data: Partial<IRock>): Partial<IRock> => {
+    // Create a copy to avoid modifying the original
+    const cleanedData = { ...data };
     
+    // Remove fields that should not be included in updates
+    delete cleanedData.created_at;
+    delete cleanedData.updated_at;
+    delete cleanedData.id; // ID is passed separately to the update function
+    
+    // These are UI-specific or temporary fields that shouldn't be sent to the API
+    delete (cleanedData as any).isLoading;
+    delete (cleanedData as any).isSubmitting;
+    delete (cleanedData as any).confirmDelete;
+    delete (cleanedData as any).isDirty;
+    delete (cleanedData as any).errors;
+    
+    return cleanedData;
+  };
+  
+  // Handle direct update through the form submit button
+  const handleDirectUpdate = async () => {
+    if (!formRef.current) {
+      toast.error('Form reference not found');
+      return;
+    }
+    
+    // Trigger the form submission
+    const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+    formRef.current.dispatchEvent(submitEvent);
+  };
+  
+  // Handle file selection for additional images
+  const handleFilesChange = (files: File[]) => {
+    setImageFiles(files);
+  };
+  
+  // Handle uploading additional images for the rock
+  const handleAdditionalImagesUpload = async () => {
+    if (!rock.id) {
+      toast.error('Rock ID is required to upload images');
+      return;
+    }
+    
+    if (imageFiles.length === 0) {
+      toast.error('Please select at least one image file');
+      return;
+    }
+    
+    setIsUploadingImages(true);
     try {
-      toast.loading(`Uploading ${additionalImages.length} additional images...`);
-      const result = await uploadImages(additionalImages);
-      toast.dismiss();
+      console.log(`📸 Uploading ${imageFiles.length} additional images for rock ID: ${rock.id}`);
+      
+      // Use the uploadImages function from useRockImages hook
+      const result = await uploadImages(imageFiles);
       
       if (result && result.length > 0) {
-        toast.success(`Successfully uploaded ${result.length} additional images`);
-        setAdditionalImages([]);
-        refetchImages();
+        toast.success(`Successfully uploaded ${result.length} images`);
+        setImageFiles([]);
+        // Invalidate and refetch the rock data to show updated images
+        queryClient.invalidateQueries({ queryKey: ['rock', rock.id] });
+        queryClient.invalidateQueries({ queryKey: ['rock-images', rock.id] });
       } else {
-        toast.error('Failed to upload additional images');
+        toast.error('Failed to upload images');
       }
     } catch (error) {
-      toast.dismiss();
-      console.error('Error uploading additional images:', error);
-      toast.error('Error uploading additional images');
+      console.error('Error uploading images:', error);
+      toast.error('Error uploading images. Please try again.');
+    } finally {
+      setIsUploadingImages(false);
     }
+  };
+  
+  // Handle form submission for updating rock data
+  const handleSubmit = async (data: Partial<IRock>) => {
+    if (!rock.id) {
+      toast.error('Rock ID is required');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Prepare the data for submission
+      const cleanedData = prepareDataForSubmission(data);
+      console.log('Submitting updated rock data:', cleanedData);
+      
+      // Update the rock data
+      const result = await updateRock({
+        id: rock.id,
+        rockData: cleanedData
+      });
+      
+      console.log('Rock update result:', result);
+      
+      // If there are image files to upload, do that after rock update succeeds
+      if (imageFiles.length > 0) {
+        console.log(`Uploading ${imageFiles.length} images for rock ID: ${rock.id}`);
+        
+        // Set uploading state
+        setIsUploadingImages(true);
+        
+        try {
+          // Use the uploadImages function from useRockImages hook
+          const imageResult = await uploadImages(imageFiles);
+          
+          if (imageResult && imageResult.length > 0) {
+            console.log(`Successfully uploaded ${imageResult.length} images`);
+            toast.success(`Successfully uploaded ${imageResult.length} images`);
+            // Clear the file list after successful upload
+            setImageFiles([]);
+            // Invalidate queries to refresh the UI
+            queryClient.invalidateQueries({ queryKey: ['rock-images', rock.id] });
+          } else {
+            console.error('No images were uploaded successfully');
+            toast.error('Failed to upload images');
+          }
+        } catch (imageError) {
+          console.error('Error uploading images:', imageError);
+          toast.error('Error uploading images. Rock data was updated, but images failed.');
+        } finally {
+          setIsUploadingImages(false);
+        }
+      }
+      
+      // Show success message and close the form
+      toast.success('Rock updated successfully');
+      
+      // Invalidate the rocks query to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['rocks'] });
+      
+      // Close the form
+      onClose();
+    } catch (error) {
+      console.error('Error updating rock:', error);
+      toast.error('Failed to update rock. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  // Handle form data changes
+  const handleFormDataChange = (data: Partial<IRock>) => {
+    setFormData(data);
+  };
+  
+  // Handle manual submit button click
+  const handleManualSubmit = async () => {
+    if (!formRef.current) {
+      console.error('Form reference not found');
+      return;
+    }
+    
+    // Submit the form
+    const event = new Event('submit', { bubbles: true, cancelable: true });
+    formRef.current.dispatchEvent(event);
   };
   
   return (
-    <Sheet open onOpenChange={onClose}>
-      <SheetContent className="p-0 flex flex-col h-full md:max-w-[40rem]">
-        <SheetHeader className="py-4 bg-overlay-bg border-b border-overlay-border px-6 flex-shrink-0">
-          <SheetTitle>Editing Rock: {rock.name}</SheetTitle>
-          <p className="text-xs text-muted-foreground">
-            Update the rock details.
-          </p>
+    <Sheet open={true} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent className="w-full sm:max-w-xl md:max-w-2xl lg:max-w-4xl xl:max-w-6xl overflow-y-auto">
+        <SheetHeader className="mb-4">
+          <SheetTitle>Edit Rock: {rock.name}</SheetTitle>
+          <SheetDescription>
+            Update rock information and add images
+          </SheetDescription>
         </SheetHeader>
         
-        <div className="flex-grow overflow-y-auto">
-          <RockForm 
-            category={category as RockCategory}
-            onClose={onClose}
-            defaultValues={rock}
-            onSubmit={handleSubmit}
-            isLoading={isUpdating || isSubmitting}
-            mode="edit"
-            inSheet={true}
-            hideButtons={true}
-            formRef={formRef}
-            onFormDataChange={setFormData}
-            onImageFileChange={setImageFile}
-          />
+        <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
+          <TabsList className="grid grid-cols-2 mb-4">
+            <TabsTrigger value="details">Rock Details</TabsTrigger>
+            <TabsTrigger value="images">Rock Images</TabsTrigger>
+          </TabsList>
           
-          {/* Additional Images Upload Section */}
-          <div className="px-6 py-4 border-t border-overlay-border">
-            <h4 className="text-sm font-medium mb-2">Additional Images</h4>
+          <TabsContent value="details">
+            <RockForm
+              category={category}
+              onClose={onClose}
+              defaultValues={rock}
+              inSheet={true}
+              mode="edit"
+              onSubmit={handleSubmit}
+              isLoading={isUpdating || isSubmitting}
+              formRef={formRef}
+              onFormDataChange={handleFormDataChange}
+            />
             
-            {/* Display existing images if any */}
-            {existingImages && existingImages.length > 0 && (
-              <div className="mb-4">
-                <p className="text-xs text-muted-foreground mb-2">Existing Images:</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {existingImages.map(image => (
-                    <div key={image.id} className="relative group">
-                      <img 
-                        src={image.image_url} 
-                        alt={image.caption || 'Rock image'} 
-                        className="h-20 w-full object-cover rounded-md"
-                      />
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => image.id && deleteImage(image.id)}
-                        disabled={isDeleting}
-                      >
-                        <span className="sr-only">Delete</span>
-                        ×
-                      </Button>
-                    </div>
-                  ))}
+            <div className="mt-4 flex gap-2 justify-end">
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button onClick={handleManualSubmit} disabled={isSubmitting}>
+                {isSubmitting && <Spinner className="mr-2 h-4 w-4" />}
+                Update Rock
+              </Button>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="images">
+            <div className="space-y-6">
+              <h3 className="text-lg font-semibold">Current Images</h3>
+              
+              {isLoadingImages ? (
+                <div className="flex justify-center py-4">
+                  <Spinner />
                 </div>
-              </div>
-            )}
-            
-            {/* File input for additional images */}
-            <div className="mt-2">
-              <label htmlFor="additional-images" className="block text-xs font-medium mb-1">
-                Upload Additional Images
-              </label>
-              <input
-                type="file"
-                id="additional-images"
-                multiple
-                accept="image/*"
-                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary/90"
-                onChange={(e) => {
-                  const files = Array.from(e.target.files || []);
-                  setAdditionalImages(prev => [...prev, ...files]);
-                }}
-              />
-              {additionalImages.length > 0 && (
-                <div className="mt-2">
-                  <p className="text-xs text-muted-foreground">
-                    {additionalImages.length} new image(s) selected
-                  </p>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="mt-1"
-                    onClick={() => setAdditionalImages([])}
-                  >
-                    Clear Selection
-                  </Button>
+              ) : images && images.length > 0 ? (
+                <RockImagesGallery 
+                  images={images.map(img => img.image_url)} 
+                  height={300}
+                />
+              ) : (
+                <div className="text-center py-6 text-muted-foreground">
+                  No images available for this rock.
                 </div>
               )}
+              
+              <Separator className="my-6" />
+              
+              <h3 className="text-lg font-semibold">Upload New Images</h3>
+              <div className="space-y-4">
+                <MultiFileUpload
+                  onFilesChange={handleFilesChange}
+                  maxSizeMB={50}
+                />
+                
+                <div className="flex justify-end">
+                  <Button 
+                    onClick={handleAdditionalImagesUpload}
+                    disabled={isUploadingImages || imageFiles.length === 0}
+                  >
+                    {isUploadingImages && <Spinner className="mr-2 h-4 w-4" />}
+                    Upload {imageFiles.length} {imageFiles.length === 1 ? 'Image' : 'Images'}
+                  </Button>
+                </div>
+              </div>
+              
+              <Separator className="my-6" />
+              
+              <div className="mt-4">
+                <RockImagesManager rockId={rock.id || ''} rockName={rock.name} />
+              </div>
             </div>
-          </div>
-        </div>
-        
-        <SheetFooter className="flex-shrink-0 px-6 py-4 bg-overlay-bg border-t border-overlay-border">
-          <Button variant="outline" onClick={onClose} type="button">
-            Cancel
-          </Button>
-          <Button 
-            type="button" 
-            onClick={handleManualSubmit} 
-            disabled={isSubmitting || isUpdating || isUploading}
-          >
-            {(isSubmitting || isUpdating || isUploading) && <Spinner className="mr-2 h-4 w-4" />}
-            Update Rock
-          </Button>
-        </SheetFooter>
+          </TabsContent>
+        </Tabs>
       </SheetContent>
     </Sheet>
   );

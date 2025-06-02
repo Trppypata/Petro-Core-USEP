@@ -52,3 +52,39 @@ export default tseslint.config({
   },
 })
 ```
+
+# Petro-Core
+
+A web application for managing geological samples and educational resources.
+
+## How to Update Rocks and Add Images
+
+When updating a rock record, you can now add images to that specific rock. The system ensures that images are properly associated with the rock they belong to.
+
+### Steps to Update a Rock and Add Images:
+
+1. Navigate to the "Rocks" section in the admin dashboard
+2. Find the rock you want to edit and click the "Edit" button
+3. You'll see a modal with two tabs: "Rock Details" and "Rock Images"
+4. In the "Rock Details" tab, update any information about the rock
+5. Click on the "Rock Images" tab to manage images for this rock
+6. In the "Rock Images" tab, you can:
+   - View existing images for this rock
+   - Upload new images using the file uploader
+   - Manage (view/delete) all images associated with this rock
+
+### Technical Details:
+
+- All rock images are stored in the 'rocks-minerals' Supabase storage bucket
+- Images are linked to rocks via the 'rock_images' table in the database
+- Each image record contains:
+  - `rock_id`: Reference to the specific rock
+  - `image_url`: URL to the image in the 'rocks-minerals' bucket
+  - `caption`: Optional caption for the image
+  - `display_order`: Position in the gallery
+
+This implementation ensures that when you update a rock and add images, they will be properly associated with that specific rock in both the storage bucket and the database.
+
+## Installation
+
+[Installation instructions here]
