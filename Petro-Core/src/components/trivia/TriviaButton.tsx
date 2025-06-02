@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { BulbIcon, LightbulbIcon } from 'lucide-react';
+import { LightbulbIcon } from 'lucide-react';
 import { showTrivia } from './TriviaToast';
 
 interface TriviaButtonProps {
