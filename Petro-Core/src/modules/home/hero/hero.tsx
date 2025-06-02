@@ -16,13 +16,13 @@ const HeroSection = () => {
         </section>
 
         <div className="max-w-6xl mx-auto px-4 pb-16 grid md:grid-cols-2 gap-8">
-          <Link to="/field-works" className="">
-            <div className="flex flex-col">
-              <div className=" h-[300px] rounded-3xl overflow-hidden mb-6">
+          <Link to="/field-works" className="group">
+            <div className="flex flex-col h-full">
+              <div className="aspect-[16/9] rounded-3xl overflow-hidden mb-6 shadow-md hover:shadow-lg transition-shadow">
                 <img
                   src="/petro-static/image.png"
-                  alt="Layered rock formations showing geological patterns"
-                  className="object-cover"
+                  alt="Aerial view of field work location"
+                  className="w-full h-full object-cover object-center transform transition-transform duration-500 group-hover:scale-105"
                 />
               </div>
               <h2 className="text-3xl font-bold text-center mb-4">Field Works</h2>
@@ -32,13 +32,13 @@ const HeroSection = () => {
             </div>
           </Link>
 
-          <Link to="/rock-minerals" className="">
-            <div className="flex flex-col">
-              <div className=" h-[300px] rounded-3xl overflow-hidden mb-6">
+          <Link to="/rock-minerals" className="group">
+            <div className="flex flex-col h-full">
+              <div className="aspect-[16/9] rounded-3xl overflow-hidden mb-6 shadow-md hover:shadow-lg transition-shadow">
                 <img
                   src="/petro-static/image2.png"
-                  alt="Layered rock formations showing geological patterns"
-                  className="object-cover"
+                  alt="Close-up of purple amethyst crystal formation"
+                  className="w-full h-full object-cover object-center transform transition-transform duration-500 group-hover:scale-105"
                 />
               </div>
               <h2 className="text-3xl font-bold text-center mb-4">Rock and Minerals</h2>

@@ -1,4 +1,5 @@
-import { Card, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { Card, CardDescription, CardHeader, CardTitle, CardContent, CardFooter } from "../ui/card";
+import { BookOpenIcon } from "lucide-react";
 
 interface WorkCardProps {
   title: string;
@@ -12,13 +13,22 @@ export function WorkCard({ title, description }: WorkCardProps) {
     : description;
 
   return (
-    <Card className="hover:shadow-lg transition-shadow cursor-pointer h-[200px] flex flex-col">
-      <CardHeader className="flex-grow">
-        <CardTitle className="text-xl mb-2">{title}</CardTitle>
-        <CardDescription className="text-sm text-muted-foreground line-clamp-4">
+    <Card className="overflow-hidden h-full group border-muted shadow-sm hover:shadow-md transition-all duration-200 bg-card">
+      <div className="relative h-36 bg-primary/10 flex items-center justify-center overflow-hidden">
+        <BookOpenIcon className="h-16 w-16 text-primary/50" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+      </div>
+      
+      <CardContent className="p-4">
+        <CardTitle className="text-lg font-semibold line-clamp-1 mb-2">{title}</CardTitle>
+        <CardDescription className="text-sm text-muted-foreground line-clamp-3">
           {truncatedDescription}
         </CardDescription>
-      </CardHeader>
+      </CardContent>
+      
+      <CardFooter className="p-4 pt-0 text-xs text-muted-foreground">
+        Click to explore
+      </CardFooter>
     </Card>
   );
 }

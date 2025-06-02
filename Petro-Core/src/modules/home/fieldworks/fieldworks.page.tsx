@@ -46,7 +46,7 @@ export default function FieldWorks() {
   };
   
   return (
-    <div className="min-h-screen bg-background py-16 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background py-24 px-4 sm:px-6 lg:px-8">
       <TriviaToast 
         autoShow={true} 
         delay={4000} 
@@ -55,16 +55,22 @@ export default function FieldWorks() {
       />
       
       <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold tracking-tight mb-6">Field Works</h1>
-          <div className="flex justify-center mb-8">
-            <SearchBar onSearch={handleSearch} placeholder="Search field works..." />
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold tracking-tight text-primary mb-6">Field Works</h1>
+          <div className="flex justify-center mb-6">
+            <SearchBar 
+              onSearch={handleSearch} 
+              placeholder="Search field works..." 
+              className="max-w-md w-full"
+            />
           </div>
         </div>
         
         {location.pathname === "/field-works" && (
-          <div className="bg-white rounded-lg shadow p-6 border border-muted">
-            <FieldWorkGrid works={filteredWorks} />
+          <div className="space-y-6">
+            <div className="bg-card rounded-xl p-6 shadow-sm border border-muted">
+              <FieldWorkGrid works={filteredWorks} />
+            </div>
           </div>
         )}
         

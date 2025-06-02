@@ -22,7 +22,6 @@ const SiteNavbar = () => {
                 alt="Petro Core Logo" 
                 className="h-8 w-auto mr-2 rounded-full" 
               />
-              <span className="font-bold text-primary-foreground">PETRO CORE</span>
             </Link>
             <Link to="/home" className="text-sm font-medium text-primary-foreground hover:text-accent transition-colors">
               Home
