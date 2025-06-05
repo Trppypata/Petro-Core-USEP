@@ -107,6 +107,54 @@ export const fetchRocks = async (category?: string, page: number = 1, pageSize: 
     console.log('✅ Extracted rocks array:', rocks.length, 'items');
     console.log('✅ Pagination info:', pagination);
     
+    // Check for duplicate rock codes in the fetched data
+    const rockCodeMap = new Map();
+    
+    // Define a type for the duplicate entry
+    interface DuplicateEntry {
+      code: string;
+      rock1: {
+        id: string;
+        name: string;
+        category: string;
+      };
+      rock2: {
+        id: string;
+        name: string;
+        category: string;
+      };
+    }
+    
+    const potentialDuplicates: DuplicateEntry[] = [];
+    
+    rocks.forEach(rock => {
+      if (rock.rock_code) {
+        const cleanCode = rock.rock_code.replace(/\s+/g, '').toLowerCase();
+        if (rockCodeMap.has(cleanCode)) {
+          potentialDuplicates.push({
+            code: cleanCode,
+            rock1: {
+              id: rockCodeMap.get(cleanCode).id,
+              name: rockCodeMap.get(cleanCode).name,
+              category: rockCodeMap.get(cleanCode).category
+            },
+            rock2: {
+              id: rock.id,
+              name: rock.name,
+              category: rock.category
+            }
+          });
+        } else {
+          rockCodeMap.set(cleanCode, rock);
+        }
+      }
+    });
+    
+    if (potentialDuplicates.length > 0) {
+      console.warn('⚠️ Found potential duplicate rock codes in API response:', potentialDuplicates.length);
+      console.log('Duplicate details:', potentialDuplicates);
+    }
+    
     return { data: rocks, pagination };
   } catch (error) {
     console.error('❌ Error fetching rocks:', error);

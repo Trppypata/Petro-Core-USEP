@@ -4,6 +4,7 @@ import { useEffect } from "react";
 
 // Define the interface locally to avoid import issues
 interface FieldWork {
+  id: string;
   title: string;
   description: string;
   path?: string;
@@ -22,27 +23,23 @@ export function FieldWorkGrid({ works }: FieldWorkGridProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 py-4">
       {works && works.length > 0 ? (
-        works.map((work, index) => (
-          work.path ? (
+        works.map((work) => {
+          // Ensure we have a valid path - use the ID if path is missing
+          const workPath = work.path || `/field-works/${work.id}`;
+          
+          return (
             <Link 
-              key={index}
-              to={work.path}
+              key={work.id || work.title}
+              to={workPath}
               className="transition-transform hover:scale-105 h-full"
             >
               <WorkCard
                 title={work.title}
-                description={work.description}
+                description={work.description || 'No description available'}
               />
             </Link>
-          ) : (
-            <div key={index} className="h-full">
-              <WorkCard
-                title={work.title}
-                description={work.description}
-              />
-            </div>
-          )
-        ))
+          );
+        })
       ) : (
         <div className="col-span-3 text-center py-8">
           <p>No field works available</p>

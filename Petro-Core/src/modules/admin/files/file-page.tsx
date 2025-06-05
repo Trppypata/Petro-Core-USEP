@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import { uploadFile, deleteFile } from '@/services/storage.service';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/lib/supabase';
+import { Spinner } from '@/components/spinner';
+import { Progress } from '@/components/ui/progress';
 
 // Interface for PDF file entry
 interface PDFFile {
@@ -41,7 +43,7 @@ interface Fieldwork {
   path: string;
 }
 
-const FilePage = () => {
+const FieldWorkFilePage = () => {
   const [pdfs, setPdfs] = useState<PDFFile[]>([]);
   const [sections, setSections] = useState<FieldworkSection[]>([]);
   const [fieldworks, setFieldworks] = useState<Fieldwork[]>([]);
@@ -63,12 +65,24 @@ const FilePage = () => {
   // New section form states
   const [newSectionTitle, setNewSectionTitle] = useState("");
   const [newSectionFieldworkId, setNewSectionFieldworkId] = useState("");
+  
+  // Fieldwork management states
+  const [newFieldworkTitle, setNewFieldworkTitle] = useState("");
+  const [newFieldworkDescription, setNewFieldworkDescription] = useState("");
+  const [fieldworkToEdit, setFieldworkToEdit] = useState<Fieldwork | null>(null);
+  const [isSubmittingFieldwork, setIsSubmittingFieldwork] = useState(false);
 
   useEffect(() => {
     console.log('Component mounted, fetching data...');
     fetchFieldworks();
     fetchSections();
     fetchPDFs();
+    checkFieldworksBucket();
+  }, []);
+
+  // Set default active tab to fieldworks
+  useEffect(() => {
+    setActiveTab("fieldworks");
   }, []);
 
   const fetchFieldworks = async () => {
@@ -89,6 +103,184 @@ const FilePage = () => {
     } catch (error) {
       console.error('Error fetching fieldworks:', error);
       toast.error('Failed to load fieldworks.');
+    }
+  };
+  
+  const createFieldwork = async () => {
+    if (!newFieldworkTitle) {
+      toast.error('Please enter a field work title');
+      return;
+    }
+    
+    setIsSubmittingFieldwork(true);
+    
+    try {
+      // Create a URL-friendly path from the title
+      const path = newFieldworkTitle
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '');
+      
+      const { data, error } = await supabase
+        .from('fieldworks')
+        .insert({
+          title: newFieldworkTitle,
+          description: newFieldworkDescription,
+          path
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      toast.success('Field work created successfully!');
+      
+      // Add new fieldwork to state and reset form
+      setFieldworks([...fieldworks, data]);
+      setNewFieldworkTitle('');
+      setNewFieldworkDescription('');
+      
+      // Refresh fieldworks
+      fetchFieldworks();
+      
+    } catch (error) {
+      console.error('Error creating fieldwork:', error);
+      toast.error('Failed to create field work.');
+    } finally {
+      setIsSubmittingFieldwork(false);
+    }
+  };
+  
+  const updateFieldwork = async () => {
+    if (!fieldworkToEdit || !fieldworkToEdit.id) {
+      toast.error('No field work selected for editing');
+      return;
+    }
+    
+    if (!newFieldworkTitle) {
+      toast.error('Field work title cannot be empty');
+      return;
+    }
+    
+    setIsSubmittingFieldwork(true);
+    
+    try {
+      // Create a URL-friendly path from the title
+      const path = newFieldworkTitle
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '');
+      
+      const { data, error } = await supabase
+        .from('fieldworks')
+        .update({
+          title: newFieldworkTitle,
+          description: newFieldworkDescription,
+          path
+        })
+        .eq('id', fieldworkToEdit.id)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      toast.success('Field work updated successfully!');
+      
+      // Update fieldwork in state
+      setFieldworks(fieldworks.map(fw => 
+        fw.id === fieldworkToEdit.id ? data : fw
+      ));
+      
+      // Reset form and edit state
+      setNewFieldworkTitle('');
+      setNewFieldworkDescription('');
+      setFieldworkToEdit(null);
+      
+      // Refresh fieldworks
+      fetchFieldworks();
+      
+    } catch (error) {
+      console.error('Error updating fieldwork:', error);
+      toast.error('Failed to update field work.');
+    } finally {
+      setIsSubmittingFieldwork(false);
+    }
+  };
+  
+  const startEditFieldwork = (fieldwork: Fieldwork) => {
+    setFieldworkToEdit(fieldwork);
+    setNewFieldworkTitle(fieldwork.title);
+    setNewFieldworkDescription(fieldwork.description || '');
+  };
+  
+  const cancelEditFieldwork = () => {
+    setFieldworkToEdit(null);
+    setNewFieldworkTitle('');
+    setNewFieldworkDescription('');
+  };
+  
+  const deleteFieldwork = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this field work? This will also delete all associated sections and files.')) {
+      return;
+    }
+    
+    try {
+      // First, fetch all sections for this fieldwork
+      const { data: sections } = await supabase
+        .from('fieldwork_sections')
+        .select('id')
+        .eq('fieldwork_id', id);
+      
+      // Delete all files for these sections
+      if (sections && sections.length > 0) {
+        const sectionIds = sections.map((section: { id: string }) => section.id);
+        
+        // Get files to delete from storage
+        const { data: files } = await supabase
+          .from('fieldwork_files')
+          .select('file_url')
+          .in('section_id', sectionIds);
+        
+        // Delete files from the database
+        await supabase
+          .from('fieldwork_files')
+          .delete()
+          .in('section_id', sectionIds);
+        
+        // Delete files from storage
+        if (files && files.length > 0) {
+          for (const file of files) {
+            try {
+              await deleteFile(file.file_url);
+            } catch (err) {
+              console.error('Error deleting file from storage:', err);
+            }
+          }
+        }
+      }
+      
+      // Delete all sections for this fieldwork
+      await supabase
+        .from('fieldwork_sections')
+        .delete()
+        .eq('fieldwork_id', id);
+      
+      // Finally, delete the fieldwork
+      const { error } = await supabase
+        .from('fieldworks')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      toast.success('Field work and all associated content deleted successfully');
+      
+      // Update state
+      setFieldworks(fieldworks.filter(fw => fw.id !== id));
+      
+    } catch (error) {
+      console.error('Error deleting fieldwork:', error);
+      toast.error('Failed to delete field work.');
     }
   };
 
@@ -151,6 +343,10 @@ const FilePage = () => {
       
       setErrorMessage("");
       setSelectedFile(file);
+      // Set the file name as the title if title is empty
+      if (!title) {
+        setTitle(file.name.replace(/\.pdf$/i, ''));
+      }
     }
   };
 
@@ -223,10 +419,18 @@ const FilePage = () => {
 
     setIsUploading(true);
     setErrorMessage("");
+    setUploadProgress(10);
     
     try {
       // Upload file to Supabase Storage
-      const fileUrl = await uploadFile(selectedFile, 'fieldworks');
+      const fileUrl = await uploadFile(
+        selectedFile, 
+        'fieldworks',
+        (progress) => {
+          console.log(`Upload progress: ${progress}%`);
+          setUploadProgress(progress);
+        }
+      );
       
       if (!fileUrl) {
         throw new Error('File upload failed');
@@ -265,6 +469,7 @@ const FilePage = () => {
       toast.error('Failed to upload PDF.');
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -318,16 +523,160 @@ const FilePage = () => {
     groupedPDFs[pdf.fieldwork_id][pdf.section_id].push(pdf);
   });
 
+  // Check if fieldworks bucket exists and create it if it doesn't
+  const checkFieldworksBucket = async () => {
+    try {
+      console.log('Checking if fieldworks bucket exists...');
+      const { data: buckets, error } = await supabase.storage.listBuckets();
+      
+      if (error) {
+        console.error('Error checking buckets:', error);
+        return;
+      }
+      
+      const fieldworksBucket = buckets.find((bucket: { name: string }) => bucket.name === 'fieldworks');
+      
+      if (!fieldworksBucket) {
+        console.log('Fieldworks bucket does not exist, creating it...');
+        const { error: createError } = await supabase.storage.createBucket('fieldworks', {
+          public: true,
+          fileSizeLimit: 10485760 // 10MB
+        });
+        
+        if (createError) {
+          console.error('Error creating fieldworks bucket:', createError);
+          toast.error('Failed to create storage for PDF files. Please contact administrator.');
+        } else {
+          console.log('Fieldworks bucket created successfully');
+          toast.success('PDF storage initialized successfully');
+        }
+      } else {
+        console.log('Fieldworks bucket already exists');
+      }
+    } catch (err) {
+      console.error('Error checking/creating fieldworks bucket:', err);
+    }
+  };
+
   return (
     <div className="container mx-auto py-6">
       <h1 className="text-3xl font-bold mb-6">Fieldwork Files Management</h1>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-6">
-          <TabsTrigger value="upload">Upload PDF</TabsTrigger>
+          <TabsTrigger value="fieldworks">Manage Field Works</TabsTrigger>
           <TabsTrigger value="section">Manage Sections</TabsTrigger>
+          <TabsTrigger value="upload">Upload PDF</TabsTrigger>
           <TabsTrigger value="manage">Manage Files</TabsTrigger>
         </TabsList>
+        
+        <TabsContent value="fieldworks">
+          <Card>
+            <CardHeader>
+              <CardTitle>{fieldworkToEdit ? 'Edit Field Work' : 'Create New Field Work'}</CardTitle>
+              <CardDescription>
+                {fieldworkToEdit 
+                  ? 'Edit details for this field work course' 
+                  : 'Add a new field work to the system'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-6">
+                <div className="grid gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="fieldwork-title">Title <span className="text-destructive">*</span></Label>
+                    <Input
+                      id="fieldwork-title"
+                      value={newFieldworkTitle}
+                      onChange={(e) => setNewFieldworkTitle(e.target.value)}
+                      placeholder="e.g., Field Work in Central Mindanao"
+                    />
+                  </div>
+                  
+                  <div className="grid gap-2">
+                    <Label htmlFor="fieldwork-description">Description</Label>
+                    <Textarea
+                      id="fieldwork-description"
+                      value={newFieldworkDescription}
+                      onChange={(e) => setNewFieldworkDescription(e.target.value)}
+                      placeholder="Brief description of this field work"
+                      rows={3}
+                    />
+                  </div>
+                  
+                  <div className="flex justify-end space-x-2 mt-2">
+                    {fieldworkToEdit ? (
+                      <>
+                        <Button 
+                          variant="outline"
+                          onClick={cancelEditFieldwork}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={updateFieldwork}
+                          disabled={isSubmittingFieldwork || !newFieldworkTitle}
+                        >
+                          {isSubmittingFieldwork && <Spinner className="mr-2 h-4 w-4" />}
+                          Update Field Work
+                        </Button>
+                      </>
+                    ) : (
+                      <Button 
+                        onClick={createFieldwork}
+                        disabled={isSubmittingFieldwork || !newFieldworkTitle}
+                      >
+                        {isSubmittingFieldwork && <Spinner className="mr-2 h-4 w-4" />}
+                        Create Field Work
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              
+                <Separator />
+                
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Existing Field Works</h3>
+                  {fieldworks.length === 0 ? (
+                    <p className="text-muted-foreground">No field works created yet.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {fieldworks.map((fieldwork) => (
+                        <div 
+                          key={fieldwork.id}
+                          className="p-4 border rounded-md bg-card hover:bg-accent/10 transition-colors"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h4 className="font-medium">{fieldwork.title}</h4>
+                              <p className="text-sm text-muted-foreground mt-1">{fieldwork.description || 'No description'}</p>
+                            </div>
+                            <div className="flex space-x-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => startEditFieldwork(fieldwork)}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => fieldwork.id && deleteFieldwork(fieldwork.id)}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
         
         <TabsContent value="upload">
           <Card>
@@ -376,6 +725,15 @@ const FilePage = () => {
                     className="hidden"
                   />
                 </div>
+                
+                {uploadProgress > 0 && uploadProgress < 100 && (
+                  <div className="mt-2">
+                    <Progress value={uploadProgress} className="h-2" />
+                    <p className="text-xs text-center mt-1 text-muted-foreground">
+                      Uploading: {uploadProgress}%
+                    </p>
+                  </div>
+                )}
                 
                 <div className="grid gap-4">
                   <div className="grid gap-2">
@@ -659,4 +1017,4 @@ const FilePage = () => {
   );
 };
 
-export default FilePage;
+export default FieldWorkFilePage;

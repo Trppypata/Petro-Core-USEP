@@ -510,10 +510,10 @@ const RockForm = ({
                 const result = await response.json();
                 if (response.ok) {
                   console.log('✅ Image saved via direct API call:', result);
-                } else {
+          } else {
                   console.error('❌ Direct API call failed:', result);
                   // At this point we've tried everything, just log the error
-                }
+          }
               } catch (apiErr) {
                 console.error('❌ Error making direct API call:', apiErr);
               }

@@ -3,14 +3,20 @@ import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
 
 const STORAGE_BUCKET = 'rocks-minerals';
+const FIELDWORKS_BUCKET = 'fieldworks';
 
 /**
  * Uploads a file to Supabase storage
  * @param file The file to upload
- * @param folder The folder to upload to (e.g. 'rocks', 'minerals')
+ * @param folder The folder to upload to (e.g. 'rocks', 'minerals', 'fieldworks')
+ * @param onProgress Optional callback to track upload progress
  * @returns The URL of the uploaded file
  */
-export const uploadFile = async (file: File, folder: string): Promise<string> => {
+export const uploadFile = async (
+  file: File, 
+  folder: string, 
+  onProgress?: (progress: number) => void
+): Promise<string> => {
   try {
     // Check if Supabase is properly configured
     if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
@@ -25,11 +31,14 @@ export const uploadFile = async (file: File, folder: string): Promise<string> =>
         You can find these values in your Supabase dashboard under Project Settings > API.
       `);
       
-      toast.error('Supabase storage is not configured. Your data will be saved without the image.');
+      toast.error('Supabase storage is not configured. Your data will be saved without the file.');
       
       // Return empty string but don't block the rest of the form submission
       return '';
     }
+
+    // Report initial progress
+    onProgress?.(10);
 
     // Force authentication by setting the auth token manually if needed
     const token = localStorage.getItem('access_token');
@@ -52,6 +61,9 @@ export const uploadFile = async (file: File, folder: string): Promise<string> =>
       console.warn('No access token found in localStorage');
     }
 
+    // Report progress after auth check
+    onProgress?.(20);
+
     // Check auth session before uploading
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session) {
@@ -64,6 +76,9 @@ export const uploadFile = async (file: File, folder: string): Promise<string> =>
       console.log('User authenticated, proceeding with upload');
     }
 
+    // Report progress after session check
+    onProgress?.(30);
+
     // Generate a unique filename
     const fileExt = file.name.split('.').pop();
     const fileName = `${uuidv4()}.${fileExt}`;
@@ -71,10 +86,14 @@ export const uploadFile = async (file: File, folder: string): Promise<string> =>
 
     console.log(`🔄 Uploading file to ${filePath} (Size: ${(file.size / 1024).toFixed(2)} KB)`);
 
+    // Determine which bucket to use
+    const bucketName = folder === 'fieldworks' ? FIELDWORKS_BUCKET : STORAGE_BUCKET;
+    console.log(`Using storage bucket: ${bucketName}`);
+
     // Create folder if it doesn't exist (for some storage providers)
     try {
       const { data: folderData, error: folderError } = await supabase.storage
-        .from(STORAGE_BUCKET)
+        .from(bucketName)
         .list(folder);
         
       if (folderError && !folderError.message.includes("The resource was not found")) {
@@ -85,6 +104,9 @@ export const uploadFile = async (file: File, folder: string): Promise<string> =>
       // Continue anyway as some providers create folders automatically
     }
 
+    // Report progress before upload
+    onProgress?.(40);
+
     // Add auth headers explicitly for this request
     const headers: Record<string, string> = {};
     if (token) {
@@ -93,12 +115,15 @@ export const uploadFile = async (file: File, folder: string): Promise<string> =>
 
     // Upload the file
     const { data, error } = await supabase.storage
-      .from(STORAGE_BUCKET)
+      .from(bucketName)
       .upload(filePath, file, {
         cacheControl: '3600',
         upsert: true,
         ...(token ? { headers } : {})
       });
+
+    // Report progress after upload
+    onProgress?.(80);
 
     if (error) {
       if (error.statusCode === 400) {
@@ -108,7 +133,7 @@ export const uploadFile = async (file: File, folder: string): Promise<string> =>
         // Additional information about potential solutions
         console.error(`
           Solutions to try:
-          1. Make sure the '${STORAGE_BUCKET}' bucket exists in your Supabase project
+          1. Make sure the '${bucketName}' bucket exists in your Supabase project
           2. Check Row Level Security policies for the storage.objects table
           3. Make sure you're properly authenticated
           4. Try creating a policy allowing anonymous uploads if needed
@@ -122,14 +147,17 @@ export const uploadFile = async (file: File, folder: string): Promise<string> =>
 
     // Get the public URL
     const { data: publicURL } = supabase.storage
-      .from(STORAGE_BUCKET)
+      .from(bucketName)
       .getPublicUrl(data.path);
+
+    // Report completion
+    onProgress?.(100);
 
     console.log(`✅ File uploaded successfully: ${publicURL.publicUrl}`);
     return publicURL.publicUrl;
   } catch (error) {
     console.error('Error uploading file:', error);
-    toast.error('Failed to upload file. Your data will be saved without the image.');
+    toast.error('Failed to upload file. Your data will be saved without the file.');
     return '';
   }
 };
@@ -268,13 +296,19 @@ export const deleteFile = async (fileUrl: string): Promise<void> => {
       return;
     }
 
+    // Determine which bucket the file belongs to
+    let bucketName = STORAGE_BUCKET;
+    if (fileUrl.includes('fieldworks')) {
+      bucketName = FIELDWORKS_BUCKET;
+    }
+
     // Extract the path from the URL
-    const storageUrl = supabase.storage.from(STORAGE_BUCKET).getPublicUrl('').data.publicUrl;
+    const storageUrl = supabase.storage.from(bucketName).getPublicUrl('').data.publicUrl;
     const filePath = fileUrl.replace(storageUrl, '');
 
     // Delete the file
     const { error } = await supabase.storage
-      .from(STORAGE_BUCKET)
+      .from(bucketName)
       .remove([filePath]);
 
     if (error) {

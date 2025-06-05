@@ -1,45 +1,63 @@
 import { SearchBar } from "@/components/search/SearchBar";
 import { FieldWorkGrid } from "@/components/FieldWorkGrid";
-import { fieldWorksList } from "./types";
 import { Outlet, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { TriviaToast } from "@/components/trivia/TriviaToast";
+import { supabase } from "@/lib/supabase";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+
+interface FieldWork {
+  id: string;
+  title: string;
+  description: string;
+  path: string;
+}
 
 export default function FieldWorks() { 
   const location = useLocation();
-  
-  // Create a complete list including Research explicitly
-  const completeWorksList = [
-    ...fieldWorksList,
-    // Ensure Research is included by adding it explicitly if not already present
-    ...(fieldWorksList.some(work => work.title === "Research") 
-      ? [] 
-      : [{
-          title: "Research",
-          description: "Geological research studies and academic papers on various earth science topics and findings.",
-          path: "/field-works/research",
-        }]
-    )
-  ];
-  
-  const [filteredWorks, setFilteredWorks] = useState(completeWorksList);
+  const [fieldWorks, setFieldWorks] = useState<FieldWork[]>([]);
+  const [filteredWorks, setFilteredWorks] = useState<FieldWork[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Debug log to see if Research is included in the list
-    console.log("FieldWorks - fieldWorksList:", fieldWorksList);
-    console.log("FieldWorks - completeWorksList:", completeWorksList);
+    fetchFieldWorks();
   }, []);
+
+  const fetchFieldWorks = async () => {
+    setLoading(true);
+    
+    try {
+      const { data, error } = await supabase
+        .from('fieldworks')
+        .select('*')
+        .order('title');
+      
+      if (error) {
+        throw error;
+      }
+      
+      console.log("Fetched fieldworks:", data);
+      setFieldWorks(data || []);
+      setFilteredWorks(data || []);
+    } catch (err) {
+      console.error('Error fetching fieldworks:', err);
+      toast.error('Failed to load field works data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSearch = (searchTerm: string) => {
     if (!searchTerm.trim()) {
-      setFilteredWorks(completeWorksList);
+      setFilteredWorks(fieldWorks);
       return;
     }
     
     const lowercasedSearch = searchTerm.toLowerCase();
-    const filtered = completeWorksList.filter(work => 
+    const filtered = fieldWorks.filter(work => 
       work.title.toLowerCase().includes(lowercasedSearch) || 
-      work.description.toLowerCase().includes(lowercasedSearch)
+      (work.description && work.description.toLowerCase().includes(lowercasedSearch))
     );
     
     setFilteredWorks(filtered);
@@ -69,7 +87,18 @@ export default function FieldWorks() {
         {location.pathname === "/field-works" && (
           <div className="space-y-6">
             <div className="bg-card rounded-xl p-6 shadow-sm border border-muted">
-              <FieldWorkGrid works={filteredWorks} />
+              {loading ? (
+                <div className="flex justify-center items-center h-40">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : filteredWorks.length > 0 ? (
+                <FieldWorkGrid works={filteredWorks} />
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-lg font-semibold">No field works found</p>
+                  <p className="text-muted-foreground">Try adjusting your search or check back later.</p>
+                </div>
+              )}
             </div>
           </div>
         )}

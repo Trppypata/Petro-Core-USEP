@@ -2,6 +2,8 @@ import * as React from 'react';
 import {
   
   Rocket,
+  Map,
+  Lightbulb,
   GalleryVerticalEnd,
   LayoutDashboardIcon,
   PersonStanding,
@@ -69,6 +71,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         title: 'Geology',
         url: 'geology',
         icon: Rocket,
+      },
+
+      {
+        title: 'Field Work Files',
+        url: 'field-work-files',
+        icon: Map,
+      },
+      {
+        title: 'Trivia',
+        url: 'trivia',
+        icon: Lightbulb,
       },
       {
         title: 'System Lockdown',

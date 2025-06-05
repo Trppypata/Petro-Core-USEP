@@ -1,0 +1,1 @@
+export { default as TriviaPage } from './trivia-page'; 

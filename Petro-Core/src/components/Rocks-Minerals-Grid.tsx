@@ -1,19 +1,37 @@
-import { Link } from "react-router-dom";
-import RockMineralsCard from "./custom/customcard";
 import type { RocksMineralsItem } from "@/modules/home/rocks-minerals/types";
 import { Loader2 } from "lucide-react";
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import RockMineralsCard from './custom/customcard';
 
 interface RocksMineralsGridProps {
   items: RocksMineralsItem[];
   isLoading?: boolean;
+  onCardClick?: (item: RocksMineralsItem) => void;
 }
 
-const RocksMineralsGrid = ({ items, isLoading = false }: RocksMineralsGridProps) => {
+const RocksMineralsGrid = ({ items, isLoading = false, onCardClick }: RocksMineralsGridProps) => {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    // Prevent SSR hydration issues
+    return <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>;
+  }
+
+  const handleCardClick = (item: RocksMineralsItem) => {
+    if (onCardClick) {
+      onCardClick(item);
+    }
+  };
+
   if (isLoading) {
     return (
-      <div className="flex flex-col justify-center items-center py-12 space-y-4">
-        <Loader2 className="h-10 w-10 text-blue-500 animate-spin" />
-        <p className="text-sm text-muted-foreground">Loading items...</p>
+      <div className="flex justify-center items-center h-40">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -32,40 +50,35 @@ const RocksMineralsGrid = ({ items, isLoading = false }: RocksMineralsGridProps)
       <p className="text-sm text-muted-foreground mb-4">
         Found {items.length} item{items.length !== 1 ? 's' : ''}
       </p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {items.map((item) => (
-          item.path ? (
-            <Link
-              key={item.id}
-              to={item.path}
-              className="h-full block transition-transform hover:scale-[1.02] focus:scale-[1.02] focus:outline-none"
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {items.map((item, index) => {
+          // Ensure each link has a valid path
+          const linkTo = item.path || 
+                        (item.type === 'mineral' 
+                          ? `/rock-minerals/mineral/${item.id || index}` 
+                          : `/rock-minerals/rock/${item.id || index}`);
+
+          return (
+            <div 
+              key={item.id || index}
+              onClick={() => handleCardClick(item)}
+              className="cursor-pointer transition-transform duration-200 hover:scale-[1.02]"
             >
-              <RockMineralsCard
-                imageUrl={item.imageUrl}
-                title={item.title}
-                description={item.description}
-                category={item.category}
-                type={item.type}
-                texture={item.texture}
-                foliation={item.foliation}
-                rockType={item.rockType}
-              />
-            </Link>
-          ) : (
-            <div key={item.id} className="h-full">
-              <RockMineralsCard
-                imageUrl={item.imageUrl}
-                title={item.title}
-                description={item.description}
-                category={item.category}
-                type={item.type}
-                texture={item.texture}
-                foliation={item.foliation}
-                rockType={item.rockType}
-              />
+              <Link to={linkTo}>
+                <RockMineralsCard
+                  title={item.title}
+                  description={item.description}
+                  imageUrl={item.imageUrl}
+                  category={item.category}
+                  type={item.type || 'rock'}
+                  texture={item.texture}
+                  foliation={item.foliation}
+                  rockType={item.rockType}
+                />
+              </Link>
             </div>
-          )
-        ))}
+          );
+        })}
       </div>
     </>
   );

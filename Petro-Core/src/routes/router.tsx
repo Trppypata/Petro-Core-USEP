@@ -20,6 +20,8 @@ import FieldDetailView from "@/modules/home/fieldworks/field-detail-view";
 import LockdownPage from "@/modules/admin/lockdown/lockdown-page";
 import { LockdownGuard } from "@/components/lockdown-guard";
 import { SupabaseTester } from "@/supabase-tester";
+import FieldWorkFilePage from "@/modules/admin/files/file-page";
+import { TriviaPage } from "@/modules/admin/trivia";
 
 // Higher order component to wrap routes with role guards
 const withRoleGuard = (Component: React.ComponentType, guard: React.FC<{children: ReactNode}>) => {
@@ -107,7 +109,7 @@ const router = createBrowserRouter([
             index: true,
             Component: DashboardPage,
           },
-          // Admin specific routes
+      
           {
             path: 'users',
             Component: UserPage,
@@ -129,6 +131,14 @@ const router = createBrowserRouter([
           {
             path: 'lockdown',
             Component: LockdownPage,
+          },
+          {
+            path: 'trivia',
+            Component: TriviaPage,
+          },
+          {
+            path: 'field-work-files',
+            Component: FieldWorkFilePage,
           },
         ]
       }
