@@ -24,6 +24,7 @@ export function RockImagesUploaderDirect({ rockId, onSuccess }: RockImagesUpload
   const [showBucketHelp, setShowBucketHelp] = useState(false);
   const [debug, setDebug] = useState<string[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   useEffect(() => {
     // Check authentication status on component mount
@@ -160,109 +161,69 @@ export function RockImagesUploaderDirect({ rockId, onSuccess }: RockImagesUpload
   };
 
   const handleUpload = async () => {
-    if (!rockId) {
-      setError('Rock ID is required');
-      toast.error('Rock ID is required');
+    if (!files.length) {
+      addDebugMessage('No files selected');
       return;
     }
     
-    if (files.length === 0) {
-      setError('No files selected');
-      toast.error('Please select at least one file');
+    if (!rockId) {
+      addDebugMessage('No rock ID provided');
       return;
     }
     
     setIsUploading(true);
-    setError(null);
-    setDebug([]);
-    
-    // Check authentication first
-    await checkAndSetAuthentication();
+    setUploadProgress(10);
+    toast.loading(`Uploading ${files.length} images...`);
     
     try {
-      addDebugMessage(`Starting upload of ${files.length} images for rock ${rockId}`);
+      addDebugMessage(`Starting upload for rock ID: ${rockId}`);
+      addDebugMessage(`Bucket target: rocks-minerals/rocks`);
       
-      // Check Supabase configuration
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      
-      if (!supabaseUrl || !supabaseKey) {
-        addDebugMessage('Missing Supabase credentials in .env file');
-        throw new Error('Supabase is not configured properly. Please check your .env file.');
-      }
-      
-      addDebugMessage(`Supabase URL: ${supabaseUrl.substring(0, 15)}...`);
-      addDebugMessage('Supabase key is defined: ' + (supabaseKey ? 'Yes' : 'No'));
-      
-      // First check if bucket exists
-      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-      
-      if (bucketsError) {
-        addDebugMessage(`Error listing buckets: ${bucketsError.message}`);
-        addDebugMessage(`Error details: ${JSON.stringify(bucketsError)}`);
-        throw new Error(`Could not list storage buckets: ${bucketsError.message}`);
-      }
-      
-      const bucketExists = buckets?.some((bucket: { name: string }) => bucket.name === STORAGE_BUCKET);
-      addDebugMessage(`Bucket "${STORAGE_BUCKET}" exists: ${bucketExists ? 'Yes' : 'No'}`);
-      
-      if (!bucketExists) {
-        setShowBucketHelp(true);
-        throw new Error(`Bucket "${STORAGE_BUCKET}" does not exist. Please create it in your Supabase dashboard.`);
-      }
-      
-      // Check if user is authenticated
+      // Check authentication status
       const { data: sessionData } = await supabase.auth.getSession();
-      const isAuthenticated = !!sessionData?.session;
-      addDebugMessage(`User is authenticated: ${isAuthenticated ? 'Yes' : 'No'}`);
-      
-      if (!isAuthenticated) {
-        addDebugMessage('WARNING: User is not authenticated, upload may fail due to RLS policies');
+      if (!sessionData.session) {
+        addDebugMessage('No active session found, attempting to authenticate');
         
-        // Try to authenticate using the token from localStorage
-        const token = localStorage.getItem('access_token');
+        // Try to get token from storage
+        const token = localStorage.getItem('access_token') || 
+                      localStorage.getItem('token') || 
+                      localStorage.getItem('auth_token') ||
+                      sessionStorage.getItem('supabase.auth.token');
+                      
         if (token) {
-          addDebugMessage('Attempting to set session with token from localStorage');
+          addDebugMessage(`Found token, attempting to set session manually`);
           try {
-            const { error: sessionError } = await supabase.auth.setSession({
+            const { error } = await supabase.auth.setSession({
               access_token: token,
-              refresh_token: '',
+              refresh_token: token,
             });
             
-            if (sessionError) {
-              addDebugMessage(`Session error: ${sessionError.message}`);
+            if (error) {
+              addDebugMessage(`Error setting session: ${error.message}`);
             } else {
-              addDebugMessage('Session successfully set');
-              // Check again
-              const { data: newSessionData } = await supabase.auth.getSession();
-              addDebugMessage(`Re-check auth status: ${!!newSessionData?.session ? 'Authenticated' : 'Still not authenticated'}`);
+              addDebugMessage('Successfully set session manually');
             }
-          } catch (sessionErr) {
-            addDebugMessage(`Error setting session: ${sessionErr}`);
+          } catch (sessionError) {
+            addDebugMessage(`Exception setting session: ${sessionError}`);
           }
-        }
-      }
-      
-      toast.loading(`Uploading ${files.length} images...`);
-      
-      // Try to list the bucket contents to test permissions
-      try {
-        const { data: folderData, error: folderError } = await supabase.storage
-          .from(STORAGE_BUCKET)
-          .list('rocks');
-          
-        if (folderError) {
-          addDebugMessage(`Folder list error: ${folderError.message}`);
         } else {
-          addDebugMessage(`Successfully listed folder contents. Found ${folderData.length} items.`);
+          addDebugMessage('No authentication token found in storage');
         }
-      } catch (folderErr) {
-        addDebugMessage(`Error listing folder: ${folderErr}`);
+      } else {
+        addDebugMessage('Found active session');
       }
+      
+      setUploadProgress(20);
       
       // Upload each file
       const uploadPromises = files.map(file => uploadImage(file));
+      
+      setUploadProgress(30);
+      
+      // Wait for all uploads to complete
       const urls = await Promise.all(uploadPromises);
+      
+      setUploadProgress(80);
       
       // Filter out failed uploads
       const successfulUrls = urls.filter(url => url !== '');
@@ -288,6 +249,7 @@ export function RockImagesUploaderDirect({ rockId, onSuccess }: RockImagesUpload
           }));
           
           addDebugMessage(`Creating ${imageData.length} database records`);
+          setUploadProgress(90);
           
           const { data, error } = await supabase
             .from('rock_images')
@@ -305,20 +267,18 @@ export function RockImagesUploaderDirect({ rockId, onSuccess }: RockImagesUpload
             setFiles([]);
             setShowBucketHelp(false);
           }
-        } catch (dbErr) {
-          const message = dbErr instanceof Error ? dbErr.message : String(dbErr);
-          addDebugMessage(`Database error: ${message}`);
-          toast.error('Images uploaded to storage but failed to update database');
+        } catch (dbError: any) {
+          addDebugMessage(`Database error: ${dbError.message || JSON.stringify(dbError)}`);
+          toast.error('Failed to update database records');
         }
       }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      addDebugMessage(`Upload error: ${errorMessage}`);
+    } catch (error: any) {
       toast.dismiss();
-      toast.error('Failed to upload images');
-      setError(errorMessage);
+      toast.error(`Upload failed: ${error.message || 'Unknown error'}`);
+      addDebugMessage(`Upload error: ${error.message || JSON.stringify(error)}`);
     } finally {
       setIsUploading(false);
+      setUploadProgress(100);
     }
   };
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './card';
 import { Label } from './label';
@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { Spinner } from '../spinner';
 import { supabase } from '@/lib/supabase';
 import { Alert, AlertDescription, AlertTitle } from './alert';
-import { InfoIcon } from 'lucide-react';
+import { InfoIcon, RefreshCcw } from 'lucide-react';
 
 // Define the interface directly in this file
 interface IRockImage {
@@ -28,301 +28,270 @@ interface RockImageUploaderProps {
 
 export const RockImageUploader = ({ rockId, onSuccess }: RockImageUploaderProps) => {
   const [files, setFiles] = useState<File[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
-  const [dbResult, setDbResult] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [isTableChecked, setIsTableChecked] = useState(false);
+  const [debug, setDebug] = useState<string[]>([]);
+  const [showDebug, setShowDebug] = useState(false);
 
-  // Create table if it doesn't exist
+  // Check for auth status on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        setError('Not authenticated. You might not be able to upload images.');
+      }
+    };
+    
+    checkAuth();
+    checkTable();
+  }, []);
+  
+  const addDebugMessage = (message: string) => {
+    setDebug(prev => [...prev, `[${new Date().toISOString()}] ${message}`]);
+  };
+  
+  // Create the rock_images table if it doesn't exist
   const createTableIfNeeded = async () => {
-    setStatusMessage('Checking if rock_images table exists...');
     try {
-      console.log('📊 Attempting to check if rock_images table exists...');
+      addDebugMessage('Checking for rock_images table...');
       
-      // First check if table exists
-      const { count, error: checkError } = await supabase
-        .from('rock_images')
-        .select('*', { count: 'exact', head: true });
+      // First check if we have an active session
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        // Try to authenticate with token from localStorage
+        const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+        if (token) {
+          addDebugMessage('Setting session with token from localStorage');
+          try {
+            await supabase.auth.setSession({
+              access_token: token,
+              refresh_token: token, // Using the same token as refresh token
+            });
+          } catch (err) {
+            addDebugMessage(`Session set error: ${err}`);
+          }
+        } else {
+          addDebugMessage('No auth token found for authentication');
+        }
+      }
       
-      if (!checkError) {
-        console.log('📊 rock_images table already exists!');
-        setStatusMessage('rock_images table already exists!');
+      // Try to create the table using RPC function if available
+      const { error: rpcError } = await supabase.rpc('create_rock_images_table');
+      
+      if (rpcError && !rpcError.message.includes('does not exist')) {
+        addDebugMessage(`RPC error: ${rpcError.message}`);
+        
+        // Fall back to direct table creation
+        const { error } = await supabase.from('rock_images').select('count()', { count: 'exact', head: true });
+        
+        if (error && error.code === '42P01') { // Table doesn't exist
+          addDebugMessage('Table does not exist, creating...');
+          
+          // Try to create the table directly
+          const createTableSQL = `
+            CREATE TABLE IF NOT EXISTS rock_images (
+              id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+              rock_id UUID NOT NULL,
+              image_url TEXT NOT NULL,
+              caption TEXT,
+              display_order INTEGER DEFAULT 0,
+              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+              updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS rock_images_rock_id_idx ON rock_images(rock_id);
+          `;
+          
+          // This will likely fail unless the user has appropriate permissions
+          const { error: createError } = await supabase.rpc('exec_sql', { sql_query: createTableSQL });
+          
+          if (createError) {
+            addDebugMessage(`Create table error: ${createError.message}`);
+            return false;
+          } else {
+            addDebugMessage('Table created successfully');
+            return true;
+          }
+        } else if (error) {
+          addDebugMessage(`Check table error: ${error.message}`);
+          return false;
+        } else {
+          addDebugMessage('Table already exists');
+          return true;
+        }
+      } else {
+        addDebugMessage('Table check/creation successful via RPC');
         return true;
       }
-      
-      console.log('📊 Table check error:', checkError);
-      console.log('📊 Table does not exist. Attempting to create rock_images table...');
-      setStatusMessage('Table does not exist. Creating rock_images table...');
-      
-      // First make sure UUID extension is installed
-      try {
-        console.log('📊 Ensuring UUID extension is installed...');
-        const { error: extensionError } = await supabase.rpc('exec_sql', { 
-          sql: `CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`
-        });
-        
-        if (extensionError) {
-          console.error('📊 Error creating UUID extension:', extensionError);
-          // Continue anyway, as it might already be installed
-        } else {
-          console.log('📊 UUID extension installed or already exists');
-        }
-      } catch (extErr) {
-        console.error('📊 Exception during UUID extension installation:', extErr);
-        // Continue anyway
-      }
-      
-      // Create the table using SQL
-      console.log('📊 Creating rock_images table...');
-      const { error: createError } = await supabase.rpc('exec_sql', { 
-        sql: `
-          CREATE TABLE IF NOT EXISTS rock_images (
-            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-            rock_id UUID NOT NULL,
-            image_url TEXT NOT NULL,
-            caption TEXT,
-            display_order INTEGER DEFAULT 0,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-          );
-          
-          CREATE INDEX IF NOT EXISTS rock_images_rock_id_idx ON rock_images(rock_id);
-        `
-      });
-      
-      if (createError) {
-        console.error('📊 Error creating rock_images table:', createError);
-        setStatusMessage(`Error creating table: ${createError.message}`);
-        return false;
-      }
-      
-      console.log('📊 rock_images table created successfully!');
-      setStatusMessage('rock_images table created successfully!');
-      return true;
-    } catch (err: any) {
-      console.error('📊 Exception during table creation:', err);
-      setStatusMessage(`Error checking/creating table: ${err.message}`);
+    } catch (err) {
+      addDebugMessage(`Table creation error: ${err}`);
       return false;
     }
   };
-
-  // Check if table exists
+  
   const checkTable = async () => {
-    setStatusMessage('Checking if rock_images table exists...');
     try {
-      const { data, error } = await supabase
-        .from('rock_images')
-        .select('count(*)')
-        .limit(1);
-      
-      if (error) {
-        setStatusMessage(`Error checking table: ${error.message}`);
-        return false;
+      const tableExists = await createTableIfNeeded();
+      setIsTableChecked(true);
+      if (!tableExists) {
+        setError('Could not create or verify the rock_images table. Some features may not work.');
       }
-      
-      setStatusMessage('rock_images table exists!');
-      return true;
-    } catch (err: any) {
-      setStatusMessage(`Error checking table: ${err.message}`);
-      return false;
+    } catch (err) {
+      setError(`Error checking for rock_images table: ${err}`);
+      setIsTableChecked(true);
     }
   };
-
+  
   const handleFilesChange = (newFiles: File[]) => {
     setFiles(newFiles);
-    setStatusMessage(`Selected ${newFiles.length} files`);
+    setError(null);
   };
-
+  
   const handleUpload = async () => {
     if (!rockId) {
-      const errorMsg = 'Rock ID is required';
-      console.error(`❌ ${errorMsg}`);
-      setError(errorMsg);
-      toast.error(errorMsg);
+      setError('No rock ID provided');
       return;
     }
-
-    console.log(`🔍 Starting upload process for rock ID: ${rockId}`);
-    console.log(`🔍 Number of files selected: ${files.length}`);
     
-    if (files.length === 0) {
-      const errorMsg = 'No files selected';
-      console.error(`❌ ${errorMsg}`);
-      setError(errorMsg);
-      toast.error('Please select at least one file');
+    if (!files.length) {
+      setError('Please select at least one file to upload');
       return;
     }
-
-    setIsUploading(true);
+    
+    setLoading(true);
     setError(null);
-    setUploadedUrls([]);
-    setDbResult(null);
-
+    
     try {
-      // First check if table exists
-      console.log('🔍 Checking if rock_images table exists...');
-      const tableExists = await checkTable();
-      console.log(`🔍 Table exists check result: ${tableExists}`);
+      addDebugMessage(`Starting upload for rock ID: ${rockId}`);
+      addDebugMessage(`Files to upload: ${files.length}`);
       
-      if (!tableExists) {
-        // Try to create the table
-        console.log('🔍 Attempting to create rock_images table...');
-        const tableCreated = await createTableIfNeeded();
-        console.log(`🔍 Table creation result: ${tableCreated}`);
+      // Check authentication and try to set session if not authenticated
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        addDebugMessage('No active session, attempting to authenticate');
         
-        if (!tableCreated) {
-          const errorMsg = 'Failed to create rock_images table in the database';
-          console.error(`❌ ${errorMsg}`);
-          toast.error(errorMsg);
-          setIsUploading(false);
-          return;
-        }
-      }
-
-      // 1. Upload files to storage
-      setStatusMessage('Uploading files to storage...');
-      console.log(`🔍 Starting upload of ${files.length} files to storage...`);
-      
-      const urls = await Promise.all(
-        files.map(async (file, index) => {
+        // Try to get token from storage
+        const token = localStorage.getItem('access_token') || 
+                     localStorage.getItem('token') || 
+                     localStorage.getItem('auth_token');
+                     
+        if (token) {
+          addDebugMessage(`Found token, attempting to set session manually`);
           try {
-            console.log(`🔍 Uploading file ${index + 1}/${files.length}: ${file.name} (${file.size} bytes)`);
-            const url = await uploadFile(file, 'rocks');
-            console.log(`✅ File ${index + 1} uploaded successfully. URL: ${url}`);
-            return url;
-          } catch (err) {
-            console.error(`❌ Error uploading file ${file.name}:`, err);
-            return '';
+            const { error } = await supabase.auth.setSession({
+              access_token: token,
+              refresh_token: token,
+            });
+            
+            if (error) {
+              addDebugMessage(`Error setting session: ${error.message}`);
+            } else {
+              addDebugMessage('Successfully set session manually');
+            }
+          } catch (sessionError) {
+            addDebugMessage(`Exception setting session: ${sessionError}`);
           }
-        })
-      );
-
-      // Filter out any failed uploads
-      const successfulUrls = urls.filter(url => url !== '');
-      setUploadedUrls(successfulUrls);
-      const statusMsg = `Uploaded ${successfulUrls.length} of ${files.length} files to storage`;
-      console.log(`🔍 ${statusMsg}`);
-      setStatusMessage(statusMsg);
-
-      if (successfulUrls.length === 0) {
-        const errorMsg = 'Failed to upload any files to storage';
-        console.error(`❌ ${errorMsg}`);
-        setError(errorMsg);
-        toast.error(errorMsg);
-        setIsUploading(false);
-        return;
-      }
-
-      // 2. Save image records to database
-      setStatusMessage('Saving image records to database...');
-      console.log(`🔍 Creating ${successfulUrls.length} database records for rock ID: ${rockId}`);
-      
-      const imageData = successfulUrls.map((url, index) => ({
-        rock_id: rockId,
-        image_url: url,
-        caption: `Rock image ${index + 1}`,
-        display_order: index
-      }));
-      
-      console.log('🔍 Database records to insert:', imageData);
-
-      const { data, error } = await supabase
-        .from('rock_images')
-        .insert(imageData)
-        .select();
-
-      if (error) {
-        console.error('❌ Database insert error:', error);
-        console.error('❌ Error code:', error.code);
-        console.error('❌ Error message:', error.message);
-        console.error('❌ Error details:', error.details);
-        
-        setError(`Database error: ${error.message}`);
-        setStatusMessage(`Failed to save images to database: ${error.message}`);
-        toast.error('Failed to save images to database');
+        } else {
+          addDebugMessage('No authentication token found in storage');
+        }
       } else {
-        console.log('✅ Database records created successfully:', data);
-        setDbResult(data);
-        setStatusMessage(`Successfully saved ${data.length} images to database`);
-        toast.success(`Successfully uploaded ${data.length} images`);
-        if (onSuccess) onSuccess(data);
+        addDebugMessage('Found active session');
       }
-    } catch (err: any) {
-      console.error('❌ Unhandled error during upload process:', err);
-      if (err.message) console.error('❌ Error message:', err.message);
-      if (err.stack) console.error('❌ Stack trace:', err.stack);
       
-      setError(`Upload error: ${err.message}`);
-      setStatusMessage(`Upload failed: ${err.message}`);
+      // Import rock-images service and upload using its functions
+      const { uploadRockImages } = await import('@/services/rock-images.service');
+      
+      // Show loading toast
+      toast.loading(`Uploading ${files.length} images...`);
+      
+      // Upload the files to the 'rocks-minerals' bucket
+      addDebugMessage('Calling uploadRockImages function with files to "rocks-minerals" bucket...');
+      const result = await uploadRockImages(rockId, files);
+      
+      if (result && result.length > 0) {
+        addDebugMessage(`Upload successful: ${result.length} images uploaded`);
+        toast.dismiss();
+        toast.success(`Successfully uploaded ${result.length} images`);
+        
+        // Call success callback if provided
+        if (onSuccess) {
+          onSuccess(result);
+        }
+        
+        // Clear files array
+        setFiles([]);
+      } else {
+        addDebugMessage('Upload function returned no results');
+        throw new Error('No images were uploaded. Please try again.');
+      }
+    } catch (error: any) {
+      console.error('Error uploading images:', error);
+      setError(error.message || 'Failed to upload images');
+      addDebugMessage(`Upload error: ${error.message || JSON.stringify(error)}`);
+      toast.dismiss();
       toast.error('Failed to upload images');
     } finally {
-      setIsUploading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <Card className="w-full">
+    <Card>
       <CardHeader>
-        <CardTitle>Rock Image Uploader</CardTitle>
-        <CardDescription>
-          Upload additional images for rock ID: {rockId || 'No ID provided'}
-        </CardDescription>
+        <CardTitle>Upload Images</CardTitle>
+        <CardDescription>Upload images for this rock specimen</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="files">Select Images</Label>
-          <MultiFileUpload onFilesChange={handleFilesChange} maxSizeMB={50} />
-        </div>
-
-        {statusMessage && (
-          <Alert>
-            <InfoIcon className="h-4 w-4" />
-            <AlertTitle>Status</AlertTitle>
-            <AlertDescription>{statusMessage}</AlertDescription>
-          </Alert>
-        )}
-
+      <CardContent>
         {error && (
-          <Alert variant="destructive">
+          <Alert variant="destructive" className="mb-4">
             <InfoIcon className="h-4 w-4" />
             <AlertTitle>Error</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-
-        {uploadedUrls.length > 0 && (
+        
+        <div className="space-y-4">
           <div className="space-y-2">
-            <h3 className="text-sm font-medium">Uploaded Files:</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {uploadedUrls.map((url, index) => (
-                <div key={index} className="border rounded p-2">
-                  <img 
-                    src={url} 
-                    alt={`Uploaded ${index}`} 
-                    className="h-24 w-full object-cover"
-                  />
-                  <p className="text-xs truncate mt-1">{url}</p>
-                </div>
+            <Label htmlFor="images">Images</Label>
+            <MultiFileUpload
+              onFilesChange={handleFilesChange}
+              accept="image/*"
+              multiple={true}
+            />
+          </div>
+          
+          {showDebug && debug.length > 0 && (
+            <div className="mt-4 p-3 bg-muted rounded-md text-xs font-mono h-40 overflow-auto">
+              {debug.map((msg, i) => (
+                <div key={i} className="mb-1">{msg}</div>
               ))}
             </div>
-          </div>
-        )}
-
-        {dbResult && (
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium">Database Result:</h3>
-            <pre className="text-xs bg-slate-100 p-2 rounded overflow-auto max-h-40">
-              {JSON.stringify(dbResult, null, 2)}
-            </pre>
-          </div>
-        )}
+          )}
+        </div>
       </CardContent>
-      <CardFooter>
-        <Button onClick={handleUpload} disabled={isUploading || files.length === 0}>
-          {isUploading && <Spinner className="mr-2 h-4 w-4" />}
-          Upload {files.length} Image{files.length !== 1 ? 's' : ''}
+      <CardFooter className="flex justify-between">
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => setShowDebug(!showDebug)}
+        >
+          {showDebug ? 'Hide Debug' : 'Show Debug'}
         </Button>
+        
+        <div className="flex gap-2">
+          {!isTableChecked && (
+            <Button variant="outline" onClick={checkTable}>
+              <RefreshCcw className="mr-2 h-4 w-4" />
+              Check Table
+            </Button>
+          )}
+          <Button 
+            onClick={handleUpload} 
+            disabled={loading || files.length === 0}
+          >
+            {loading ? <><Spinner size="sm" className="mr-2" /> Uploading...</> : 'Upload Images'}
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   );

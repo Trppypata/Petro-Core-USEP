@@ -32,6 +32,9 @@ const SiteNavbar = () => {
             <Link to="/rock-minerals" className="text-sm font-medium text-primary-foreground hover:text-accent transition-colors">
               Rock and Minerals
             </Link>
+            <Link to="/about-us" className="text-sm font-medium text-primary-foreground hover:text-accent transition-colors">
+              About Us
+            </Link>
           </div>
           <div className="flex items-center gap-2">
             {/* Lockdown indicator for admins */}

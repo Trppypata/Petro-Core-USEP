@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
 
@@ -18,149 +18,133 @@ export const uploadFile = async (
   onProgress?: (progress: number) => void
 ): Promise<string> => {
   try {
-    // Check if Supabase is properly configured
-    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-      // More helpful error message with instructions
-      console.error(`
-        Missing Supabase environment variables. Please configure your .env file.
-        
-        Create a .env file in the Petro-Core directory with the following:
-        VITE_SUPABASE_URL=your_supabase_url
-        VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-        
-        You can find these values in your Supabase dashboard under Project Settings > API.
-      `);
-      
-      toast.error('Supabase storage is not configured. Your data will be saved without the file.');
-      
-      // Return empty string but don't block the rest of the form submission
-      return '';
-    }
-
-    // Report initial progress
-    onProgress?.(10);
-
-    // Force authentication by setting the auth token manually if needed
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      console.log('Setting auth token manually:', token.substring(0, 10) + '...');
-      try {
-        // Set the auth token for this session
-        const { error: authError } = await supabase.auth.setSession({
-          access_token: token,
-          refresh_token: '',
-        });
-        
-        if (authError) {
-          console.error('Error setting session:', authError);
-        }
-      } catch (authErr) {
-        console.error('Failed to set session:', authErr);
-      }
-    } else {
-      console.warn('No access token found in localStorage');
-    }
-
-    // Report progress after auth check
-    onProgress?.(20);
-
-    // Check auth session before uploading
+    console.log(`🚀 Uploading file "${file.name}" to ${STORAGE_BUCKET}/${folder}`);
+    
+    // Check for auth session
     const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData.session) {
-      console.error('No active session found. User might not be authenticated.');
-      
-      // Try to create an anonymous session for testing
-      console.log('Attempting anonymous upload...');
-      // We'll continue anyway and let RLS policies determine if it works
-    } else {
-      console.log('User authenticated, proceeding with upload');
-    }
-
-    // Report progress after session check
-    onProgress?.(30);
-
-    // Generate a unique filename
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${uuidv4()}.${fileExt}`;
-    const filePath = `${folder}/${fileName}`;
-
-    console.log(`🔄 Uploading file to ${filePath} (Size: ${(file.size / 1024).toFixed(2)} KB)`);
-
-    // Determine which bucket to use
-    const bucketName = folder === 'fieldworks' ? FIELDWORKS_BUCKET : STORAGE_BUCKET;
-    console.log(`Using storage bucket: ${bucketName}`);
-
-    // Create folder if it doesn't exist (for some storage providers)
-    try {
-      const { data: folderData, error: folderError } = await supabase.storage
-        .from(bucketName)
-        .list(folder);
-        
-      if (folderError && !folderError.message.includes("The resource was not found")) {
-        console.warn(`⚠️ Folder check warning: ${folderError.message}`);
+    if (!sessionData?.session) {
+      console.log('No active session, attempting to set token manually');
+      // Try to authenticate with token from localStorage
+      const token = localStorage.getItem('access_token') || 
+                   localStorage.getItem('token') || 
+                   localStorage.getItem('auth_token');
+      if (token) {
+        try {
+          await supabase.auth.setSession({
+            access_token: token,
+            refresh_token: token
+          });
+          console.log('Session set manually for upload');
+        } catch (error) {
+          console.error('Failed to set session manually:', error);
+          // Continue anyway, the upload might still work
+        }
       }
-    } catch (folderErr) {
-      console.warn(`⚠️ Folder check exception: ${folderErr}`);
-      // Continue anyway as some providers create folders automatically
     }
-
-    // Report progress before upload
-    onProgress?.(40);
-
-    // Add auth headers explicitly for this request
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+    
+    // Compute file content hash to avoid duplicate uploads
+    const fileHash = await computeFileHash(file);
+    const fileExt = file.name.split('.').pop();
+    
+    // Use a predictable filename based on hash instead of random generation
+    // This way, if the same file is uploaded multiple times, it will have the same path
+    const filePath = `${folder}/${fileHash}.${fileExt}`;
+    
+    console.log(`🚀 File path: ${filePath}`);
+    
+    // Check if file already exists with this hash
+    const { data: existingFile } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .list(folder, {
+        search: fileHash
+      });
+    
+    // If file with same hash exists, just return its URL
+    if (existingFile && existingFile.length > 0) {
+      const matchingFile = existingFile.find((f: { name: string }) => f.name.startsWith(fileHash));
+      if (matchingFile) {
+        console.log('✅ File with same content already exists, reusing:', matchingFile.name);
+        
+        // Get public URL of existing file
+        const { data: publicUrlData } = supabase.storage
+          .from(STORAGE_BUCKET)
+          .getPublicUrl(`${folder}/${matchingFile.name}`);
+          
+        if (publicUrlData?.publicUrl) {
+          return publicUrlData.publicUrl;
+        }
+      }
     }
-
-    // Upload the file
+    
+    // Upload with progress handling
     const { data, error } = await supabase.storage
-      .from(bucketName)
+      .from(STORAGE_BUCKET)
       .upload(filePath, file, {
         cacheControl: '3600',
         upsert: true,
-        ...(token ? { headers } : {})
+        onUploadProgress: (progress: { percent?: number }) => {
+          if (onProgress) {
+            onProgress(progress.percent || 0);
+          }
+        }
       });
-
-    // Report progress after upload
-    onProgress?.(80);
-
+    
     if (error) {
-      if (error.statusCode === 400) {
-        console.error(`❌ Upload 400 error - Policy violation: ${error.message}`);
-        console.error('This is likely a permissions issue. Please check your storage bucket policies.');
-        
-        // Additional information about potential solutions
-        console.error(`
-          Solutions to try:
-          1. Make sure the '${bucketName}' bucket exists in your Supabase project
-          2. Check Row Level Security policies for the storage.objects table
-          3. Make sure you're properly authenticated
-          4. Try creating a policy allowing anonymous uploads if needed
-        `);
-        
-        toast.error('Storage permission denied. Please contact administrator.');
-        return '';
-      }
-      throw error;
+      console.error('🔴 Upload error:', error);
+      throw new Error(`Upload failed: ${error.message}`);
     }
-
-    // Get the public URL
-    const { data: publicURL } = supabase.storage
-      .from(bucketName)
+    
+    console.log('✅ Upload successful:', data);
+    
+    // Get public URL
+    const { data: publicUrlData } = supabase.storage
+      .from(STORAGE_BUCKET)
       .getPublicUrl(data.path);
-
-    // Report completion
-    onProgress?.(100);
-
-    console.log(`✅ File uploaded successfully: ${publicURL.publicUrl}`);
-    return publicURL.publicUrl;
+    
+    if (!publicUrlData?.publicUrl) {
+      throw new Error('Failed to get public URL');
+    }
+    
+    console.log('🔗 Public URL:', publicUrlData.publicUrl);
+    return publicUrlData.publicUrl;
   } catch (error) {
-    console.error('Error uploading file:', error);
-    toast.error('Failed to upload file. Your data will be saved without the file.');
-    return '';
+    console.error('Error in uploadFile:', error);
+    throw error;
   }
 };
+
+// Compute a hash of the file contents to use for deduplication
+async function computeFileHash(file: File): Promise<string> {
+  try {
+    // Use file size and last modified as a simple "hash"
+    // This isn't a cryptographic hash but helps with basic deduplication
+    const hashParts = [
+      file.size.toString(),
+      file.lastModified.toString(),
+      file.name.replace(/[^a-z0-9]/gi, '')
+    ];
+    
+    // For smaller files, we can try to get a more accurate hash
+    if (file.size < 10 * 1024 * 1024) { // Under 10MB
+      try {
+        const buffer = await file.arrayBuffer();
+        const hashBuffer = await crypto.subtle.digest('SHA-1', buffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        return hashHex;
+      } catch (hashError) {
+        console.warn('Unable to compute file hash, using fallback method', hashError);
+      }
+    }
+    
+    // Fallback to a simple string concatenation
+    return hashParts.join('-');
+  } catch (error) {
+    console.error('Error computing file hash:', error);
+    // Fallback to timestamp-based unique ID
+    return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  }
+}
 
 /**
  * Uploads multiple files to Supabase storage
@@ -170,110 +154,59 @@ export const uploadFile = async (
  */
 export const uploadMultipleFiles = async (files: File[], folder: string): Promise<string[]> => {
   try {
-    console.log(`🗄️ Starting upload of ${files.length} files to ${folder} folder`);
-    console.log(`🗄️ File details: ${files.map(f => `${f.name} (${f.size} bytes)`).join(', ')}`);
+    console.log(`📚 Uploading ${files.length} files to ${STORAGE_BUCKET}/${folder}`);
     
-    // Check if Supabase is properly configured
-    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-      console.error('🗄️ Missing Supabase environment variables. Please configure your .env file.');
-      toast.error('Supabase storage is not configured. Your data will be saved without images.');
-      return [];
-    }
-
-    // Check auth session before uploading
+    // Check for auth session
     const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData.session) {
-      console.error('No active session found. User might not be authenticated.');
-      toast.error('Authentication required for uploading images.');
-      return [];
-    }
-
-    console.log(`🗄️ Supabase URL: ${import.meta.env.VITE_SUPABASE_URL}`);
-    console.log(`🗄️ Storage bucket: ${STORAGE_BUCKET}`);
-    console.log(`🗄️ User authenticated: ${!!sessionData.session}`);
-
-    // Show a loading toast
-    toast.loading(`Uploading ${files.length} images...`);
-
-    // Try to create folder if needed
-    try {
-      const { data: folderData, error: folderError } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .list(folder);
-        
-      if (folderError && !folderError.message.includes("The resource was not found")) {
-        console.warn(`⚠️ Folder check warning: ${folderError.message}`);
-      }
-    } catch (folderErr) {
-      console.warn(`⚠️ Folder check exception: ${folderErr}`);
-      // Continue anyway as some providers create folders automatically
-    }
-
-    // Upload each file concurrently
-    const uploadPromises = files.map(async (file, index) => {
-      try {
-        // Generate a unique filename
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${uuidv4()}.${fileExt}`;
-        const filePath = `${folder}/${fileName}`;
-        console.log(`🗄️ [${index + 1}/${files.length}] Uploading ${file.name} to ${filePath}`);
-
-        // Upload the file
-        const { data, error } = await supabase.storage
-          .from(STORAGE_BUCKET)
-          .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: true
+    if (!sessionData?.session) {
+      console.log('No active session, attempting to set token manually');
+      // Try to authenticate with token from localStorage
+      const token = localStorage.getItem('access_token') || 
+                   localStorage.getItem('token') || 
+                   localStorage.getItem('auth_token');
+      if (token) {
+        try {
+          await supabase.auth.setSession({
+            access_token: token,
+            refresh_token: token
           });
-
-        if (error) {
-          if (error.statusCode === 400) {
-            console.error(`❌ 400 error - likely permissions issue: ${error.message}`);
-            console.error('Please check your Supabase storage bucket RLS policies.');
-            return '';
-          }
-          console.error(`❌ [${index + 1}/${files.length}] Error uploading ${file.name}:`, error);
-          return '';
+          console.log('Session set manually for upload');
+        } catch (error) {
+          console.error('Failed to set session manually:', error);
+          // Continue anyway, the upload might still work
         }
-
-        // Get the public URL
-        const { data: publicURL } = supabase.storage
-          .from(STORAGE_BUCKET)
-          .getPublicUrl(data.path);
-
-        console.log(`✅ [${index + 1}/${files.length}] Successfully uploaded ${file.name} to ${data.path}`);
-        console.log(`🔗 Public URL: ${publicURL.publicUrl}`);
-        
-        return publicURL.publicUrl;
-      } catch (error) {
-        console.error(`❌ [${index + 1}/${files.length}] Error uploading ${file.name}:`, error);
-        return '';
       }
-    });
-
-    // Wait for all uploads to complete
-    console.log(`🗄️ Waiting for all ${files.length} uploads to complete...`);
-    const urls = await Promise.all(uploadPromises);
-    
-    // Dismiss loading toast
-    toast.dismiss();
-    
-    // Show success toast
-    const successCount = urls.filter(url => url !== '').length;
-    console.log(`🗄️ Upload complete: ${successCount}/${files.length} files uploaded successfully`);
-    
-    if (successCount > 0) {
-      toast.success(`Successfully uploaded ${successCount} of ${files.length} images`);
-    } else {
-      toast.error(`Failed to upload any images. Please try again.`);
     }
     
-    // Filter out any failed uploads (empty strings)
-    return urls.filter(url => url !== '');
+    // Upload files one by one using the improved uploadFile function
+    const urls: string[] = [];
+    let successCount = 0;
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      try {
+        console.log(`📚 Uploading file ${i + 1}/${files.length}: ${file.name}`);
+        
+        // Use the single file upload function to benefit from deduplication
+        const url = await uploadFile(file, folder);
+        
+        if (url) {
+          console.log(`✅ File ${i + 1} uploaded successfully:`, url);
+          urls.push(url);
+          successCount++;
+        } else {
+          console.error(`🔴 Failed to get URL for file ${i + 1}`);
+        }
+      } catch (fileError) {
+        console.error(`🔴 Error processing file ${i + 1}:`, fileError);
+      }
+    }
+    
+    console.log(`📚 Uploaded ${successCount}/${files.length} files successfully`);
+    return urls;
   } catch (error) {
-    console.error('❌ Error uploading multiple files:', error);
-    toast.error('Failed to upload images. Your data will be saved without images.');
-    return [];
+    console.error('Error in uploadMultipleFiles:', error);
+    throw error;
   }
 };
 
@@ -283,40 +216,36 @@ export const uploadMultipleFiles = async (files: File[], folder: string): Promis
  */
 export const deleteFile = async (fileUrl: string): Promise<void> => {
   try {
-    // Check if Supabase is properly configured
-    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-      toast.error('Supabase storage is not configured. File deletion is unavailable.');
-      console.error('Missing Supabase environment variables. Please configure your .env file.');
+    if (!fileUrl || typeof fileUrl !== 'string') {
+      console.warn('Invalid file URL provided for deletion:', fileUrl);
       return;
     }
-
-    // Skip if fileUrl is empty
-    if (!fileUrl) {
-      console.warn('Empty file URL provided, skipping deletion');
-      return;
+    
+    // Extract path from URL
+    let filePath = fileUrl;
+    
+    // Handle full Supabase URLs
+    if (fileUrl.includes('/storage/v1/object/public/')) {
+      filePath = fileUrl.split('/storage/v1/object/public/')[1];
+      // Remove bucket name from path if present
+      if (filePath.startsWith(`${STORAGE_BUCKET}/`)) {
+        filePath = filePath.replace(`${STORAGE_BUCKET}/`, '');
+      }
     }
-
-    // Determine which bucket the file belongs to
-    let bucketName = STORAGE_BUCKET;
-    if (fileUrl.includes('fieldworks')) {
-      bucketName = FIELDWORKS_BUCKET;
-    }
-
-    // Extract the path from the URL
-    const storageUrl = supabase.storage.from(bucketName).getPublicUrl('').data.publicUrl;
-    const filePath = fileUrl.replace(storageUrl, '');
-
-    // Delete the file
-    const { error } = await supabase.storage
-      .from(bucketName)
+    
+    console.log(`🗑️ Deleting file from ${STORAGE_BUCKET}: ${filePath}`);
+    
+    const { data, error } = await supabase.storage
+      .from(STORAGE_BUCKET)
       .remove([filePath]);
-
+    
     if (error) {
-      throw error;
+      console.error('Error deleting file:', error);
+    } else {
+      console.log('File deleted successfully:', data);
     }
   } catch (error) {
-    console.error('Error deleting file:', error);
-    toast.error('Failed to delete file. Please try again.');
+    console.error('Error in deleteFile:', error);
   }
 };
 
@@ -326,40 +255,53 @@ export const deleteFile = async (fileUrl: string): Promise<void> => {
  */
 export const deleteMultipleFiles = async (fileUrls: string[]): Promise<void> => {
   try {
-    // Check if Supabase is properly configured
-    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-      toast.error('Supabase storage is not configured. File deletion is unavailable.');
-      console.error('Missing Supabase environment variables. Please configure your .env file.');
+    if (!fileUrls || !fileUrls.length) {
       return;
     }
-
-    // Skip if no fileUrls provided
-    if (!fileUrls.length) {
-      console.warn('No file URLs provided, skipping deletion');
+    
+    console.log(`🗑️ Deleting ${fileUrls.length} files`);
+    
+    // Extract paths from URLs
+    const filePaths = fileUrls.map(url => {
+      if (!url || typeof url !== 'string') {
+        return null;
+      }
+      
+      let path = url;
+      
+      // Handle full Supabase URLs
+      if (url.includes('/storage/v1/object/public/')) {
+        path = url.split('/storage/v1/object/public/')[1];
+        // Remove bucket name from path if present
+        if (path.startsWith(`${STORAGE_BUCKET}/`)) {
+          path = path.replace(`${STORAGE_BUCKET}/`, '');
+        }
+      }
+      
+      return path;
+    }).filter(Boolean) as string[];
+    
+    if (!filePaths.length) {
       return;
     }
-
-    // Extract the paths from the URLs
-    const storageUrl = supabase.storage.from(STORAGE_BUCKET).getPublicUrl('').data.publicUrl;
-    const filePaths = fileUrls
-      .filter(url => url) // Filter out empty URLs
-      .map(url => url.replace(storageUrl, ''));
-
-    if (filePaths.length === 0) {
-      console.warn('No valid file paths to delete');
-      return;
-    }
-
-    // Delete the files
-    const { error } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .remove(filePaths);
-
-    if (error) {
-      throw error;
+    
+    console.log(`🗑️ Deleting paths:`, filePaths);
+    
+    // Delete in batches of 10 to avoid rate limits
+    const batchSize = 10;
+    for (let i = 0; i < filePaths.length; i += batchSize) {
+      const batch = filePaths.slice(i, i + batchSize);
+      const { data, error } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .remove(batch);
+      
+      if (error) {
+        console.error(`Error deleting batch ${i / batchSize + 1}:`, error);
+      } else {
+        console.log(`Batch ${i / batchSize + 1} deleted successfully:`, data);
+      }
     }
   } catch (error) {
-    console.error('Error deleting files:', error);
-    toast.error('Failed to delete files. Please try again.');
+    console.error('Error in deleteMultipleFiles:', error);
   }
-}; 
+};

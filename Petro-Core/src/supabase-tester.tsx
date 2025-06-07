@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 import { Button } from './components/ui/button';
-import { Alert, AlertDescription } from './components/ui/alert';
-import { FileUpload } from './components/ui/file-upload';
-import { toast } from 'sonner';
-import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './components/ui/card';
+import { Input } from './components/ui/input';
+import { Label } from './components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from './components/ui/alert';
+import { InfoIcon, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { MultiFileUpload } from './components/ui/file-upload';
+import { RockImageUploader } from './components/ui/rock-image-uploader';
+import { uploadMultipleFiles } from './services/storage.service';
 
 const STORAGE_BUCKET = 'rocks-minerals';
 
@@ -26,14 +30,14 @@ interface FolderItem {
 
 export function SupabaseTester() {
   const [logs, setLogs] = useState<string[]>([]);
-  const [file, setFile] = useState<File | null>(null);
-  const [uploadedUrl, setUploadedUrl] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [bucketName, setBucketName] = useState('rocks-minerals');
-  const [sessionInfo, setSessionInfo] = useState<any>(null);
-  const [bucketInfo, setBucketInfo] = useState<any>(null);
-  const [storageStatus, setStorageStatus] = useState<'unknown' | 'ok' | 'error'>('unknown');
-  const [policies, setPolicies] = useState<any[]>([]);
+  const [testRockId, setTestRockId] = useState<string>('test-rock-001');
+  const [files, setFiles] = useState<File[]>([]);
+  const [session, setSession] = useState<any>(null);
+  const [authStatus, setAuthStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
+  const [buckets, setBuckets] = useState<BucketItem[]>([]);
+  const [rocksMineralsBucketExists, setRocksMineralsBucketExists] = useState<boolean | null>(null);
+  const [manualAuthToken, setManualAuthToken] = useState<string>('');
+  const [useManualToken, setUseManualToken] = useState<boolean>(false);
 
   useEffect(() => {
     checkSession();
@@ -42,6 +46,7 @@ export function SupabaseTester() {
 
   const addLog = (message: string) => {
     setLogs(prev => [...prev, `[${new Date().toISOString()}] ${message}`]);
+    console.log(message);
   };
 
   const clearLogs = () => {
@@ -49,382 +54,302 @@ export function SupabaseTester() {
   };
 
   const checkSession = async () => {
-    addLog('Checking Supabase session...');
     try {
+      addLog('Checking Supabase session...');
+      setAuthStatus('loading');
+      
       const { data, error } = await supabase.auth.getSession();
+      
       if (error) {
-        addLog(`ERROR: Session check failed - ${error.message}`);
-        setSessionInfo({ error: error.message });
-      } else {
-        const isAuthenticated = !!data.session;
-        addLog(`Session check: User is ${isAuthenticated ? 'authenticated' : 'not authenticated'}`);
-        if (isAuthenticated) {
-          addLog(`User ID: ${data.session?.user.id}`);
-          addLog(`User email: ${data.session?.user.email}`);
-        }
-        setSessionInfo(data);
+        addLog(`Session error: ${error.message}`);
+        setAuthStatus('unauthenticated');
+        return;
       }
-    } catch (err) {
-      addLog(`ERROR: Session check exception - ${err instanceof Error ? err.message : String(err)}`);
-      setSessionInfo({ error: String(err) });
+      
+      if (data?.session) {
+        addLog(`Session found: ${data.session.user.id}`);
+        setSession(data.session);
+        setAuthStatus('authenticated');
+      } else {
+        addLog('No active session');
+        setAuthStatus('unauthenticated');
+        
+        // Try to get token from localStorage
+        const token = localStorage.getItem('access_token') || 
+                      localStorage.getItem('token') || 
+                      localStorage.getItem('auth_token');
+        
+        if (token) {
+          addLog(`Found token in storage: ${token.substring(0, 15)}...`);
+          setManualAuthToken(token);
+          setUseManualToken(true);
+        }
+      }
+    } catch (error: any) {
+      addLog(`Session check error: ${error.message}`);
+      setAuthStatus('unauthenticated');
     }
   };
 
   const checkBuckets = async () => {
-    addLog('Checking Supabase storage buckets...');
     try {
-      // List all buckets
-      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+      addLog('Checking Supabase storage buckets...');
       
-      if (bucketsError) {
-        addLog(`ERROR: Failed to list buckets - ${bucketsError.message}`);
-        setStorageStatus('error');
-        setBucketInfo({ error: bucketsError.message });
+      const { data, error } = await supabase.storage.listBuckets();
+      
+      if (error) {
+        addLog(`Bucket list error: ${error.message}`);
         return;
       }
       
-      addLog(`Found ${buckets.length} buckets: ${buckets.map((b: BucketItem) => b.name).join(', ')}`);
-      
-      // Check if our bucket exists
-      const ourBucket = buckets.find((b: BucketItem) => b.name === STORAGE_BUCKET);
-      if (!ourBucket) {
-        addLog(`WARNING: Bucket "${STORAGE_BUCKET}" not found!`);
-        setStorageStatus('error');
-        setBucketInfo({ buckets, error: `Bucket "${STORAGE_BUCKET}" not found` });
-        return;
-      }
-      
-      addLog(`Bucket "${STORAGE_BUCKET}" exists with ID: ${ourBucket.id}`);
-      setStorageStatus('ok');
-      setBucketInfo({ buckets, currentBucket: ourBucket });
-      
-      // Now check the policies for this bucket
-      await checkPolicies();
-      
-      // Try to list the folders in the bucket
-      const { data: folders, error: foldersError } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .list();
+      if (data) {
+        setBuckets(data);
+        addLog(`Found ${data.length} buckets`);
         
-      if (foldersError) {
-        addLog(`ERROR: Failed to list folders - ${foldersError.message}`);
-      } else {
-        addLog(`Bucket contains ${folders.length} items: ${folders.map((f: FolderItem) => f.name).join(', ')}`);
+        // Check if rocks-minerals bucket exists
+        const rocksMineralsBucket = data.find(bucket => bucket.name === 'rocks-minerals');
+        setRocksMineralsBucketExists(!!rocksMineralsBucket);
+        
+        if (rocksMineralsBucket) {
+          addLog('rocks-minerals bucket exists!');
+          
+          // Check bucket contents
+          try {
+            const { data: folderData, error: folderError } = await supabase.storage
+              .from('rocks-minerals')
+              .list('rocks');
+              
+            if (folderError) {
+              addLog(`Error listing rocks folder: ${folderError.message}`);
+            } else {
+              addLog(`Found ${folderData.length} items in rocks folder`);
+            }
+          } catch (folderErr: any) {
+            addLog(`Exception listing folder: ${folderErr.message}`);
+          }
+        } else {
+          addLog('rocks-minerals bucket does not exist!');
+        }
       }
-    } catch (err) {
-      addLog(`ERROR: Bucket check exception - ${err instanceof Error ? err.message : String(err)}`);
-      setStorageStatus('error');
-      setBucketInfo({ error: String(err) });
+    } catch (error: any) {
+      addLog(`Bucket check error: ${error.message}`);
     }
   };
-  
-  const checkPolicies = async () => {
-    addLog('Checking storage policies...');
+
+  const setAuthSessionManually = async () => {
+    if (!manualAuthToken) {
+      addLog('No manual token provided');
+      return;
+    }
+    
     try {
-      // This is a mock since Supabase JS client doesn't have a direct way to get policies
-      // In a real app, you would check this via the Supabase dashboard
-      addLog('NOTE: Policy check requires manual verification in Supabase dashboard');
-      addLog('Make sure you have these policies for the rocks-minerals bucket:');
-      addLog('1. INSERT policy for authenticated users');
-      addLog('2. SELECT policy for public access if images should be publicly viewable');
+      addLog('Setting Supabase session manually...');
       
-      // We'll use our knowledge of expected policies for this app
-      setPolicies([
-        { name: 'Authenticated users can upload', type: 'INSERT', definition: "auth.role() = 'authenticated'" },
-        { name: 'Public Access', type: 'SELECT', definition: "true" }
-      ]);
-    } catch (err) {
-      addLog(`ERROR: Policy check exception - ${err instanceof Error ? err.message : String(err)}`);
+      const { data, error } = await supabase.auth.setSession({
+        access_token: manualAuthToken,
+        refresh_token: manualAuthToken, // Using the same token as refresh token
+      });
+      
+      if (error) {
+        addLog(`Manual session error: ${error.message}`);
+        return;
+      }
+      
+      if (data?.session) {
+        addLog('Manual session set successfully!');
+        setSession(data.session);
+        setAuthStatus('authenticated');
+        // Store in localStorage too
+        localStorage.setItem('access_token', manualAuthToken);
+      } else {
+        addLog('No session returned after manual set');
+      }
+    } catch (error: any) {
+      addLog(`Manual session exception: ${error.message}`);
     }
   };
   
   const createBucket = async () => {
-    addLog(`Creating bucket "${bucketName}"...`);
-    
     try {
-      const { data, error } = await supabase.storage.createBucket(bucketName, {
-        public: true,
-        fileSizeLimit: 52428800 // 50MB
+      addLog('Creating rocks-minerals bucket...');
+      
+      const { data, error } = await supabase.storage.createBucket('rocks-minerals', {
+        public: true
       });
       
       if (error) {
-        addLog(`ERROR: Failed to create bucket - ${error.message}`);
+        addLog(`Create bucket error: ${error.message}`);
         return;
       }
       
-      addLog(`Bucket "${bucketName}" created successfully!`);
-      
-      // Refresh bucket list
-      checkBuckets();
-    } catch (err) {
-      addLog(`ERROR: ${err instanceof Error ? err.message : String(err)}`);
+      addLog('Bucket created successfully!');
+      checkBuckets(); // Refresh bucket list
+    } catch (error: any) {
+      addLog(`Create bucket exception: ${error.message}`);
     }
   };
   
+  const handleFilesChange = (newFiles: File[]) => {
+    setFiles(newFiles);
+    addLog(`Selected ${newFiles.length} files`);
+  };
+  
   const handleUpload = async () => {
-    if (!file) {
-      addLog("Please select a file first");
+    if (files.length === 0) {
+      addLog('No files selected');
       return;
     }
     
-    setIsLoading(true);
-    addLog(`Uploading file: ${file.name} (${Math.round(file.size / 1024)} KB)`);
-    
     try {
-      // First check auth status
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        addLog("ERROR: No active session. Please log in first!");
-        toast.error("Authentication required for upload");
-        setIsLoading(false);
-        return;
+      addLog(`Starting direct upload of ${files.length} files...`);
+      
+      // Try setting session if using manual token
+      if (useManualToken && manualAuthToken) {
+        await setAuthSessionManually();
       }
       
-      addLog(`Uploading as user: ${sessionData.session.user.email}`);
+      const urls = await uploadMultipleFiles(files, 'rocks');
       
-      // Generate a unique filename
-      const fileExt = file.name.split('.').pop();
-      const fileName = `test-${Date.now()}.${fileExt}`;
-      const filePath = `test/${fileName}`;
-      
-      addLog(`File path: ${filePath}`);
-      
-      // First try to check/create the folder
-      try {
-        addLog(`Checking if 'test' folder exists...`);
-        const { data: folderData, error: folderError } = await supabase.storage
-          .from(bucketName)
-          .list('test');
-          
-        if (folderError && !folderError.message.includes("The resource was not found")) {
-          addLog(`WARNING: Folder check failed - ${folderError.message}`);
-        } else {
-          addLog(`Folder check successful`);
-        }
-      } catch (folderErr) {
-        addLog(`WARNING: Folder check exception - ${folderErr instanceof Error ? folderErr.message : String(folderErr)}`);
+      if (urls.length > 0) {
+        addLog(`Successfully uploaded ${urls.length} files:`);
+        urls.forEach(url => addLog(url));
+      } else {
+        addLog('No files were uploaded');
       }
-      
-      // Upload the file
-      addLog(`Starting upload...`);
-      const { data, error } = await supabase.storage
-        .from(bucketName)
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: true
-        });
-      
-      if (error) {
-        addLog(`ERROR: Upload failed - ${error.message}`);
-        toast.error(`Upload failed: ${error.message}`);
-        
-        if (error.statusCode === 400) {
-          addLog(`ERROR 400: This is likely a permissions issue. Check your bucket policies!`);
-          addLog(`Make sure your bucket has an INSERT policy for authenticated users.`);
-        }
-        
-        return;
-      }
-      
-      addLog(`Upload successful! Path: ${data.path}`);
-      
-      // Get the public URL
-      const { data: publicURL } = supabase.storage
-        .from(bucketName)
-        .getPublicUrl(data.path);
-      
-      addLog(`Public URL: ${publicURL.publicUrl}`);
-      setUploadedUrl(publicURL.publicUrl);
-      toast.success('File uploaded successfully!');
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      addLog(`ERROR: Exception during upload - ${errorMsg}`);
-      toast.error(`Upload error: ${errorMsg}`);
-    } finally {
-      setIsLoading(false);
+    } catch (error: any) {
+      addLog(`Upload error: ${error.message}`);
     }
   };
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <h1 className="text-2xl font-bold mb-4">Supabase Tester</h1>
-      <p className="mb-6">Use this tool to test Supabase connectivity and storage functionality</p>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Session Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {sessionInfo ? (
-              sessionInfo.error ? (
-                <Alert variant="destructive">
-                  <AlertDescription>Error: {sessionInfo.error}</AlertDescription>
-                </Alert>
-              ) : (
-                <div>
-                  <p>Status: {sessionInfo.session ? 'Authenticated' : 'Not authenticated'}</p>
-                  {sessionInfo.session && (
-                    <>
-                      <p>User ID: {sessionInfo.session.user.id}</p>
-                      <p>Email: {sessionInfo.session.user.email}</p>
-                    </>
-                  )}
-                </div>
-              )
-            ) : (
-              <p>Checking session...</p>
-            )}
-            <Button 
-              variant="outline" 
-              className="mt-4" 
-              onClick={checkSession}
-            >
-              Refresh Session Info
-            </Button>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Storage Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {bucketInfo ? (
-              bucketInfo.error ? (
-                <Alert variant="destructive">
-                  <AlertDescription>Error: {bucketInfo.error}</AlertDescription>
-                </Alert>
-              ) : (
-                <div>
-                  <p>Status: {storageStatus === 'ok' ? 'OK' : 'Error'}</p>
-                  <p>Buckets found: {bucketInfo.buckets?.length || 0}</p>
-                  {bucketInfo.currentBucket && (
-                    <p>"{bucketInfo.currentBucket.name}" bucket exists</p>
-                  )}
-                </div>
-              )
-            ) : (
-              <p>Checking storage...</p>
-            )}
-            <Button 
-              variant="outline" 
-              className="mt-4" 
-              onClick={checkBuckets}
-            >
-              Refresh Storage Info
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Storage Policies</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {policies.length > 0 ? (
-              <div className="space-y-2">
-                {policies.map((policy, index) => (
-                  <div key={index} className="p-2 bg-muted rounded-md">
-                    <p><strong>{policy.name}</strong> ({policy.type})</p>
-                    <p className="text-sm text-muted-foreground">Definition: {policy.definition}</p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p>No policy information available.</p>
-            )}
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Create Bucket</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-2 mb-4">
-              <input
-                type="text"
-                value={bucketName}
-                onChange={(e) => setBucketName(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                placeholder="Bucket name"
-              />
-              <Button onClick={createBucket}>Create</Button>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Use this to create a new storage bucket if it doesn't exist
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-      
-      <Card className="mb-6">
+    <div className="container mx-auto py-8 space-y-8">
+      <Card>
         <CardHeader>
-          <CardTitle>Test File Upload</CardTitle>
+          <CardTitle>Supabase Authentication Tester</CardTitle>
+          <CardDescription>Test Supabase authentication and storage functionality</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-4">
-            <div>
-              <FileUpload 
-                onFileChange={setFile}
-                maxSizeMB={50}
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="font-medium">Authentication Status:</div>
+            {authStatus === 'loading' && <span className="flex items-center"><RefreshCw className="animate-spin h-4 w-4 mr-1" /> Checking...</span>}
+            {authStatus === 'authenticated' && <span className="flex items-center text-green-600"><CheckCircle className="h-4 w-4 mr-1" /> Authenticated</span>}
+            {authStatus === 'unauthenticated' && <span className="flex items-center text-red-600"><XCircle className="h-4 w-4 mr-1" /> Not authenticated</span>}
+          </div>
+          
+          {authStatus === 'unauthenticated' && (
+            <Alert>
+              <InfoIcon className="h-4 w-4" />
+              <AlertTitle>Not authenticated</AlertTitle>
+              <AlertDescription>You need to be authenticated to use storage functionality</AlertDescription>
+            </Alert>
+          )}
+          
+          <div className="flex items-center gap-2">
+            <div className="font-medium">Rocks-Minerals Bucket:</div>
+            {rocksMineralsBucketExists === null && <span className="flex items-center"><RefreshCw className="animate-spin h-4 w-4 mr-1" /> Checking...</span>}
+            {rocksMineralsBucketExists === true && <span className="flex items-center text-green-600"><CheckCircle className="h-4 w-4 mr-1" /> Exists</span>}
+            {rocksMineralsBucketExists === false && <span className="flex items-center text-red-600"><XCircle className="h-4 w-4 mr-1" /> Does not exist</span>}
+          </div>
+          
+          <div className="grid gap-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="rock-id">Test Rock ID</Label>
+              <Input 
+                id="rock-id" 
+                value={testRockId} 
+                onChange={(e) => setTestRockId(e.target.value)} 
+                placeholder="Enter a test rock ID"
               />
             </div>
             
-            <Button 
-              onClick={handleUpload} 
-              disabled={!file || isLoading}
-            >
-              {isLoading ? 'Uploading...' : 'Upload File'}
-            </Button>
-            
-            {uploadedUrl && (
-              <div className="mt-4">
-                <h3 className="font-medium mb-2">Uploaded File:</h3>
-                <img 
-                  src={uploadedUrl} 
-                  alt="Uploaded file" 
-                  className="max-w-full h-auto max-h-40 object-contain bg-slate-100 rounded-md" 
-                />
-                <p className="text-sm mt-2 break-all">{uploadedUrl}</p>
+            {authStatus === 'unauthenticated' && (
+              <div className="space-y-2">
+                <Label htmlFor="manual-token">Manual Auth Token</Label>
+                <div className="flex gap-2">
+                  <Input 
+                    id="manual-token" 
+                    value={manualAuthToken} 
+                    onChange={(e) => setManualAuthToken(e.target.value)} 
+                    placeholder="Paste your auth token here"
+                  />
+                  <Button onClick={setAuthSessionManually}>Set Session</Button>
+                </div>
               </div>
             )}
+            
+            <div className="space-y-2">
+              <Label htmlFor="file-upload">Test File Upload</Label>
+              <MultiFileUpload
+                onFilesChange={handleFilesChange}
+                accept="image/*"
+                multiple={true}
+              />
+            </div>
           </div>
         </CardContent>
+        <CardFooter className="flex justify-between">
+          <div>
+            <Button 
+              variant="outline" 
+              onClick={checkSession} 
+              className="mr-2"
+            >
+              Check Session
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={checkBuckets}
+              className="mr-2"
+            >
+              Check Buckets
+            </Button>
+            {rocksMineralsBucketExists === false && (
+              <Button 
+                variant="outline" 
+                onClick={createBucket}
+              >
+                Create Bucket
+              </Button>
+            )}
+          </div>
+          <Button 
+            onClick={handleUpload} 
+            disabled={files.length === 0}
+          >
+            Upload Files
+          </Button>
+        </CardFooter>
       </Card>
+      
+      {testRockId && (
+        <Card>
+          <CardHeader>
+            <CardTitle>RockImageUploader Component Test</CardTitle>
+            <CardDescription>Testing the RockImageUploader component with Rock ID: {testRockId}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RockImageUploader 
+              rockId={testRockId} 
+              onSuccess={(images) => addLog(`RockImageUploader success: ${images.length} images uploaded`)} 
+            />
+          </CardContent>
+        </Card>
+      )}
       
       <Card>
         <CardHeader>
-          <CardTitle>
-            Debug Logs
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="ml-2" 
-              onClick={clearLogs}
-            >
-              Clear
-            </Button>
-          </CardTitle>
+          <CardTitle>Debug Logs</CardTitle>
+          <CardDescription>
+            <Button variant="outline" size="sm" onClick={clearLogs}>Clear Logs</Button>
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="bg-muted p-4 rounded-md h-80 overflow-y-auto text-sm font-mono">
+          <div className="bg-slate-100 p-4 rounded-md h-96 overflow-y-auto font-mono text-xs">
             {logs.length === 0 ? (
-              <p className="text-muted-foreground">No logs yet. Actions will be logged here.</p>
+              <div className="text-slate-500 italic">No logs yet</div>
             ) : (
-              logs.map((log, i) => (
-                <div key={i} className="mb-1">
-                  {log.includes('ERROR') ? (
-                    <p className="text-red-500">{log}</p>
-                  ) : log.includes('WARNING') ? (
-                    <p className="text-yellow-500">{log}</p>
-                  ) : (
-                    <p>{log}</p>
-                  )}
-                </div>
+              logs.map((log, index) => (
+                <div key={index} className="mb-1">{log}</div>
               ))
             )}
           </div>

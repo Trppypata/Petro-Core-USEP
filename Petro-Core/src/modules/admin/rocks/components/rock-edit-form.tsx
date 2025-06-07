@@ -34,6 +34,7 @@ const RockEditForm = ({ rock, onClose, category }: RockEditFormProps) => {
   const { uploadImages, isUploading } = useRockImages(rock.id);
   const formRef = useRef<HTMLFormElement>(null);
   const [refreshingToken, setRefreshingToken] = useState(false);
+  const [imageUploadSucceeded, setImageUploadSucceeded] = useState(false);
   
   // Preserve the original rock_code to prevent duplicate key errors
   const originalRockCode = rock.rock_code;
@@ -41,6 +42,8 @@ const RockEditForm = ({ rock, onClose, category }: RockEditFormProps) => {
   // Update formData when the rock prop changes
   useEffect(() => {
     setFormData(rock);
+    // Reset the image upload success flag when the rock changes
+    setImageUploadSucceeded(false);
   }, [rock]);
   
   const refreshToken = async () => {
@@ -93,6 +96,8 @@ const RockEditForm = ({ rock, onClose, category }: RockEditFormProps) => {
     
     try {
       setIsSubmitting(true);
+      // Reset image upload success flag
+      setImageUploadSucceeded(false);
       
       // Show loading toast
       toast.loading("Updating rock...");
@@ -128,117 +133,115 @@ const RockEditForm = ({ rock, onClose, category }: RockEditFormProps) => {
       if (formData.image_url && formData.image_url !== rock.image_url) {
         console.log('📸 Detected new main image. Saving to rock_images table:', formData.image_url);
         
-        // First: Try API service approach (more reliable with auth)
         try {
-          const { uploadRockImages } = await import('@/services/rock-images.service');
-          try {
-            // Create a File object from the image URL
-            const res = await fetch(formData.image_url);
-            const blob = await res.blob();
-            const imageFile = new File([blob], `rock-${rock.id}-main.png`, { type: blob.type });
-            const result = await uploadRockImages(rock.id, [imageFile]);
-            console.log('✅ Main image saved via API service:', result);
-            // If API service succeeds, we don't need to try Supabase direct approach
-            if (result && result.length > 0) {
-              console.log('✅ Successfully saved image through API, skipping direct Supabase approach');
-              // Proceed to additional images upload if any
-              if (additionalImages.length > 0) {
-                await handleAdditionalImagesUpload();
-              }
+          // First: Try API service approach (more reliable with auth)
+          if (!imageUploadSucceeded) {
+            try {
+              const { uploadRockImages } = await import('@/services/rock-images.service');
               
-              // Invalidate queries to refresh the data
-              queryClient.invalidateQueries({ queryKey: [Q_KEYS.ROCKS] });
+              // Create a File object from the image URL
+              const res = await fetch(formData.image_url);
+              const blob = await res.blob();
+              const imageFile = new File([blob], `rock-${rock.id}-main.png`, { type: blob.type });
+              const result = await uploadRockImages(rock.id, [imageFile]);
               
-              // Close the sheet
-              onClose();
-              return; // Exit early since we succeeded
-            }
-          } catch (fetchError) {
-            console.error('Error fetching or processing main image:', fetchError);
-            // Continue to try direct Supabase approach
-          }
-        } catch (serviceErr) {
-          console.error('Error importing rock-images service:', serviceErr);
-          // Continue to try direct Supabase approach
-        }
-        
-        // Second: If API approach failed, try direct Supabase approach
-        try {
-          // Import Supabase client dynamically
-          const { supabase } = await import('@/lib/supabase');
-          
-          // Try to get auth session before proceeding
-          const { data: sessionData } = await supabase.auth.getSession();
-          
-          // Manually set auth token if no active session
-          if (!sessionData.session) {
-            console.log('No active session found, attempting to set token manually');
-            const token = localStorage.getItem('access_token');
-            if (token) {
-              try {
-                await supabase.auth.setSession({
-                  access_token: token,
-                  refresh_token: '',
-                });
-                console.log('✅ Manual session set with token from localStorage');
-              } catch (err) {
-                console.error('Failed to set session manually:', err);
+              if (result && result.length > 0) {
+                console.log('✅ Main image saved via API service:', result);
+                setImageUploadSucceeded(true);
               }
+            } catch (apiError) {
+              console.error('Error using API service to save image:', apiError);
+              // Continue to next approach
             }
           }
           
-          // Save to rock_images table
-          const { error } = await supabase
-            .from('rock_images')
-            .insert([
-              { 
-                rock_id: rock.id,
-                image_url: formData.image_url,
-                caption: `Main rock image (updated)`,
-                display_order: 0
+          // Second: If API approach failed, try direct Supabase approach
+          if (!imageUploadSucceeded) {
+            try {
+              // Import Supabase client dynamically
+              const { supabase } = await import('@/lib/supabase');
+              
+              // Try to get auth session before proceeding
+              const { data: sessionData } = await supabase.auth.getSession();
+              
+              // Manually set auth token if no active session
+              if (!sessionData.session) {
+                console.log('No active session found, attempting to set token manually');
+                const token = localStorage.getItem('access_token');
+                if (token) {
+                  try {
+                    await supabase.auth.setSession({
+                      access_token: token,
+                      refresh_token: '',
+                    });
+                    console.log('✅ Manual session set with token from localStorage');
+                  } catch (err) {
+                    console.error('Failed to set session manually:', err);
+                  }
+                }
               }
-            ]);
-            
-          if (error) {
-            console.error('Error saving main image to rock_images table:', error);
-            
-            // As a fallback, try a direct fetch to the backend API
-            if (error.code === '42501') { // Permission denied error
+              
+              // Save to rock_images table
+              const { data, error } = await supabase
+                .from('rock_images')
+                .insert([
+                  { 
+                    rock_id: rock.id,
+                    image_url: formData.image_url,
+                    caption: `Main rock image (updated)`,
+                    display_order: 0
+                  }
+                ])
+                .select();
+                
+              if (error) {
+                console.error('Error saving main image to rock_images table:', error);
+              } else {
+                console.log('✅ Image saved to rock_images table successfully:', data);
+                setImageUploadSucceeded(true);
+              }
+            } catch (err) {
+              console.error('Error using Supabase client to save main image:', err);
+              // Continue to next approach
+            }
+          }
+          
+          // Third: As a last resort, try a direct API call
+          if (!imageUploadSucceeded) {
+            try {
               console.log('🛠️ Attempting direct API call as fallback');
               const token = localStorage.getItem('access_token');
-              try {
-                const apiUrl = import.meta.env.VITE_local_url || 'http://localhost:8001/api';
-                const response = await fetch(`${apiUrl}/rock-images`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                  },
-                  body: JSON.stringify({
-                    images: [{
-                      rock_id: rock.id,
-                      image_url: formData.image_url,
-                      caption: `Main rock image (direct API fallback)`,
-                      display_order: 0
-                    }]
-                  })
-                });
-                
-                const result = await response.json();
-                if (response.ok) {
-                  console.log('✅ Image saved via direct API call:', result);
-                } else {
-                  console.error('❌ Direct API call failed:', result);
-                }
-              } catch (apiErr) {
-                console.error('❌ Error making direct API call:', apiErr);
+              const apiUrl = import.meta.env.VITE_local_url || 'http://localhost:8001/api';
+              
+              const response = await fetch(`${apiUrl}/rock-images`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token || ''}`
+                },
+                body: JSON.stringify({
+                  images: [{
+                    rock_id: rock.id,
+                    image_url: formData.image_url,
+                    caption: `Main rock image (direct API fallback)`,
+                    display_order: 0
+                  }]
+                })
+              });
+              
+              const result = await response.json();
+              if (response.ok) {
+                console.log('✅ Image saved via direct API call:', result);
+                setImageUploadSucceeded(true);
+              } else {
+                console.error('❌ Direct API call failed:', result);
               }
+            } catch (apiErr) {
+              console.error('❌ Error making direct API call:', apiErr);
             }
-          } else {
-            console.log('✅ Main image saved to rock_images table successfully');
           }
-        } catch (err) {
-          console.error('Error using Supabase client to save main image:', err);
+        } catch (mainError) {
+          console.error('Error handling image upload:', mainError);
         }
       }
       
@@ -280,6 +283,8 @@ const RockEditForm = ({ rock, onClose, category }: RockEditFormProps) => {
     
     try {
       setIsSubmitting(true);
+      // Reset image upload success flag
+      setImageUploadSucceeded(false);
       
       // Prepare data - ensure we keep the original rock_code
       const cleanData = prepareDataForSubmission({
@@ -306,117 +311,115 @@ const RockEditForm = ({ rock, onClose, category }: RockEditFormProps) => {
       if (cleanData.image_url && cleanData.image_url !== rock.image_url) {
         console.log('📸 Detected new main image in form submission. Saving to rock_images table:', cleanData.image_url);
         
-        // First: Try API service approach (more reliable with auth)
         try {
-          const { uploadRockImages } = await import('@/services/rock-images.service');
-          try {
-            // Create a File object from the image URL
-            const res = await fetch(cleanData.image_url);
-            const blob = await res.blob();
-            const imageFile = new File([blob], `rock-${rock.id}-main.png`, { type: blob.type });
-            const result = await uploadRockImages(rock.id, [imageFile]);
-            console.log('✅ Main image saved via API service:', result);
-            // If API service succeeds, we don't need to try Supabase direct approach
-            if (result && result.length > 0) {
-              console.log('✅ Successfully saved image through API, skipping direct Supabase approach');
-              // Proceed to additional images upload if any
-              if (additionalImages.length > 0) {
-                await handleAdditionalImagesUpload();
-              }
+          // First: Try API service approach (more reliable with auth)
+          if (!imageUploadSucceeded) {
+            try {
+              const { uploadRockImages } = await import('@/services/rock-images.service');
               
-              // Invalidate queries to refresh the data
-              queryClient.invalidateQueries({ queryKey: [Q_KEYS.ROCKS] });
+              // Create a File object from the image URL
+              const res = await fetch(cleanData.image_url);
+              const blob = await res.blob();
+              const imageFile = new File([blob], `rock-${rock.id}-main.png`, { type: blob.type });
+              const result = await uploadRockImages(rock.id, [imageFile]);
               
-              // Close the sheet
-              onClose();
-              return; // Exit early since we succeeded
-            }
-          } catch (fetchError) {
-            console.error('Error fetching or processing main image:', fetchError);
-            // Continue to try direct Supabase approach
-          }
-        } catch (serviceErr) {
-          console.error('Error importing rock-images service:', serviceErr);
-          // Continue to try direct Supabase approach
-        }
-        
-        // Second: If API approach failed, try direct Supabase approach
-        try {
-          // Import Supabase client dynamically
-          const { supabase } = await import('@/lib/supabase');
-          
-          // Try to get auth session before proceeding
-          const { data: sessionData } = await supabase.auth.getSession();
-          
-          // Manually set auth token if no active session
-          if (!sessionData.session) {
-            console.log('No active session found, attempting to set token manually');
-            const token = localStorage.getItem('access_token');
-            if (token) {
-              try {
-                await supabase.auth.setSession({
-                  access_token: token,
-                  refresh_token: '',
-                });
-                console.log('✅ Manual session set with token from localStorage');
-              } catch (err) {
-                console.error('Failed to set session manually:', err);
+              if (result && result.length > 0) {
+                console.log('✅ Main image saved via API service:', result);
+                setImageUploadSucceeded(true);
               }
+            } catch (apiError) {
+              console.error('Error using API service to save image:', apiError);
+              // Continue to next approach
             }
           }
           
-          // Save to rock_images table
-          const { error } = await supabase
-            .from('rock_images')
-            .insert([
-              { 
-                rock_id: rock.id,
-                image_url: cleanData.image_url,
-                caption: `Main rock image (form submission)`,
-                display_order: 0
+          // Second: If API approach failed, try direct Supabase approach
+          if (!imageUploadSucceeded) {
+            try {
+              // Import Supabase client dynamically
+              const { supabase } = await import('@/lib/supabase');
+              
+              // Try to get auth session before proceeding
+              const { data: sessionData } = await supabase.auth.getSession();
+              
+              // Manually set auth token if no active session
+              if (!sessionData.session) {
+                console.log('No active session found, attempting to set token manually');
+                const token = localStorage.getItem('access_token');
+                if (token) {
+                  try {
+                    await supabase.auth.setSession({
+                      access_token: token,
+                      refresh_token: '',
+                    });
+                    console.log('✅ Manual session set with token from localStorage');
+                  } catch (err) {
+                    console.error('Failed to set session manually:', err);
+                  }
+                }
               }
-            ]);
-            
-          if (error) {
-            console.error('Error saving main image to rock_images table:', error);
-            
-            // As a fallback, try a direct fetch to the backend API
-            if (error.code === '42501') { // Permission denied error
+              
+              // Save to rock_images table
+              const { data, error } = await supabase
+                .from('rock_images')
+                .insert([
+                  { 
+                    rock_id: rock.id,
+                    image_url: cleanData.image_url,
+                    caption: `Main rock image (form submission)`,
+                    display_order: 0
+                  }
+                ])
+                .select();
+                
+              if (error) {
+                console.error('Error saving main image to rock_images table:', error);
+              } else {
+                console.log('✅ Image saved to rock_images table successfully:', data);
+                setImageUploadSucceeded(true);
+              }
+            } catch (err) {
+              console.error('Error using Supabase client to save main image:', err);
+              // Continue to next approach
+            }
+          }
+          
+          // Third: As a last resort, try a direct API call
+          if (!imageUploadSucceeded) {
+            try {
               console.log('🛠️ Attempting direct API call as fallback');
               const token = localStorage.getItem('access_token');
-              try {
-                const apiUrl = import.meta.env.VITE_local_url || 'http://localhost:8001/api';
-                const response = await fetch(`${apiUrl}/rock-images`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                  },
-                  body: JSON.stringify({
-                    images: [{
-                      rock_id: rock.id,
-                      image_url: cleanData.image_url,
-                      caption: `Main rock image (direct API fallback)`,
-                      display_order: 0
-                    }]
-                  })
-                });
-                
-                const result = await response.json();
-                if (response.ok) {
-                  console.log('✅ Image saved via direct API call:', result);
-                } else {
-                  console.error('❌ Direct API call failed:', result);
-                }
-              } catch (apiErr) {
-                console.error('❌ Error making direct API call:', apiErr);
+              const apiUrl = import.meta.env.VITE_local_url || 'http://localhost:8001/api';
+              
+              const response = await fetch(`${apiUrl}/rock-images`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token || ''}`
+                },
+                body: JSON.stringify({
+                  images: [{
+                    rock_id: rock.id,
+                    image_url: cleanData.image_url,
+                    caption: `Main rock image (direct API fallback)`,
+                    display_order: 0
+                  }]
+                })
+              });
+              
+              const result = await response.json();
+              if (response.ok) {
+                console.log('✅ Image saved via direct API call:', result);
+                setImageUploadSucceeded(true);
+              } else {
+                console.error('❌ Direct API call failed:', result);
               }
+            } catch (apiErr) {
+              console.error('❌ Error making direct API call:', apiErr);
             }
-          } else {
-            console.log('✅ Main image saved to rock_images table successfully');
           }
-        } catch (err) {
-          console.error('Error using Supabase client to save main image:', err);
+        } catch (mainError) {
+          console.error('Error handling image upload:', mainError);
         }
       }
       
