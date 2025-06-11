@@ -13,9 +13,97 @@ import {
   FormLabel,
   FormMessage
 } from '@/components/ui/form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import type { MineralCategory, IMineral } from './mineral.interface';
 import { useAddMineral } from './hooks/useAddMineral';
 import { Spinner } from '@/components/spinner';
+import { RefreshCw, Info } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+// Common mineral groups for dropdown
+const MINERAL_GROUPS = [
+  "Silicate",
+  "Oxide",
+  "Sulfide",
+  "Sulfosalt",
+  "Native Element",
+  "Halide",
+  "Carbonate",
+  "Nitrate",
+  "Borate",
+  "Sulfate",
+  "Chromate",
+  "Phosphate",
+  "Arsenate",
+  "Vanadate",
+  "Tungstate",
+  "Molybdate",
+  "Organic",
+  "Hydroxide",
+  "Clay Mineral"
+];
+
+// Mapping between mineral groups and categories
+const GROUP_TO_CATEGORY: Record<string, string> = {
+  "Silicate": "SILICATES",
+  "Oxide": "OXIDES",
+  "Sulfide": "SULFIDES",
+  "Sulfosalt": "SULFOSALTS",
+  "Native Element": "NATIVE ELEMENTS",
+  "Halide": "HALIDES",
+  "Carbonate": "CARBONATES",
+  "Nitrate": "ORGANICS",
+  "Borate": "BORATES",
+  "Sulfate": "SULFATES",
+  "Chromate": "CHROMATES",
+  "Phosphate": "PHOSPHATES",
+  "Arsenate": "ARSENATES",
+  "Vanadate": "VANADATES",
+  "Tungstate": "TUNGSTATES",
+  "Molybdate": "MOLYBDATE",
+  "Organic": "ORGANICS",
+  "Hydroxide": "HYDROXIDES",
+  "Clay Mineral": "SILICATES"
+};
+
+// Common crystal systems for dropdown
+const CRYSTAL_SYSTEMS = [
+  "Cubic",
+  "Tetragonal",
+  "Orthorhombic",
+  "Hexagonal",
+  "Trigonal",
+  "Monoclinic",
+  "Triclinic",
+  "Amorphous"
+];
+
+// Common luster types for dropdown
+const LUSTER_TYPES = [
+  "Metallic",
+  "Submetallic",
+  "Vitreous",
+  "Resinous",
+  "Pearly",
+  "Greasy",
+  "Adamantine",
+  "Silky",
+  "Dull",
+  "Waxy"
+];
 
 interface MineralFormProps {
   category?: MineralCategory;
@@ -60,6 +148,72 @@ const MineralForm = ({
 }: MineralFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { addMineral, isAdding } = useAddMineral();
+  
+  // Create local copies of the dropdown lists that we might modify
+  const [localMineralGroups, setLocalMineralGroups] = useState<string[]>([...MINERAL_GROUPS]);
+  const [localLusterTypes, setLocalLusterTypes] = useState<string[]>([...LUSTER_TYPES]);
+  const [localCrystalSystems, setLocalCrystalSystems] = useState<string[]>([...CRYSTAL_SYSTEMS]);
+  
+  // States for custom input mode
+  const [customGroupMode, setCustomGroupMode] = useState(false);
+  const [customLusterMode, setCustomLusterMode] = useState(false);
+  const [customCrystalMode, setCustomCrystalMode] = useState(false);
+  
+  // Custom input values
+  const [customGroupValue, setCustomGroupValue] = useState("");
+  const [customLusterValue, setCustomLusterValue] = useState("");
+  const [customCrystalValue, setCustomCrystalValue] = useState("");
+  
+  // State for generating code
+  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
+  
+  // State for tracking the category based on selected mineral group
+  const [selectedCategory, setSelectedCategory] = useState<string>(category as string || "");
+  
+  // Generate a unique mineral code
+  const generateMineralCode = () => {
+    setIsGeneratingCode(true);
+    
+    try {
+      // Generate a code with category prefix and timestamp
+      const prefix = category ? 
+        category.substring(0, 3).toUpperCase() : 
+        'MIN';
+      
+      const timestamp = Date.now().toString().slice(-6);
+      const random = Math.random().toString(36).substring(2, 5).toUpperCase();
+      const newCode = `${prefix}-${timestamp}-${random}`;
+      
+      // Update the form with the new code
+      form.setValue('mineral_code', newCode, { shouldValidate: true });
+      toast.success("Generated unique mineral code");
+    } catch (error) {
+      console.error("Error generating code:", error);
+      toast.error("Failed to generate unique code");
+    } finally {
+      setIsGeneratingCode(false);
+    }
+  };
+  
+  // Check if defaultValues contain values not in our lists and add them
+  useEffect(() => {
+    if (defaultValues) {
+      // Add custom mineral group if it exists and isn't in our list
+      if (defaultValues.mineral_group && !MINERAL_GROUPS.includes(defaultValues.mineral_group)) {
+        setLocalMineralGroups(prev => [...prev, defaultValues.mineral_group!]);
+      }
+      
+      // Add custom luster if it exists and isn't in our list
+      if (defaultValues.luster && !LUSTER_TYPES.includes(defaultValues.luster)) {
+        setLocalLusterTypes(prev => [...prev, defaultValues.luster!]);
+      }
+      
+      // Add custom crystal system if it exists and isn't in our list
+      if (defaultValues.crystal_system && !CRYSTAL_SYSTEMS.includes(defaultValues.crystal_system)) {
+        setLocalCrystalSystems(prev => [...prev, defaultValues.crystal_system!]);
+      }
+    }
+  }, [defaultValues]);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -111,6 +265,15 @@ const MineralForm = ({
     }
   }, [defaultValues, form]);
   
+  // Update the category based on the selected mineral group
+  const watchedMineralGroup = form.watch("mineral_group");
+  useEffect(() => {
+    if (watchedMineralGroup) {
+      const newCategory = GROUP_TO_CATEGORY[watchedMineralGroup] || category as string || "";
+      setSelectedCategory(newCategory);
+    }
+  }, [watchedMineralGroup, category]);
+  
   const onSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
     try {
@@ -121,7 +284,7 @@ const MineralForm = ({
         // For add mode, use the addMineral function
         await addMineral({
           ...values,
-          category: category || 'BORATES',
+          category: GROUP_TO_CATEGORY[values.mineral_group] || 'BORATES',
           type: 'mineral',
         });
         form.reset();
@@ -131,6 +294,21 @@ const MineralForm = ({
       if (onClose) onClose();
     } catch (error) {
       console.error(`Error ${mode === 'add' ? 'adding' : 'updating'} mineral:`, error);
+      
+      // Handle duplicate key error specifically
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if (errorMessage.includes('duplicate key') || errorMessage.includes('unique constraint')) {
+        toast.error("A mineral with this code already exists. Please use a different code.");
+        // Focus the mineral_code field
+        setTimeout(() => {
+          const codeInput = document.querySelector('input[name="mineral_code"]');
+          if (codeInput) {
+            (codeInput as HTMLInputElement).focus();
+          }
+        }, 100);
+      } else {
+        toast.error(`Failed to ${mode === 'add' ? 'add' : 'update'} mineral: ${errorMessage}`);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -162,9 +340,23 @@ const MineralForm = ({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Code *</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., M-SFS-001" {...field} />
-                </FormControl>
+                <div className="flex gap-2">
+                  <FormControl>
+                    <Input placeholder="e.g., M-SFS-001" {...field} />
+                  </FormControl>
+                  {mode === 'add' && (
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="icon"
+                      onClick={generateMineralCode}
+                      disabled={isGeneratingCode}
+                      title="Generate unique code"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${isGeneratingCode ? 'animate-spin' : ''}`} />
+                    </Button>
+                  )}
+                </div>
                 <FormMessage />
               </FormItem>
             )}
@@ -200,16 +392,96 @@ const MineralForm = ({
             )}
           />
           
-          {/* Mineral Group */}
+          {/* Mineral Group - Replaced with dropdown */}
           <FormField
             control={form.control}
             name="mineral_group"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Group *</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., Sulfosalt" {...field} />
-                </FormControl>
+                <div className="flex justify-between">
+                  <FormLabel>Group *</FormLabel>
+                  {field.value && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center gap-1 text-xs">
+                            <Badge variant="outline" className="px-2 py-0 text-xs">
+                              {GROUP_TO_CATEGORY[field.value] || category}
+                            </Badge>
+                            <Info className="h-3 w-3" />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>This mineral will be categorized under {GROUP_TO_CATEGORY[field.value] || category}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
+                {customGroupMode ? (
+                  <div className="space-y-2">
+                    <FormControl>
+                      <Input 
+                        value={customGroupValue}
+                        onChange={(e) => setCustomGroupValue(e.target.value)}
+                        placeholder="Enter custom mineral group"
+                      />
+                    </FormControl>
+                    <div className="flex justify-end space-x-2">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setCustomGroupMode(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        type="button" 
+                        size="sm"
+                        onClick={() => {
+                          if (customGroupValue) {
+                            const newGroup = customGroupValue.trim();
+                            setLocalMineralGroups(prev => [...prev, newGroup]);
+                            field.onChange(newGroup);
+                            setCustomGroupMode(false);
+                          }
+                        }}
+                        disabled={!customGroupValue}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Select
+                    onValueChange={(value) => {
+                      if (value === 'custom') {
+                        setCustomGroupMode(true);
+                      } else {
+                        field.onChange(value);
+                      }
+                    }}
+                    value={field.value}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a mineral group" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {localMineralGroups.map((group) => (
+                        <SelectItem key={group} value={group}>
+                          {group}
+                        </SelectItem>
+                      ))}
+                      <SelectItem key="custom" value="custom">
+                        Custom...
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
                 <FormMessage />
               </FormItem>
             )}
@@ -252,9 +524,70 @@ const MineralForm = ({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Luster</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., Metallic" {...field} />
-                </FormControl>
+                {customLusterMode ? (
+                  <div className="space-y-2">
+                    <FormControl>
+                      <Input 
+                        value={customLusterValue}
+                        onChange={(e) => setCustomLusterValue(e.target.value)}
+                        placeholder="Enter custom luster type"
+                      />
+                    </FormControl>
+                    <div className="flex justify-end space-x-2">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setCustomLusterMode(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        type="button" 
+                        size="sm"
+                        onClick={() => {
+                          if (customLusterValue) {
+                            const newLuster = customLusterValue.trim();
+                            setLocalLusterTypes(prev => [...prev, newLuster]);
+                            field.onChange(newLuster);
+                            setCustomLusterMode(false);
+                          }
+                        }}
+                        disabled={!customLusterValue}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Select
+                    onValueChange={(value) => {
+                      if (value === 'custom') {
+                        setCustomLusterMode(true);
+                      } else {
+                        field.onChange(value);
+                      }
+                    }}
+                    value={field.value}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a luster type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {localLusterTypes.map((luster) => (
+                        <SelectItem key={luster} value={luster}>
+                          {luster}
+                        </SelectItem>
+                      ))}
+                      <SelectItem key="custom" value="custom">
+                        Custom...
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
                 <FormMessage />
               </FormItem>
             )}
@@ -327,9 +660,70 @@ const MineralForm = ({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Crystal System</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., Orthorhombic" {...field} />
-                </FormControl>
+                {customCrystalMode ? (
+                  <div className="space-y-2">
+                    <FormControl>
+                      <Input 
+                        value={customCrystalValue}
+                        onChange={(e) => setCustomCrystalValue(e.target.value)}
+                        placeholder="Enter custom crystal system"
+                      />
+                    </FormControl>
+                    <div className="flex justify-end space-x-2">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setCustomCrystalMode(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        type="button" 
+                        size="sm"
+                        onClick={() => {
+                          if (customCrystalValue) {
+                            const newSystem = customCrystalValue.trim();
+                            setLocalCrystalSystems(prev => [...prev, newSystem]);
+                            field.onChange(newSystem);
+                            setCustomCrystalMode(false);
+                          }
+                        }}
+                        disabled={!customCrystalValue}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Select
+                    onValueChange={(value) => {
+                      if (value === 'custom') {
+                        setCustomCrystalMode(true);
+                      } else {
+                        field.onChange(value);
+                      }
+                    }}
+                    value={field.value}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a crystal system" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {localCrystalSystems.map((system) => (
+                        <SelectItem key={system} value={system}>
+                          {system}
+                        </SelectItem>
+                      ))}
+                      <SelectItem key="custom" value="custom">
+                        Custom...
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
                 <FormMessage />
               </FormItem>
             )}

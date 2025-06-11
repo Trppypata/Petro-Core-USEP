@@ -18,95 +18,87 @@ export const uploadFile = async (
   onProgress?: (progress: number) => void
 ): Promise<string> => {
   try {
-    console.log(`🚀 Uploading file "${file.name}" to ${STORAGE_BUCKET}/${folder}`);
+    // Show the initial progress
+    onProgress?.(0);
     
-    // Check for auth session
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData?.session) {
-      console.log('No active session, attempting to set token manually');
-      // Try to authenticate with token from localStorage
-      const token = localStorage.getItem('access_token') || 
-                   localStorage.getItem('token') || 
-                   localStorage.getItem('auth_token');
-      if (token) {
-        try {
-          await supabase.auth.setSession({
-            access_token: token,
-            refresh_token: token
-          });
-          console.log('Session set manually for upload');
-        } catch (error) {
-          console.error('Failed to set session manually:', error);
-          // Continue anyway, the upload might still work
-        }
-      }
-    }
-    
-    // Compute file content hash to avoid duplicate uploads
+    // Compute a file hash to use as part of the filename
     const fileHash = await computeFileHash(file);
-    const fileExt = file.name.split('.').pop();
     
-    // Use a predictable filename based on hash instead of random generation
-    // This way, if the same file is uploaded multiple times, it will have the same path
-    const filePath = `${folder}/${fileHash}.${fileExt}`;
+    // Create a unique filename to avoid collisions
+    const timestamp = Date.now();
+    const fileExtension = file.name.split('.').pop() || '';
+    const fileName = `${timestamp}_${fileHash.substring(0, 10)}.${fileExtension}`;
     
-    console.log(`🚀 File path: ${filePath}`);
+    // Create the full path including the folder
+    let fullPath: string;
+    let bucketName = folder;
     
-    // Check if file already exists with this hash
-    const { data: existingFile } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .list(folder, {
-        search: fileHash
-      });
+    // Special handling for fieldworks bucket
+    if (folder === 'fieldworks') {
+      // For fieldworks, use the fieldworkpdf subfolder
+      fullPath = `fieldworkpdf/${fileName}`;
+      console.log(`Using fieldworkpdf subfolder for file: ${fileName}`);
+    } else {
+      // For rocks-minerals or other buckets, you may want to use subfolders
+      fullPath = `${folder}/${fileName}`;
+    }
     
-    // If file with same hash exists, just return its URL
-    if (existingFile && existingFile.length > 0) {
-      const matchingFile = existingFile.find((f: { name: string }) => f.name.startsWith(fileHash));
-      if (matchingFile) {
-        console.log('✅ File with same content already exists, reusing:', matchingFile.name);
-        
-        // Get public URL of existing file
-        const { data: publicUrlData } = supabase.storage
-          .from(STORAGE_BUCKET)
-          .getPublicUrl(`${folder}/${matchingFile.name}`);
-          
-        if (publicUrlData?.publicUrl) {
-          return publicUrlData.publicUrl;
+    console.log(`Uploading file to storage bucket: ${bucketName}, path: ${fullPath}`);
+    
+    // Track upload progress with a simple XMLHttpRequest
+    if (onProgress) {
+      const xhr = new XMLHttpRequest();
+      xhr.upload.addEventListener('progress', event => {
+        if (event.lengthComputable) {
+          const percentComplete = Math.round((event.loaded / event.total) * 100);
+          onProgress(percentComplete);
         }
+      });
+      
+      // Create a promise that resolves when the upload is complete
+      const uploadPromise = new Promise<void>((resolve, reject) => {
+        xhr.onload = () => resolve();
+        xhr.onerror = () => reject(new Error('XHR upload failed'));
+      });
+      
+      // Start the upload with XHR to track progress
+      xhr.open('POST', `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/${bucketName}/${fullPath}`);
+      xhr.setRequestHeader('Authorization', `Bearer ${localStorage.getItem('supabase.auth.token')}`);
+      xhr.setRequestHeader('Content-Type', file.type);
+      xhr.send(file);
+      
+      // Wait for the upload to complete
+      await uploadPromise;
+      
+      // Update progress to completion
+      onProgress(100);
+    } else {
+      // If no progress tracking is needed, use the standard Supabase upload
+      const { error: uploadError } = await supabase.storage
+        .from(bucketName)
+        .upload(fullPath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+      
+      if (uploadError) {
+        console.error('Error uploading file:', uploadError);
+        throw uploadError;
       }
     }
     
-    // Upload with progress handling
-    const { data, error } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: true,
-        onUploadProgress: (progress: { percent?: number }) => {
-          if (onProgress) {
-            onProgress(progress.percent || 0);
-          }
-        }
-      });
+    // Get the public URL for the uploaded file
+    const { data: urlData } = await supabase.storage
+      .from(bucketName)
+      .getPublicUrl(fullPath);
     
-    if (error) {
-      console.error('🔴 Upload error:', error);
-      throw new Error(`Upload failed: ${error.message}`);
+    if (!urlData || !urlData.publicUrl) {
+      throw new Error('Failed to get public URL for uploaded file');
     }
     
-    console.log('✅ Upload successful:', data);
+    console.log('File uploaded successfully. Public URL:', urlData.publicUrl);
     
-    // Get public URL
-    const { data: publicUrlData } = supabase.storage
-      .from(STORAGE_BUCKET)
-      .getPublicUrl(data.path);
-    
-    if (!publicUrlData?.publicUrl) {
-      throw new Error('Failed to get public URL');
-    }
-    
-    console.log('🔗 Public URL:', publicUrlData.publicUrl);
-    return publicUrlData.publicUrl;
+    return urlData.publicUrl;
   } catch (error) {
     console.error('Error in uploadFile:', error);
     throw error;
@@ -216,92 +208,70 @@ export const uploadMultipleFiles = async (files: File[], folder: string): Promis
  */
 export const deleteFile = async (fileUrl: string): Promise<void> => {
   try {
-    if (!fileUrl || typeof fileUrl !== 'string') {
-      console.warn('Invalid file URL provided for deletion:', fileUrl);
-      return;
+    if (!fileUrl) {
+      throw new Error('File URL is empty');
     }
     
-    // Extract path from URL
-    let filePath = fileUrl;
+    console.log(`Attempting to delete file: ${fileUrl}`);
     
-    // Handle full Supabase URLs
-    if (fileUrl.includes('/storage/v1/object/public/')) {
-      filePath = fileUrl.split('/storage/v1/object/public/')[1];
-      // Remove bucket name from path if present
-      if (filePath.startsWith(`${STORAGE_BUCKET}/`)) {
-        filePath = filePath.replace(`${STORAGE_BUCKET}/`, '');
-      }
+    // Extract the bucket and path from the URL
+    const url = new URL(fileUrl);
+    
+    // The path will look like: /storage/v1/object/public/[bucket]/[path]
+    // or: /storage/v1/object/[bucket]/[path]
+    const pathParts = url.pathname.split('/');
+    
+    // Find the bucket name in the path
+    const bucketIndex = pathParts.findIndex(part => 
+      part === 'rocks-minerals' || part === 'fieldworks'
+    );
+    
+    if (bucketIndex === -1) {
+      throw new Error(`Cannot determine bucket from URL: ${fileUrl}`);
     }
     
-    console.log(`🗑️ Deleting file from ${STORAGE_BUCKET}: ${filePath}`);
+    const bucket = pathParts[bucketIndex];
+    // Get the path after the bucket name
+    const filePath = pathParts.slice(bucketIndex + 1).join('/');
     
-    const { data, error } = await supabase.storage
-      .from(STORAGE_BUCKET)
+    console.log(`Deleting from bucket: ${bucket}, path: ${filePath}`);
+    
+    // Delete the file from storage
+    const { error } = await supabase.storage
+      .from(bucket)
       .remove([filePath]);
     
     if (error) {
       console.error('Error deleting file:', error);
-    } else {
-      console.log('File deleted successfully:', data);
+      throw error;
     }
+    
+    console.log('File deleted successfully');
   } catch (error) {
     console.error('Error in deleteFile:', error);
+    throw error;
   }
 };
 
 /**
  * Deletes multiple files from Supabase storage
- * @param fileUrls Array of URLs of the files to delete
+ * @param fileUrls Array of file URLs to delete
  */
 export const deleteMultipleFiles = async (fileUrls: string[]): Promise<void> => {
   try {
-    if (!fileUrls || !fileUrls.length) {
-      return;
-    }
+    console.log(`Attempting to delete ${fileUrls.length} files`);
     
-    console.log(`🗑️ Deleting ${fileUrls.length} files`);
-    
-    // Extract paths from URLs
-    const filePaths = fileUrls.map(url => {
-      if (!url || typeof url !== 'string') {
-        return null;
-      }
-      
-      let path = url;
-      
-      // Handle full Supabase URLs
-      if (url.includes('/storage/v1/object/public/')) {
-        path = url.split('/storage/v1/object/public/')[1];
-        // Remove bucket name from path if present
-        if (path.startsWith(`${STORAGE_BUCKET}/`)) {
-          path = path.replace(`${STORAGE_BUCKET}/`, '');
-        }
-      }
-      
-      return path;
-    }).filter(Boolean) as string[];
-    
-    if (!filePaths.length) {
-      return;
-    }
-    
-    console.log(`🗑️ Deleting paths:`, filePaths);
-    
-    // Delete in batches of 10 to avoid rate limits
-    const batchSize = 10;
-    for (let i = 0; i < filePaths.length; i += batchSize) {
-      const batch = filePaths.slice(i, i + batchSize);
-      const { data, error } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .remove(batch);
-      
-      if (error) {
-        console.error(`Error deleting batch ${i / batchSize + 1}:`, error);
-      } else {
-        console.log(`Batch ${i / batchSize + 1} deleted successfully:`, data);
+    for (const url of fileUrls) {
+      try {
+        await deleteFile(url);
+      } catch (error) {
+        console.error(`Failed to delete file ${url}:`, error);
       }
     }
+    
+    console.log('Finished file deletion process');
   } catch (error) {
     console.error('Error in deleteMultipleFiles:', error);
+    throw error;
   }
 };

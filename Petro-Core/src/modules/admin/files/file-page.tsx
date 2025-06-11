@@ -75,7 +75,14 @@ const FieldWorkFilePage = () => {
   useEffect(() => {
     console.log('Component mounted, fetching data...');
     fetchFieldworks();
-    fetchSections();
+    checkTableExists('fieldwork_sections').then(exists => {
+      if (exists) {
+        fetchSections();
+      } else {
+        toast.error('Fieldwork sections table does not exist. Please contact your administrator.');
+        setSections([]);
+      }
+    });
     fetchPDFs();
     checkFieldworksBucket();
   }, []);
@@ -289,12 +296,13 @@ const FieldWorkFilePage = () => {
       console.log('Fetching sections...');
       const { data, error } = await supabase
         .from('fieldwork_sections')
-        .select('*')
-        .order('order');
+        .select('*');
       
       if (error) {
         console.error('Error fetching sections:', error);
-        throw error;
+        toast.error(`Failed to load sections: ${error.message}`);
+        setSections([]);
+        return;
       }
       
       console.log('Sections fetched successfully:', data);
@@ -302,6 +310,7 @@ const FieldWorkFilePage = () => {
     } catch (error) {
       console.error('Error fetching sections:', error);
       toast.error('Failed to load sections.');
+      setSections([]);
     }
   };
 
@@ -345,7 +354,12 @@ const FieldWorkFilePage = () => {
       setSelectedFile(file);
       // Set the file name as the title if title is empty
       if (!title) {
-        setTitle(file.name.replace(/\.pdf$/i, ''));
+        // Clean up the filename by removing the .pdf extension and replacing underscores/hyphens with spaces
+        const cleanTitle = file.name
+          .replace(/\.pdf$/i, '')
+          .replace(/[_-]/g, ' ')
+          .replace(/\b\w/g, (c) => c.toUpperCase()); // Capitalize first letter of each word
+        setTitle(cleanTitle);
       }
     }
   };
@@ -422,6 +436,14 @@ const FieldWorkFilePage = () => {
     setUploadProgress(10);
     
     try {
+      console.log('Starting PDF upload:', {
+        fileName: selectedFile.name,
+        fileSize: selectedFile.size,
+        fieldwork: selectedFieldwork,
+        section: selectedSection,
+        fileType
+      });
+      
       // Upload file to Supabase Storage
       const fileUrl = await uploadFile(
         selectedFile, 
@@ -433,11 +455,13 @@ const FieldWorkFilePage = () => {
       );
       
       if (!fileUrl) {
-        throw new Error('File upload failed');
+        throw new Error('File upload failed - no URL returned');
       }
       
+      console.log('File uploaded successfully, saving metadata to database');
+      
       // Save metadata to database
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('fieldwork_files')
         .insert({
           title,
@@ -446,9 +470,16 @@ const FieldWorkFilePage = () => {
           section_id: selectedSection,
           file_url: fileUrl,
           file_type: fileType
-        });
+        })
+        .select()
+        .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
+      
+      console.log('PDF metadata saved successfully:', data);
       
       // Refresh PDFs list
       fetchPDFs();
@@ -465,7 +496,7 @@ const FieldWorkFilePage = () => {
       setActiveTab("manage");
     } catch (error) {
       console.error('Error uploading PDF:', error);
-      setErrorMessage('Failed to upload PDF. Please try again.');
+      setErrorMessage(`Failed to upload PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
       toast.error('Failed to upload PDF.');
     } finally {
       setIsUploading(false);
@@ -479,16 +510,30 @@ const FieldWorkFilePage = () => {
     }
 
     try {
-      // Delete from database
+      console.log(`Deleting PDF file: ${pdf.title} (${pdf.file_url})`);
+      
+      // First, attempt to delete file from storage
+      try {
+        await deleteFile(pdf.file_url);
+        console.log('PDF file deleted from storage successfully');
+      } catch (storageError) {
+        console.error('Error deleting PDF from storage:', storageError);
+        // Continue with database deletion even if storage deletion fails
+        // The file might not exist in storage anymore or access might be restricted
+      }
+      
+      // Then delete record from database
       const { error } = await supabase
         .from('fieldwork_files')
         .delete()
         .eq('id', pdf.id);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting PDF from database:', error);
+        throw error;
+      }
       
-      // Delete file from storage
-      await deleteFile(pdf.file_url);
+      console.log('PDF record deleted from database successfully');
       
       // Update state
       setPdfs(pdfs.filter(p => p.id !== pdf.id));
@@ -496,7 +541,7 @@ const FieldWorkFilePage = () => {
       toast.success('PDF file deleted successfully.');
     } catch (error) {
       console.error('Error deleting PDF:', error);
-      toast.error('Failed to delete PDF.');
+      toast.error('Failed to delete PDF. Please try again.');
     }
   };
 
@@ -527,34 +572,45 @@ const FieldWorkFilePage = () => {
   const checkFieldworksBucket = async () => {
     try {
       console.log('Checking if fieldworks bucket exists...');
-      const { data: buckets, error } = await supabase.storage.listBuckets();
       
-      if (error) {
-        console.error('Error checking buckets:', error);
-        return;
-      }
+      // Skip checking if bucket exists since we've confirmed it exists on the server
+      // Just try to use it directly
       
-      const fieldworksBucket = buckets.find((bucket: { name: string }) => bucket.name === 'fieldworks');
-      
-      if (!fieldworksBucket) {
-        console.log('Fieldworks bucket does not exist, creating it...');
-        const { error: createError } = await supabase.storage.createBucket('fieldworks', {
-          public: true,
-          fileSizeLimit: 10485760 // 10MB
-        });
+      // Test if we can access the bucket by listing files
+      const { data: files, error: listError } = await supabase.storage
+        .from('fieldworks')
+        .list();
         
-        if (createError) {
-          console.error('Error creating fieldworks bucket:', createError);
-          toast.error('Failed to create storage for PDF files. Please contact administrator.');
-        } else {
-          console.log('Fieldworks bucket created successfully');
-          toast.success('PDF storage initialized successfully');
-        }
+      if (listError) {
+        console.log('Cannot access fieldworks bucket:', listError);
+        toast.warning('Limited access to fieldworks storage. Some features may not work properly.');
       } else {
-        console.log('Fieldworks bucket already exists');
+        console.log('Successfully accessed fieldworks bucket. Files:', files);
+        toast.success('Connected to fieldworks storage successfully');
       }
     } catch (err) {
-      console.error('Error checking/creating fieldworks bucket:', err);
+      console.error('Error checking fieldworks bucket:', err);
+      toast.error('An error occurred while checking file storage');
+    }
+  };
+
+  // Check if a table exists in the database
+  const checkTableExists = async (tableName: string): Promise<boolean> => {
+    try {
+      // Try to count rows to see if the table exists
+      const { count, error } = await supabase
+        .from(tableName)
+        .select('*', { count: 'exact', head: true });
+      
+      if (error) {
+        console.error(`Error checking if ${tableName} table exists:`, error);
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error(`Error checking if ${tableName} table exists:`, error);
+      return false;
     }
   };
 
@@ -694,14 +750,29 @@ const FieldWorkFilePage = () => {
               
               <div className="space-y-4">
                 <div className="grid w-full max-w-sm items-center gap-1.5">
-                  <Label htmlFor="pdf-file">PDF File</Label>
+                  <Label htmlFor="pdf-file">PDF File <span className="text-destructive">*</span></Label>
                   <div 
                     className={`border-2 border-dashed rounded-md p-6 flex flex-col items-center justify-center h-40 ${
-                      selectedFile ? 'border-primary' : 'border-border'
-                    } hover:border-primary cursor-pointer`}
-                    onClick={() => document.getElementById('pdf-file')?.click()}
+                      selectedFile 
+                        ? 'border-primary bg-primary/5' 
+                        : isUploading 
+                          ? 'border-primary/50 bg-primary/5 animate-pulse' 
+                          : 'border-border'
+                    } hover:border-primary cursor-pointer transition-colors`}
+                    onClick={() => !isUploading && document.getElementById('pdf-file')?.click()}
                   >
-                    {selectedFile ? (
+                    {isUploading ? (
+                      <div className="flex flex-col items-center text-center">
+                        <div className="relative h-10 w-10 mb-2">
+                          <Spinner className="h-10 w-10 text-primary" />
+                          <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold">
+                            {Math.round(uploadProgress)}%
+                          </div>
+                        </div>
+                        <p className="font-medium">Uploading PDF...</p>
+                        <p className="text-sm text-muted-foreground">Please wait</p>
+                      </div>
+                    ) : selectedFile ? (
                       <div className="flex flex-col items-center text-center">
                         <FileText className="h-10 w-10 text-primary mb-2" />
                         <p className="font-medium">{selectedFile.name}</p>
@@ -723,7 +794,23 @@ const FieldWorkFilePage = () => {
                     accept="application/pdf"
                     onChange={handleFileChange}
                     className="hidden"
+                    disabled={isUploading}
                   />
+                  {selectedFile && (
+                    <div className="text-xs text-right mt-1">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedFile(null);
+                        }}
+                        className="text-muted-foreground hover:text-destructive"
+                        disabled={isUploading}
+                      >
+                        Clear selection
+                      </button>
+                    </div>
+                  )}
                 </div>
                 
                 {uploadProgress > 0 && uploadProgress < 100 && (
@@ -821,8 +908,19 @@ const FieldWorkFilePage = () => {
               <Button 
                 onClick={handleSubmit} 
                 disabled={isUploading || !selectedFile || !title || !selectedFieldwork || !selectedSection}
+                className="flex items-center gap-2"
               >
-                {isUploading ? "Uploading..." : "Upload PDF"}
+                {isUploading ? (
+                  <>
+                    <Spinner className="h-4 w-4" />
+                    <span>Uploading...</span>
+                  </>
+                ) : (
+                  <>
+                    <UploadCloud className="h-4 w-4" />
+                    <span>Upload PDF</span>
+                  </>
+                )}
               </Button>
             </CardFooter>
           </Card>

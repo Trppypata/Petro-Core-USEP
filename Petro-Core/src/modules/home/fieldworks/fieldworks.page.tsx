@@ -6,6 +6,7 @@ import { TriviaToast } from "@/components/trivia/TriviaToast";
 import { supabase } from "@/lib/supabase";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 interface FieldWork {
   id: string;
@@ -19,21 +20,50 @@ export default function FieldWorks() {
   const [fieldWorks, setFieldWorks] = useState<FieldWork[]>([]);
   const [filteredWorks, setFilteredWorks] = useState<FieldWork[]>([]);
   const [loading, setLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     fetchFieldWorks();
-  }, []);
+  }, [retryCount]);
 
   const fetchFieldWorks = async () => {
     setLoading(true);
     
     try {
+      console.log('Fetching fieldworks...');
+      
+      // Check authentication status
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        console.log('No active Supabase session, proceeding as anonymous user');
+      } else {
+        console.log('Active session with user:', sessionData.session.user.id);
+      }
+      
+      // Check if the fieldworks table exists
+      try {
+        // Try to count rows to verify table exists
+        const { count, error: tableError } = await supabase
+          .from('fieldworks')
+          .select('*', { count: 'exact', head: true });
+          
+        if (tableError) {
+          console.error('Error checking fieldworks table:', tableError);
+        } else {
+          console.log(`Fieldworks table exists with approximately ${count} rows`);
+        }
+      } catch (tableErr) {
+        console.error('Error verifying fieldworks table:', tableErr);
+      }
+      
+      // Perform the main query
       const { data, error } = await supabase
         .from('fieldworks')
         .select('*')
         .order('title');
       
       if (error) {
+        console.error('Error fetching fieldworks:', error);
         throw error;
       }
       
@@ -61,6 +91,10 @@ export default function FieldWorks() {
     );
     
     setFilteredWorks(filtered);
+  };
+  
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1);
   };
   
   return (
@@ -96,7 +130,10 @@ export default function FieldWorks() {
               ) : (
                 <div className="text-center py-8">
                   <p className="text-lg font-semibold">No field works found</p>
-                  <p className="text-muted-foreground">Try adjusting your search or check back later.</p>
+                  <p className="text-muted-foreground mb-4">There might be an issue connecting to the database.</p>
+                  <Button onClick={handleRetry} variant="outline">
+                    Retry
+                  </Button>
                 </div>
               )}
             </div>

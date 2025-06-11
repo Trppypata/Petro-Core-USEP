@@ -7,7 +7,7 @@ export const PageLayout = () => {
     <div className="min-h-screen bg-background">
       <SiteNavbar />
       <LockdownBanner />
-      <main className="max-w-6xl mx-auto px-4 py-24">
+      <main className="max-w-6xl mx-auto px-4 pt-28 pb-16">
         <Outlet />
       </main>
     </div>
