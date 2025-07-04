@@ -15,7 +15,6 @@ interface IRockImage {
 }
 
 const API_URL = import.meta.env.VITE_local_url || 'http://localhost:8001/api';
-const STORAGE_BUCKET = 'rocks-minerals';
 
 // Helper function to get the authentication token
 const getAuthToken = (): string | null => {
@@ -56,7 +55,7 @@ const setAuthTokenManually = async () => {
     }
     
     // Try to create a refresh token from the auth token (some implementations require it)
-    const refreshToken = localStorage.getItem('refresh_token') || token;
+    const refreshToken = localStorage.getItem('refresh_token') || '';
     
     const { data, error } = await supabase.auth.setSession({
       access_token: token,
@@ -209,7 +208,7 @@ export const uploadRockImages = async (
         // Upload files directly with custom headers
         const directUrls = await Promise.all(files.map(async (file, index) => {
           try {
-            const fileExt = file.name.split('.').pop() || '';
+            const fileExt = file.name.split('.').pop();
             const fileName = `rock-${rockId}-${Date.now()}-${index}.${fileExt}`;
             const filePath = `rocks/${fileName}`;
             
@@ -223,7 +222,7 @@ export const uploadRockImages = async (
             };
             
             const { data, error } = await supabase.storage
-              .from(STORAGE_BUCKET)
+              .from('rocks-minerals')
               .upload(filePath, file, options);
               
             if (error) {
@@ -244,7 +243,7 @@ export const uploadRockImages = async (
             
             // Get the public URL
             const { data: urlData } = supabase.storage
-              .from(STORAGE_BUCKET)
+              .from('rocks-minerals')
               .getPublicUrl(data.path);
               
             console.log(`📸 Public URL generated:`, urlData.publicUrl);

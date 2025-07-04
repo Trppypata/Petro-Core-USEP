@@ -34,10 +34,7 @@ export function RockImagesUploaderDirect({ rockId, onSuccess }: RockImagesUpload
   const checkAndSetAuthentication = async () => {
     try {
       // First check if we have a token in localStorage
-      const token = localStorage.getItem('access_token') || 
-                    localStorage.getItem('token') || 
-                    localStorage.getItem('auth_token');
-      
+      const token = localStorage.getItem('access_token');
       addDebugMessage(`Access token exists: ${!!token}`);
       
       if (token) {
@@ -46,7 +43,7 @@ export function RockImagesUploaderDirect({ rockId, onSuccess }: RockImagesUpload
           // Try to set the session manually
           const { error: authError } = await supabase.auth.setSession({
             access_token: token,
-            refresh_token: token,
+            refresh_token: '',
           });
           
           if (authError) {
@@ -64,24 +61,6 @@ export function RockImagesUploaderDirect({ rockId, onSuccess }: RockImagesUpload
       const hasSession = !!sessionData?.session;
       setIsAuthenticated(hasSession);
       addDebugMessage(`Authentication status: ${hasSession ? 'Authenticated' : 'Not authenticated'}`);
-      
-      // Check bucket access
-      if (hasSession) {
-        try {
-          const { data: bucketList, error: bucketListError } = await supabase.storage.listBuckets();
-          if (bucketListError) {
-            addDebugMessage(`Error listing buckets: ${bucketListError.message}`);
-          } else {
-            const bucketExists = bucketList?.some(b => b.name === STORAGE_BUCKET);
-            addDebugMessage(`Bucket check: "${STORAGE_BUCKET}" exists: ${bucketExists ? 'Yes' : 'No'}`);
-            if (!bucketExists) {
-              setShowBucketHelp(true);
-            }
-          }
-        } catch (bucketError) {
-          addDebugMessage(`Bucket verification error: ${bucketError}`);
-        }
-      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       addDebugMessage(`Auth check error: ${message}`);
@@ -102,7 +81,7 @@ export function RockImagesUploaderDirect({ rockId, onSuccess }: RockImagesUpload
   const uploadImage = async (file: File): Promise<string> => {
     try {
       // Generate a unique filename
-      const fileExt = file.name.split('.').pop() || '';
+      const fileExt = file.name.split('.').pop();
       const fileName = `${uuidv4()}.${fileExt}`;
       const filePath = `rocks/${fileName}`;
       
@@ -132,10 +111,7 @@ export function RockImagesUploaderDirect({ rockId, onSuccess }: RockImagesUpload
       }
       
       // Get token from localStorage for authenticated upload
-      const token = localStorage.getItem('access_token') || 
-                   localStorage.getItem('token') || 
-                   localStorage.getItem('auth_token');
-                   
+      const token = localStorage.getItem('access_token');
       const headers: Record<string, string> = {};
       
       if (token) {
@@ -143,25 +119,6 @@ export function RockImagesUploaderDirect({ rockId, onSuccess }: RockImagesUpload
         headers['Authorization'] = `Bearer ${token}`;
       } else {
         addDebugMessage('WARNING: No auth token available for upload');
-      }
-      
-      // Check for existing files with similar name to avoid duplicates
-      try {
-        const fileNameStart = fileName.split('.')[0].substring(0, 8);
-        const { data: existingFiles } = await supabase.storage
-          .from(STORAGE_BUCKET)
-          .list('rocks', {
-            limit: 1,
-            search: fileNameStart,
-            sortBy: { column: 'name', order: 'asc' }
-          });
-          
-        if (existingFiles && existingFiles.length > 0) {
-          addDebugMessage(`Found potentially similar file: ${existingFiles[0].name}`);
-        }
-      } catch (listError) {
-        addDebugMessage(`Error listing similar files: ${listError}`);
-        // Continue with upload
       }
       
       // Try uploading to the bucket
@@ -184,65 +141,6 @@ export function RockImagesUploaderDirect({ rockId, onSuccess }: RockImagesUpload
           
           setShowBucketHelp(true);
           throw new Error(`Bucket issue: ${error.message}`);
-        }
-        
-        // Try alternative upload method
-        if (error.statusCode === 400 || error.message.includes('not allowed') || error.message.includes('Permission')) {
-          addDebugMessage(`Permission issue detected. Trying alternative method...`);
-          
-          // Try with XMLHttpRequest for direct upload
-          const altUploadUrl = await new Promise<string>((resolve, reject) => {
-            try {
-              const xhr = new XMLHttpRequest();
-              const fullPath = `${STORAGE_BUCKET}/rocks/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
-              
-              xhr.upload.addEventListener('progress', event => {
-                if (event.lengthComputable) {
-                  const percentComplete = Math.round((event.loaded / event.total) * 100);
-                  addDebugMessage(`Alternative upload progress: ${percentComplete}%`);
-                }
-              });
-              
-              xhr.onload = () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                  addDebugMessage(`Alternative upload successful`);
-                  
-                  // Get the public URL
-                  supabase.storage
-                    .from(STORAGE_BUCKET)
-                    .getPublicUrl(`rocks/${fileName}`)
-                    .then(urlData => {
-                      if (urlData.data?.publicUrl) {
-                        resolve(urlData.data.publicUrl);
-                      } else {
-                        reject(new Error('Failed to get public URL'));
-                      }
-                    })
-                    .catch(err => reject(err));
-                } else {
-                  reject(new Error(`Alternative upload failed with status ${xhr.status}`));
-                }
-              };
-              
-              xhr.onerror = () => reject(new Error('Alternative upload network error'));
-              
-              xhr.open('POST', `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/${fullPath}`);
-              
-              if (token) {
-                xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-              }
-              xhr.setRequestHeader('Content-Type', file.type);
-              xhr.send(file);
-              
-            } catch (xhrError) {
-              reject(xhrError);
-            }
-          });
-          
-          if (altUploadUrl) {
-            addDebugMessage(`Alternative upload succeeded with URL: ${altUploadUrl}`);
-            return altUploadUrl;
-          }
         }
         
         throw error;
@@ -279,7 +177,7 @@ export function RockImagesUploaderDirect({ rockId, onSuccess }: RockImagesUpload
     
     try {
       addDebugMessage(`Starting upload for rock ID: ${rockId}`);
-      addDebugMessage(`Bucket target: ${STORAGE_BUCKET}/rocks`);
+      addDebugMessage(`Bucket target: rocks-minerals/rocks`);
       
       // Check authentication status
       const { data: sessionData } = await supabase.auth.getSession();
@@ -362,41 +260,6 @@ export function RockImagesUploaderDirect({ rockId, onSuccess }: RockImagesUpload
             addDebugMessage(`Database insert error: ${error.message}`);
             addDebugMessage(`Error details: ${JSON.stringify(error)}`);
             toast.error(`Saved images to storage but failed to update database: ${error.message}`);
-            
-            // Try again with direct insert one by one
-            const individualInserts = await Promise.all(
-              imageData.map(async (image) => {
-                try {
-                  const { data, error } = await supabase
-                    .from('rock_images')
-                    .insert([image])
-                    .select();
-                    
-                  if (error) {
-                    addDebugMessage(`Individual insert error for ${image.image_url}: ${error.message}`);
-                    return null;
-                  }
-                  
-                  return data[0];
-                } catch (err) {
-                  addDebugMessage(`Individual insert exception: ${err}`);
-                  return null;
-                }
-              })
-            );
-            
-            const successfulIndividualInserts = individualInserts.filter(Boolean);
-            if (successfulIndividualInserts.length > 0) {
-              addDebugMessage(`Saved ${successfulIndividualInserts.length} records individually`);
-            }
-            
-            // Even if database save failed, we still have the URLs
-            if (onSuccess) {
-              addDebugMessage('Returning URLs to parent component');
-              onSuccess(successfulUrls);
-            }
-            
-            setFiles([]);
           } else {
             addDebugMessage(`Database records created: ${data.length}`);
             toast.success(`Successfully saved ${data.length} images`);
@@ -407,21 +270,12 @@ export function RockImagesUploaderDirect({ rockId, onSuccess }: RockImagesUpload
         } catch (dbError: any) {
           addDebugMessage(`Database error: ${dbError.message || JSON.stringify(dbError)}`);
           toast.error('Failed to update database records');
-          
-          // Return URLs anyway
-          if (onSuccess) {
-            addDebugMessage('Returning URLs to parent component despite database error');
-            onSuccess(successfulUrls);
-          }
-          
-          setFiles([]);
         }
       }
     } catch (error: any) {
       toast.dismiss();
       toast.error(`Upload failed: ${error.message || 'Unknown error'}`);
       addDebugMessage(`Upload error: ${error.message || JSON.stringify(error)}`);
-      setError(error.message || 'Upload failed');
     } finally {
       setIsUploading(false);
       setUploadProgress(100);
@@ -433,7 +287,7 @@ export function RockImagesUploaderDirect({ rockId, onSuccess }: RockImagesUpload
       <CardHeader>
         <CardTitle>Upload Rock Images</CardTitle>
         <CardDescription>
-          Images will be stored in the "{STORAGE_BUCKET}" bucket in Supabase storage
+          Images will be stored in the "rocks-minerals" bucket in Supabase storage
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -469,12 +323,12 @@ export function RockImagesUploaderDirect({ rockId, onSuccess }: RockImagesUpload
             <InfoIcon className="h-4 w-4" />
             <AlertTitle>Bucket Setup Required</AlertTitle>
             <AlertDescription>
-              <p className="mb-2">The "{STORAGE_BUCKET}" bucket needs to be created in Supabase Storage:</p>
+              <p className="mb-2">The "rocks-minerals" bucket needs to be created in Supabase Storage:</p>
               <ol className="list-decimal list-inside space-y-1 text-sm">
                 <li>Go to your Supabase dashboard</li>
                 <li>Navigate to Storage</li>
                 <li>Click "New Bucket"</li>
-                <li>Name it exactly "{STORAGE_BUCKET}"</li>
+                <li>Name it exactly "rocks-minerals"</li>
                 <li>Enable RLS and set to public access</li>
                 <li>Create appropriate RLS policies</li>
               </ol>

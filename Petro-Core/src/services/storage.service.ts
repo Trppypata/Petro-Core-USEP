@@ -21,7 +21,31 @@ export const uploadFile = async (
     // Show the initial progress
     onProgress?.(0);
     
-    // Compute a file hash to use as part of the filename
+    console.log(`🚀 Uploading file "${file.name}" to ${STORAGE_BUCKET}/${folder}`);
+    
+    // Check for auth session
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) {
+      console.log('No active session, attempting to set token manually');
+      // Try to authenticate with token from localStorage
+      const token = localStorage.getItem('access_token') || 
+                   localStorage.getItem('token') || 
+                   localStorage.getItem('auth_token');
+      if (token) {
+        try {
+          await supabase.auth.setSession({
+            access_token: token,
+            refresh_token: token
+          });
+          console.log('Session set manually for upload');
+        } catch (error) {
+          console.error('Failed to set session manually:', error);
+          // Continue anyway, the upload might still work
+        }
+      }
+    }
+    
+    // Compute a file hash to use for deduplication
     const fileHash = await computeFileHash(file);
     
     // Create a unique filename to avoid collisions
@@ -31,7 +55,7 @@ export const uploadFile = async (
     
     // Create the full path including the folder
     let fullPath: string;
-    let bucketName = folder;
+    let bucketName = folder === 'fieldworks' ? FIELDWORKS_BUCKET : STORAGE_BUCKET;
     
     // Special handling for fieldworks bucket
     if (folder === 'fieldworks') {
@@ -44,6 +68,39 @@ export const uploadFile = async (
     }
     
     console.log(`Uploading file to storage bucket: ${bucketName}, path: ${fullPath}`);
+    
+    // Check if file already exists with this hash
+    try {
+      const { data: existingFile } = await supabase.storage
+        .from(bucketName)
+        .list(folder, {
+          search: fileHash.substring(0, 10)
+        });
+      
+      // If file with same hash exists, just return its URL
+      if (existingFile && existingFile.length > 0) {
+        const matchingFile = existingFile.find(
+          (f: { name: string }) => f.name.includes(fileHash.substring(0, 10))
+        );
+        
+        if (matchingFile) {
+          console.log('✅ File with same content already exists, reusing:', matchingFile.name);
+          
+          // Get public URL of existing file
+          const { data: publicUrlData } = supabase.storage
+            .from(bucketName)
+            .getPublicUrl(`${folder}/${matchingFile.name}`);
+            
+          if (publicUrlData?.publicUrl) {
+            console.log('File uploaded successfully. Public URL:', publicUrlData.publicUrl);
+            return publicUrlData.publicUrl;
+          }
+        }
+      }
+    } catch (listError) {
+      console.error('Error checking for existing file:', listError);
+      // Continue with upload even if list check fails
+    }
     
     // Track upload progress with a simple XMLHttpRequest
     if (onProgress) {
@@ -61,9 +118,17 @@ export const uploadFile = async (
         xhr.onerror = () => reject(new Error('XHR upload failed'));
       });
       
+      // Get token for authenticated upload
+      const token = localStorage.getItem('access_token') || 
+                   localStorage.getItem('token') || 
+                   localStorage.getItem('auth_token') ||
+                   sessionStorage.getItem('supabase.auth.token');
+      
       // Start the upload with XHR to track progress
       xhr.open('POST', `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/${bucketName}/${fullPath}`);
-      xhr.setRequestHeader('Authorization', `Bearer ${localStorage.getItem('supabase.auth.token')}`);
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
       xhr.setRequestHeader('Content-Type', file.type);
       xhr.send(file);
       
@@ -155,7 +220,8 @@ export const uploadMultipleFiles = async (files: File[], folder: string): Promis
       // Try to authenticate with token from localStorage
       const token = localStorage.getItem('access_token') || 
                    localStorage.getItem('token') || 
-                   localStorage.getItem('auth_token');
+                   localStorage.getItem('auth_token') ||
+                   sessionStorage.getItem('supabase.auth.token');
       if (token) {
         try {
           await supabase.auth.setSession({
@@ -191,6 +257,46 @@ export const uploadMultipleFiles = async (files: File[], folder: string): Promis
         }
       } catch (fileError) {
         console.error(`🔴 Error processing file ${i + 1}:`, fileError);
+        // Try alternative direct upload approach
+        try {
+          console.log(`📚 Trying direct upload for file ${i + 1}`);
+          const fileExt = file.name.split('.').pop() || '';
+          const fileName = `${folder}-${Date.now()}-${i}.${fileExt}`;
+          const filePath = `${folder}/${fileName}`;
+          
+          // Get token from localStorage for authenticated upload
+          const token = localStorage.getItem('access_token') || 
+                       localStorage.getItem('token') || 
+                       localStorage.getItem('auth_token');
+                       
+          const options = {
+            cacheControl: '3600',
+            upsert: true,
+            ...(token ? { headers: { 'Authorization': `Bearer ${token}` } } : {})
+          };
+          
+          const { data, error } = await supabase.storage
+            .from(STORAGE_BUCKET)
+            .upload(filePath, file, options);
+            
+          if (error) {
+            console.error(`📚 Alternative upload error: ${error.message}`);
+            continue;
+          }
+          
+          // Get the public URL
+          const { data: urlData } = supabase.storage
+            .from(STORAGE_BUCKET)
+            .getPublicUrl(data.path);
+            
+          if (urlData?.publicUrl) {
+            urls.push(urlData.publicUrl);
+            console.log(`✅ Alternative upload successful:`, urlData.publicUrl);
+            successCount++;
+          }
+        } catch (alternativeError) {
+          console.error(`🔴 Alternative upload failed:`, alternativeError);
+        }
       }
     }
     
