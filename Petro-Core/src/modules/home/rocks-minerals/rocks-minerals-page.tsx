@@ -68,12 +68,20 @@ const RockMinerals = () => {
       
       console.log('Fetching data with filters:', { displayType, searchTerm, filters });
       
+      // Fetch data based on display type
       if (displayType === "all") {
+        // Use dedicated function to get both rocks and minerals
         data = await getRocksAndMinerals(searchTerm, filters);
       } else if (displayType === "rocks") {
+        // Get only rocks
         data = await getRocks(searchTerm, filters);
-      } else {
+        // Ensure only rock items are displayed
+        data = data.filter(item => item.type === 'rock');
+      } else if (displayType === "minerals") {
+        // Get only minerals
         data = await getMinerals(searchTerm, filters);
+        // Ensure only mineral items are displayed
+        data = data.filter(item => item.type === 'mineral');
       }
       
       console.log(`Fetched ${data.length} items for display type: ${displayType}`);
@@ -151,12 +159,17 @@ const RockMinerals = () => {
       
       console.log('Searching with term:', term, 'Display type:', displayType);
       
+      // Apply the same fetching logic as in fetchData
       if (displayType === "all") {
         data = await getRocksAndMinerals(term, filters);
       } else if (displayType === "rocks") {
         data = await getRocks(term, filters);
-      } else {
+        // Ensure only rock items are displayed
+        data = data.filter(item => item.type === 'rock');
+      } else if (displayType === "minerals") {
         data = await getMinerals(term, filters);
+        // Ensure only mineral items are displayed
+        data = data.filter(item => item.type === 'mineral');
       }
       
       console.log(`Search returned ${data.length} items`);

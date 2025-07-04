@@ -35,7 +35,6 @@ import { RockImagesGallery } from '@/components/ui/rock-images-gallery';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useRockImages } from './hooks/useRockImages';
 import { Separator } from '@/components/ui/separator';
-import { RockImageUploader } from '@/components/ui/rock-image-uploader';
 
 interface RockFormProps {
   category: RockCategory;
@@ -133,7 +132,8 @@ const RockForm = ({
     images: existingImages, 
     uploadImages, 
     isUploading,
-    deleteImage 
+    deleteImage,
+    refetch: refetchImages
   } = useRockImages(defaultValues?.id || '');
   
   const form = useForm<FormValues>({
@@ -365,6 +365,246 @@ const RockForm = ({
     console.log(`🖼️ ${files.length} files selected for upload`);
   };
   
+  // Helper function to upload a single additional image
+  const uploadAdditionalImage = async (file: File, rockId: string, index: number): Promise<string | null> => {
+    try {
+      console.log(`📸 Uploading additional image ${index + 1}`);
+      
+      // Try to use the storage service first
+      try {
+        const imageUrl = await uploadFile(file, 'rocks');
+        console.log(`✅ Successfully uploaded image ${index + 1} via storage service`);
+        return imageUrl;
+      } catch (storageError) {
+        console.error(`Storage service upload failed for image ${index + 1}:`, storageError);
+        
+        // Direct upload to Supabase as fallback
+        const { supabase } = await import('@/lib/supabase');
+        
+        // Ensure authentication with multiple methods
+        let isAuthenticated = false;
+        
+        // 1. Check for existing session
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData?.session) {
+          console.log('✅ Using existing Supabase session');
+          isAuthenticated = true;
+        } else {
+          console.log('⚠️ No active session found, trying authentication methods...');
+          
+          // 2. Try to set session with token from localStorage
+          const token = localStorage.getItem('access_token');
+          if (token) {
+            try {
+              const { data, error } = await supabase.auth.setSession({
+                access_token: token,
+                refresh_token: '',
+              });
+              
+              if (data.session) {
+                console.log('✅ Session set successfully with access_token');
+                isAuthenticated = true;
+              } else if (error) {
+                console.error('❌ Error setting session:', error.message);
+              }
+            } catch (authError) {
+              console.error('❌ Failed to set auth token:', authError);
+            }
+          } else {
+            console.warn('⚠️ No access_token found in localStorage');
+          }
+        }
+        
+        if (!isAuthenticated) {
+          console.warn('⚠️ Failed to authenticate with Supabase, attempting anonymous upload');
+        }
+        
+        // Upload to Supabase storage with explicit storage bucket
+        const fileExt = file.name.split('.').pop();
+        const fileName = `rock-${rockId}-${Date.now()}-${index}.${fileExt}`;
+        const filePath = `rocks/${fileName}`;
+        
+        console.log(`📤 Uploading to bucket: rocks-minerals, path: ${filePath}`);
+        
+        // Add custom headers if we have a token
+        const token = localStorage.getItem('access_token');
+        const options = {
+          cacheControl: '3600',
+          upsert: true,
+          headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
+        };
+        
+        // Use let instead of const for data since we might reassign it
+        let uploadData;
+        let uploadError;
+        
+        // First upload attempt
+        const uploadResult = await supabase.storage
+          .from('rocks-minerals')  // Explicitly use the correct bucket
+          .upload(filePath, file, options);
+          
+        uploadData = uploadResult.data;
+        uploadError = uploadResult.error;
+            
+        if (uploadError) {
+          console.error(`❌ Supabase upload error for image ${index + 1}:`, uploadError);
+          // Try one more time with a simplified path if it might be a path issue
+          const simpleFileName = `rock-${Date.now()}-${index}.${fileExt}`;
+          console.log(`📤 Retrying with simplified path: ${simpleFileName}`);
+          
+          const retryResult = await supabase.storage
+            .from('rocks-minerals')
+            .upload(simpleFileName, file, options);
+            
+          if (retryResult.error) {
+            console.error(`❌ Retry upload also failed:`, retryResult.error);
+            return null;
+          }
+          
+          console.log(`✅ Retry upload succeeded:`, retryResult.data.path);
+          uploadData = retryResult.data;
+        } else {
+          console.log(`✅ Upload succeeded:`, uploadData.path);
+        }
+        
+        // Get public URL
+        const { data: urlData } = supabase.storage
+          .from('rocks-minerals')
+          .getPublicUrl(uploadData.path);
+        
+        console.log(`🔗 Public URL generated:`, urlData.publicUrl);
+        return urlData.publicUrl;
+      }
+    } catch (error) {
+      console.error(`Failed to upload image ${index + 1}:`, error);
+      return null;
+    }
+  };
+
+  // Helper function to save image URL to database
+  const saveImageToDatabase = async (rockId: string, imageUrl: string, caption: string, order: number): Promise<boolean> => {
+    try {
+      console.log(`💾 Saving image to database for rock ID: ${rockId}`);
+      console.log(`💾 Image URL: ${imageUrl}`);
+      
+      // Try API service approach first
+      try {
+        console.log('💾 Attempting API service approach...');
+        const { uploadRockImages } = await import('@/services/rock-images.service');
+        const res = await fetch(imageUrl);
+        const blob = await res.blob();
+        const imageFile = new File([blob], `rock-${rockId}-db-${Date.now()}.png`, { type: blob.type });
+        const result = await uploadRockImages(rockId, [imageFile]);
+        if (result && result.length > 0) {
+          console.log('✅ Image saved via API service');
+          return true;
+        } else {
+          console.log('⚠️ API service returned empty result, trying next method');
+        }
+      } catch (apiError) {
+        console.error('❌ API service approach failed:', apiError);
+      }
+      
+      // Try Supabase client approach
+      try {
+        console.log('💾 Attempting Supabase client approach...');
+        const { supabase } = await import('@/lib/supabase');
+        
+        // Ensure authentication with multiple methods
+        let isAuthenticated = false;
+        
+        // 1. Check for existing session
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData?.session) {
+          console.log('✅ Using existing Supabase session for database insert');
+          isAuthenticated = true;
+        } else {
+          console.log('⚠️ No active session found, trying authentication methods...');
+          
+          // 2. Try to set session with token from localStorage
+          const token = localStorage.getItem('access_token');
+          if (token) {
+            try {
+              const { data, error } = await supabase.auth.setSession({
+                access_token: token,
+                refresh_token: '',
+              });
+              
+              if (data.session) {
+                console.log('✅ Session set successfully with access_token for database insert');
+                isAuthenticated = true;
+              } else if (error) {
+                console.error('❌ Error setting session for database insert:', error.message);
+              }
+            } catch (authError) {
+              console.error('❌ Failed to set auth token for database insert:', authError);
+            }
+          } else {
+            console.warn('⚠️ No access_token found in localStorage for database insert');
+          }
+        }
+        
+        if (!isAuthenticated) {
+          console.warn('⚠️ Failed to authenticate with Supabase, attempting insert anyway');
+        }
+        
+        // Try inserting the record
+        console.log('💾 Inserting record into rock_images table...');
+        const { error } = await supabase
+          .from('rock_images')
+          .insert([{
+            rock_id: rockId,
+            image_url: imageUrl,
+            caption,
+            display_order: order
+          }]);
+          
+        if (error) {
+          console.error('❌ Error saving to rock_images table:', error);
+          throw error;
+        }
+        
+        console.log('✅ Image saved to database via Supabase client');
+        return true;
+      } catch (supabaseError) {
+        console.error('❌ Supabase client approach failed:', supabaseError);
+      }
+      
+      // Direct API call as last resort
+      console.log('💾 Attempting direct API call as last resort...');
+      const token = localStorage.getItem('access_token');
+      const apiUrl = import.meta.env.VITE_local_url || 'http://localhost:8001/api';
+      
+      const response = await fetch(`${apiUrl}/rock-images`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token || ''}`
+        },
+        body: JSON.stringify({
+          images: [{
+            rock_id: rockId,
+            image_url: imageUrl,
+            caption,
+            display_order: order
+          }]
+        })
+      });
+      
+      const result = await response.json();
+      if (response.ok) {
+        console.log('✅ Image saved via direct API call');
+        return true;
+      } else {
+        console.error('❌ Direct API call failed:', result);
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ All methods to save image to database failed:', error);
+      return false;
+    }
+  };
+  
   const onSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
     try {
@@ -400,11 +640,11 @@ const RockForm = ({
         }
       } else if (mode === 'edit' && defaultValues?.id) {
         console.log("Using internal updateRock handler (edit mode)");
-        const result = await updateRock(defaultValues.id, rockData);
+        const result = await updateRock({ id: defaultValues.id, rockData });
         rockId = defaultValues.id;
       } else {
         console.log("Using internal addRock handler (add mode)");
-        const result = await addRock(rockData);
+        const result = await addRock(rockData as IRock);
         rockId = result?.id;
       }
       
@@ -416,122 +656,54 @@ const RockForm = ({
         const mainImageUrl = rockData.image_url;
         if (rockId && mainImageUrl) {
           console.log(`📸 Adding main image to rock_images table for rock ID: ${rockId}`);
-          
-          // First try the API service approach
-          try {
-            const { uploadRockImages } = await import('@/services/rock-images.service');
-            try {
-              // Create a new file object from the URL so we can upload it
-              const res = await fetch(mainImageUrl);
-              const blob = await res.blob();
-              const imageFile = new File([blob], `rock-${rockId}-main.png`, { type: blob.type });
-              const result = await uploadRockImages(rockId, [imageFile]);
-              console.log('✅ Main image saved via API service:', result);
-              if (result && result.length > 0) {
-                // Success! Skip other methods
-                console.log('✅ Successfully saved image through API, skipping direct Supabase approach');
-              } else {
-                // If no results, try the next method
-                throw new Error('API returned empty results array');
-              }
-            } catch (fetchError) {
-              console.error('Error fetching or processing main image for API method:', fetchError);
-              throw fetchError; // Pass to outer catch to try next method
-            }
-          } catch (apiServiceErr) {
-            console.error('API method failed, trying Supabase client method:', apiServiceErr);
-            
-            // Try Supabase client as fallback
-            try {
-              const { supabase } = await import('@/lib/supabase');
-              
-              // Try to get auth session before proceeding
-              const { data: sessionData } = await supabase.auth.getSession();
-              
-              // Manually set auth token if no active session
-              if (!sessionData.session) {
-                console.log('No active session found, attempting to set token manually');
-                const token = localStorage.getItem('access_token');
-                if (token) {
-                  try {
-                    await supabase.auth.setSession({
-                      access_token: token,
-                      refresh_token: '',
-                    });
-                    console.log('✅ Manual session set with token from localStorage');
-                  } catch (err) {
-                    console.error('Failed to set session manually:', err);
-                  }
-                }
-              }
-              
-              // Save to rock_images table
-              const { error } = await supabase
-                .from('rock_images')
-                .insert([
-                  { 
-                    rock_id: rockId,
-                    image_url: mainImageUrl,
-                    caption: `Main rock image`,
-                    display_order: 0
-                  }
-                ]);
-                
-              if (error) {
-                console.error('Error saving main image to rock_images table:', error);
-                throw error; // Pass to outer catch to try final method
-              } else {
-                console.log('✅ Main image saved to rock_images table successfully');
-              }
-            } catch (supabaseErr) {
-              console.error('Supabase client method failed, trying direct API call:', supabaseErr);
-              
-              // Final attempt - direct API call
-              try {
-                const token = localStorage.getItem('access_token');
-                const apiUrl = import.meta.env.VITE_local_url || 'http://localhost:8001/api';
-                
-                const response = await fetch(`${apiUrl}/rock-images`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token || ''}`
-                  },
-                  body: JSON.stringify({
-                    images: [{
-                      rock_id: rockId,
-                      image_url: mainImageUrl,
-                      caption: `Main rock image (direct API fallback)`,
-                      display_order: 0
-                    }]
-                  })
-                });
-                
-                const result = await response.json();
-                if (response.ok) {
-                  console.log('✅ Image saved via direct API call:', result);
-          } else {
-                  console.error('❌ Direct API call failed:', result);
-                  // At this point we've tried everything, just log the error
-          }
-              } catch (apiErr) {
-                console.error('❌ Error making direct API call:', apiErr);
-              }
-            }
-          }
+          await saveImageToDatabase(rockId, mainImageUrl, 'Main rock image', 0);
         }
         
         // Process additional images if any
         if (multipleImageFiles.length > 0) {
           try {
             console.log(`📸 Uploading ${multipleImageFiles.length} additional images`);
+            toast.loading(`Uploading ${multipleImageFiles.length} additional images...`);
             
-            // Use the rock-images service to upload them
-            const { uploadRockImages } = await import('@/services/rock-images.service');
-            const result = await uploadRockImages(rockId, multipleImageFiles);
-            console.log(`✅ Successfully uploaded ${result.length} of ${multipleImageFiles.length} additional images`);
-          } catch (uploadErr) {
-            console.error('❌ Error uploading additional images:', uploadErr);
+            // Upload each image and save to database
+            const results = await Promise.all(
+              multipleImageFiles.map(async (file, index) => {
+                // Upload the file
+                const imageUrl = await uploadAdditionalImage(file, rockId as string, index);
+                
+                // If upload succeeded, save to database
+                if (imageUrl) {
+                  const saved = await saveImageToDatabase(
+                    rockId as string, 
+                    imageUrl, 
+                    `Additional image ${index + 1}`, 
+                    index + 1
+                  );
+                  return { success: saved, url: imageUrl };
+                }
+                
+                return { success: false, url: null };
+              })
+            );
+            
+            // Count successes
+            const successCount = results.filter(result => result.success).length;
+            
+            if (successCount > 0) {
+              console.log(`✅ Successfully saved ${successCount} of ${multipleImageFiles.length} additional images`);
+              toast.success(`Added ${successCount} additional images`);
+              
+              // Refresh images if in edit mode
+              if (isEditMode) {
+                refetchImages();
+              }
+            } else {
+              console.error('❌ Failed to save any additional images');
+              toast.error('Failed to upload additional images');
+            }
+          } catch (error) {
+            console.error('Error processing additional images:', error);
+            toast.error('Failed to upload additional images');
           }
         }
       } else {
@@ -658,7 +830,7 @@ const RockForm = ({
                     {existingImages && existingImages.length > 0 && (
                       <div className="mb-4">
                         <RockImagesGallery 
-                          images={existingImages.map((img: any) => img.image_url)} 
+                          images={existingImages.map((img) => img.image_url)} 
                           height={300}
                           aspectRatio="video"
                         />
@@ -668,13 +840,19 @@ const RockForm = ({
                     <Separator className="my-4" />
                     
                     <div>
-                      <RockImageUploader 
-                        rockId={defaultValues?.id || ''} 
-                        onSuccess={() => {
-                          toast.success("Images uploaded successfully!");
-                          // No need to manually refetch - the RockImageUploader component will handle invalidation
-                        }}
-                      />
+                      <Label htmlFor="additional-images">Upload More Images</Label>
+                      <div className="mt-2">
+                        <MultiFileUpload
+                          onFilesChange={handleMultipleFilesChange}
+                          accept="image/*"
+                          multiple={true}
+                        />
+                        {multipleImageFiles.length > 0 && (
+                          <p className="text-sm text-muted-foreground mt-2">
+                            {multipleImageFiles.length} file(s) selected. Images will be uploaded when you save changes.
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -1052,19 +1230,3 @@ const RockForm = ({
 };
 
 export default RockForm; 
-
-// Fix the existingImages.map error by adding a type guard
-const renderImageGallery = () => {
-  if (existingImages && existingImages.length > 0) {
-    return (
-      <div className="mb-4">
-        <RockImagesGallery 
-          images={existingImages.map((img: any) => img.image_url)} 
-          height={300}
-          aspectRatio="video"
-        />
-      </div>
-    );
-  }
-  return null;
-}; 

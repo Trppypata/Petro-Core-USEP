@@ -6,6 +6,8 @@ import type { RocksMineralsItem } from '../types';
 import { getRockImages } from '@/services/rock-images.service';
 import type { FiltersState } from '../filters/RockMineralFilters';
 import axios from 'axios';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 
 const API_URL = import.meta.env.VITE_local_url || 'http://localhost:8001/api';
@@ -316,12 +318,55 @@ export const getRocks = async (searchTerm: string = '', filters?: FiltersState):
 export const getMinerals = async (searchTerm: string = '', filters?: FiltersState): Promise<RocksMineralsItem[]> => {
   try {
     console.log('Fetching minerals with search term:', searchTerm);
-    // Fetch all minerals from the API or data source
-    const response = await fetchMinerals('ALL');
     
-    // Ensure we have an array of minerals
-    const minerals: IMineral[] = Array.isArray(response) ? response : [];
+    // First check for an active session
+    const { data: sessionData } = await supabase.auth.getSession();
+    console.log('Current session status:', sessionData?.session ? 'Authenticated' : 'Not authenticated');
+    
+    // Fetch all minerals from the API or data source
+    let minerals: IMineral[] = [];
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    while (retryCount <= maxRetries) {
+      try {
+        console.log(`Attempting to fetch minerals (attempt ${retryCount + 1}/${maxRetries + 1})...`);
+        
+        // Directly use Supabase client for more reliable access
+        const { data, error } = await supabase
+          .from('minerals')
+          .select('*');
+        
+        if (error) {
+          console.error(`Supabase error fetching minerals (attempt ${retryCount + 1}):`, error);
+          throw error;
+        }
+        
+        if (!data || !Array.isArray(data)) {
+          console.error(`Invalid minerals data format (attempt ${retryCount + 1}):`, data);
+          throw new Error('Invalid minerals data format');
+        }
+        
+        minerals = data;
+        console.log(`Successfully fetched ${minerals.length} minerals on attempt ${retryCount + 1}`);
+        break;
+      } catch (fetchError) {
+        console.error(`Error fetching minerals (attempt ${retryCount + 1}/${maxRetries + 1}):`, fetchError);
+        retryCount++;
+        
+        if (retryCount <= maxRetries) {
+          console.log(`Retrying mineral fetch (${retryCount}/${maxRetries})...`);
+          // Wait 1 second before retrying
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } else {
+          console.error('Max retries reached for mineral fetch');
+          throw fetchError;
+        }
+      }
+    }
 
+    console.log(`Fetched ${minerals.length} minerals from database`);
+    
     // Apply search filtering if a search term is provided
     const filteredMinerals = minerals.filter((mineral: IMineral) => {
       if (!searchTerm) return true;
@@ -330,58 +375,67 @@ export const getMinerals = async (searchTerm: string = '', filters?: FiltersStat
       
       // Comprehensive search across all relevant mineral fields
       return (
-        // Basic fields
+        // Search in mineral name
         (mineral.mineral_name && mineral.mineral_name.toLowerCase().includes(searchLower)) ||
-        (mineral.mineral_code && mineral.mineral_code.toLowerCase().includes(searchLower)) ||
+        // Search in chemical formula
         (mineral.chemical_formula && mineral.chemical_formula.toLowerCase().includes(searchLower)) ||
+        // Search in group
         (mineral.mineral_group && mineral.mineral_group.toLowerCase().includes(searchLower)) ||
+        // Search in category
         (mineral.category && mineral.category.toLowerCase().includes(searchLower)) ||
+        // Search in color
         (mineral.color && mineral.color.toLowerCase().includes(searchLower)) ||
-        (mineral.streak && mineral.streak.toLowerCase().includes(searchLower)) ||
-        (mineral.luster && mineral.luster.toLowerCase().includes(searchLower)) ||
-        (mineral.hardness && mineral.hardness.toLowerCase().includes(searchLower)) ||
-        (mineral.cleavage && mineral.cleavage.toLowerCase().includes(searchLower)) ||
-        (mineral.fracture && mineral.fracture.toLowerCase().includes(searchLower)) ||
-        (mineral.habit && mineral.habit.toLowerCase().includes(searchLower)) ||
-        (mineral.crystal_system && mineral.crystal_system.toLowerCase().includes(searchLower)) ||
-        
-        // Additional properties
-        (mineral.specific_gravity && mineral.specific_gravity.toLowerCase().includes(searchLower)) ||
-        (mineral.transparency && mineral.transparency.toLowerCase().includes(searchLower)) ||
+        // Search in occurrence
         (mineral.occurrence && mineral.occurrence.toLowerCase().includes(searchLower)) ||
-        (mineral.uses && mineral.uses.toLowerCase().includes(searchLower))
+        // Search in crystal system
+        (mineral.crystal_system && mineral.crystal_system.toLowerCase().includes(searchLower))
       );
     });
-
-    // Apply additional filters if provided
-    let filteredAndSelectedMinerals = filteredMinerals;
+    
+    console.log(`Applied search filtering: ${filteredMinerals.length} minerals match the search term`);
+    
+    // Apply filters if they exist
+    let finalFilteredMinerals = filteredMinerals;
     
     if (filters) {
-      filteredAndSelectedMinerals = filteredAndSelectedMinerals.filter((mineral: IMineral) => {
-        // Filter by mineral categories
-        if (filters.mineralCategory.length > 0) {
-          const categoryToCheck = mineral.category || mineral.mineral_group || '';
-          if (!filters.mineralCategory.some(c => 
-            categoryToCheck.toLowerCase().includes(c.toLowerCase()))) {
+      finalFilteredMinerals = filteredMinerals.filter((mineral: IMineral) => {
+        // Apply category filters
+        if (filters.mineralCategory && filters.mineralCategory.length > 0) {
+          if (!mineral.category && !mineral.mineral_group) return false;
+          
+          const mineralCategory = mineral.category || mineral.mineral_group || '';
+          if (!filters.mineralCategory.some(category => 
+            mineralCategory.toLowerCase().includes(category.toLowerCase())
+          )) {
             return false;
           }
         }
         
-        // Filter by color
-        if (filters.colors.length > 0 && mineral.color) {
-          if (!filters.colors.some(c => mineral.color?.toLowerCase().includes(c.toLowerCase()))) {
+        // Apply color filters
+        if (filters.colors && filters.colors.length > 0) {
+          if (!mineral.color) return false;
+          
+          if (!filters.colors.some(color => 
+            mineral.color?.toLowerCase().includes(color.toLowerCase())
+          )) {
             return false;
           }
         }
         
         return true;
       });
+      
+      console.log(`Applied additional filters: ${finalFilteredMinerals.length} minerals match all filters`);
     }
 
-    // Transform to standard format
-    return filteredAndSelectedMinerals.map((mineral: IMineral) => transformMineralData(mineral));
+    // Transform mineral data to standard format
+    const transformedMinerals = finalFilteredMinerals.map(transformMineralData);
+    console.log(`Returning ${transformedMinerals.length} transformed minerals`);
+    return transformedMinerals;
   } catch (error) {
     console.error('Error getting minerals:', error);
+    // Show a toast notification about the error
+    toast.error('Failed to fetch minerals data. Please try again later.');
     return [];
   }
 };
@@ -404,4 +458,42 @@ export const getRocksAndMinerals = async (searchTerm?: string, filters?: Filters
     console.error('Error getting combined data:', error);
     return [];
   }
-}; 
+};
+
+/**
+ * Fetch minerals directly from Supabase
+ */
+async function fetchMineralsFromSupabase(category: string): Promise<IMineral[]> {
+  try {
+    console.log(`Fetching minerals for category: ${category}`);
+    // First, check auth status to see if we have a valid session
+    const { data: sessionData } = await supabase.auth.getSession();
+    const isAuthenticated = !!sessionData?.session;
+    
+    console.log(`User authentication status: ${isAuthenticated ? 'Authenticated' : 'Not authenticated'}`);
+    
+    // Log the endpoint we're about to hit
+    console.log(`Fetching from Supabase table 'minerals' with${category !== 'ALL' ? ` category=${category}` : ' all categories'}`);
+    
+    // Fetch the minerals
+    let query = supabase.from('minerals').select('*');
+    
+    // Add category filter if specified
+    if (category !== 'ALL') {
+      query = query.eq('category', category);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error('Supabase error fetching minerals:', error);
+      throw error;
+    }
+    
+    console.log(`Successfully fetched ${data?.length || 0} minerals`);
+    return data || [];
+  } catch (err) {
+    console.error('Error in fetchMineralsFromSupabase:', err);
+    throw err;
+  }
+} 

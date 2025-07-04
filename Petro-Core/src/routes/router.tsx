@@ -22,6 +22,8 @@ import { LockdownGuard } from "@/components/lockdown-guard";
 import { SupabaseTester } from "@/supabase-tester";
 import FieldWorkFilePage from "@/modules/admin/files/file-page";
 import { TriviaPage } from "@/modules/admin/trivia";
+import AboutUsPage from "@/modules/home/about-us/about-us-page";
+import TestFieldworksBucket from '../test-fieldworks-bucket';
 
 // Higher order component to wrap routes with role guards
 const withRoleGuard = (Component: React.ComponentType, guard: React.FC<{children: ReactNode}>) => {
@@ -70,6 +72,10 @@ const router = createBrowserRouter([
       { 
         path: "home",
         Component: HeroSection,
+      },
+      {
+        path: "about-us",
+        Component: AboutUsPage,
       },
       {
         path: "rock-minerals",
@@ -143,7 +149,12 @@ const router = createBrowserRouter([
         ]
       }
     ]
-  }
+  },
+  // Add the test route
+  {
+    path: '/test-fieldworks',
+    element: <TestFieldworksBucket />
+  },
 ]);
 
 export default router;

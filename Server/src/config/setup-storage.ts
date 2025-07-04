@@ -51,6 +51,50 @@ export const setupStorageBuckets = async () => {
       console.log('rocks-minerals bucket already exists');
     }
     
+    // Check if fieldworks bucket exists
+    if (!bucketNames.includes('fieldworks')) {
+      console.log('Creating fieldworks bucket...');
+      
+      const { data, error } = await supabase
+        .storage
+        .createBucket('fieldworks', {
+          public: true,
+          fileSizeLimit: 10485760, // 10MB
+          allowedMimeTypes: ['application/pdf']
+        });
+      
+      if (error) {
+        console.error('Error creating fieldworks bucket:', error);
+      } else {
+        console.log('fieldworks bucket created successfully:', data);
+        
+        // Test bucket access
+        try {
+          const testBlob = new Blob(['Test content'], { type: 'text/plain' });
+          const { error: uploadError } = await supabase
+            .storage
+            .from('fieldworks')
+            .upload('test-access.txt', testBlob, { upsert: true });
+          
+          if (uploadError) {
+            console.warn('Note: Could not upload test file to fieldworks bucket:', uploadError);
+          } else {
+            console.log('Successfully uploaded test file to fieldworks bucket');
+            
+            // Clean up test file
+            await supabase
+              .storage
+              .from('fieldworks')
+              .remove(['test-access.txt']);
+          }
+        } catch (testError) {
+          console.error('Error testing fieldworks bucket access:', testError);
+        }
+      }
+    } else {
+      console.log('fieldworks bucket already exists');
+    }
+    
     // Create folders within the bucket
     console.log('Creating folders...');
     
