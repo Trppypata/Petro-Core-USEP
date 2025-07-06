@@ -24,8 +24,13 @@ const PORT = process.env.PORT || 8001;
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://127.0.0.1:5173',
+    'https://petro-core-usep.onrender.com'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
   credentials: true
 }));
 app.use(express.json());
@@ -53,6 +58,13 @@ app.get('/api/health', (req, res) => {
 setupStorageBuckets().catch(err => {
   console.error('Error setting up storage buckets:', err);
 });
+
+app.use(express.static('build'));
+
+app.get('*', (req, res) => {
+  res.sendFile(path.resolve(__dirname, 'build', 'index.html'));
+});
+
 
 // Start server
 app.listen(PORT, () => {

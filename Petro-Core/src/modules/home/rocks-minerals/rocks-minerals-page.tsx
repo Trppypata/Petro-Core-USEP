@@ -320,11 +320,12 @@ const RockMinerals = () => {
           <div className="relative flex flex-col space-y-4">
             {/* Search and Filters Row */}
             <div className="flex justify-center mb-6">
-              <div className="w-full max-w-md">
+              <div className="w-full max-w-lg">
                 <SearchBar
                   placeholder="Search by name, color, locality, texture, mineral composition..."
                   onSearch={handleSearch}
                   initialValue={searchTerm}
+                  className="w-full flex"
                 />
               </div>
             </div>

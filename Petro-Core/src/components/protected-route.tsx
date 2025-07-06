@@ -1,9 +1,15 @@
-import { useEffect, useState } from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { useEffect, useState, ReactNode } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { authService } from '@/services/auth.service';
+import { Spinner } from './spinner';
 
-export default function ProtectedRoute() {
+interface ProtectedRouteProps {
+  children: ReactNode;
+}
+
+export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const location = useLocation();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -22,10 +28,16 @@ export default function ProtectedRoute() {
   if (isAuthenticated === null) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <Spinner size="lg" />
       </div>
     );
   }
 
-  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
+  if (!isAuthenticated) {
+    // Redirect to login page but save the current location
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // User is authenticated, render the protected content
+  return <>{children}</>;
 } 

@@ -67,7 +67,11 @@ const router = createBrowserRouter([
   // Main application routes
   {
     path: "/",
-    Component: PageLayout,
+    element: (
+      <ProtectedRoute>
+        <PageLayout />
+      </ProtectedRoute>
+    ),
     children: [
       { 
         path: "home",
@@ -106,7 +110,13 @@ const router = createBrowserRouter([
   // Admin dashboard routes - only accessible by admins
   {
     path: '/dashboard-app',
-    Component: AdminLayout,
+    element: (
+      <ProtectedRoute>
+        <AdminGuard>
+          <AdminLayout />
+        </AdminGuard>
+      </ProtectedRoute>
+    ),
     children: [ 
       {
         path: '',
