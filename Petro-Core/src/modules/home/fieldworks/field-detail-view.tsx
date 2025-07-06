@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, ChevronDown, ChevronUp, FileText, Loader2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, FileText, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface FieldWork {
   id: string;
@@ -40,13 +41,14 @@ const FieldDetailView = () => {
   const [pdfFiles, setPdfFiles] = useState<PDFFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (fieldId) {
       fetchFieldWorkData();
       checkFieldworksBucket();
     }
-  }, [fieldId]);
+  }, [fieldId, retryCount]);
 
   // Check if fieldworks bucket exists and is accessible
   const checkFieldworksBucket = async () => {
@@ -85,15 +87,19 @@ const FieldDetailView = () => {
         if (tableError) {
           console.error('Error checking fieldworks table:', tableError);
           toast.error(`Database access error: ${tableError.message}`);
+          throw tableError;
         } else {
           console.log(`Fieldworks table exists with approximately ${count} rows`);
         }
-      } catch (tableErr) {
+      } catch (tableErr: any) {
         console.error('Error verifying fieldworks table:', tableErr);
+        setError(`Database table error: ${tableErr.message || 'Unknown error'}`);
+        setLoading(false);
+        return;
       }
       
       // Determine if fieldId is a UUID or a path/slug
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(fieldId);
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(fieldId || '');
       
       console.log(`Field ID format: ${isUuid ? 'UUID' : 'path/slug'}`);
       
@@ -111,7 +117,9 @@ const FieldDetailView = () => {
       
       if (fieldWorkError) {
         console.error('Error fetching field work details:', fieldWorkError);
-        throw fieldWorkError;
+        setError(`Could not find field work with ID: ${fieldId}`);
+        setLoading(false);
+        return;
       }
       
       if (!fieldWorkData) {
@@ -139,7 +147,7 @@ const FieldDetailView = () => {
         // Try to determine if it's a missing column error
         if (sectionsError.message.includes('column') && sectionsError.message.includes('does not exist')) {
           console.error('Column missing error detected. Database schema might need updating.');
-          toast.error('Database schema error detected. Please contact administrator.');
+          setError('Database schema error: Missing "order" column in fieldwork_sections table');
         }
         setSections([]);
       } else {
@@ -209,9 +217,9 @@ const FieldDetailView = () => {
           [sectionsData[0].id]: true
         });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching field work data:', err);
-      setError('Failed to load field work data');
+      setError(err.message || 'Failed to load field work data');
       toast.error('Failed to load field work data');
     } finally {
       setLoading(false);
@@ -223,6 +231,11 @@ const FieldDetailView = () => {
       ...prev,
       [sectionId]: !prev[sectionId]
     }));
+  };
+  
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1);
+    toast.info('Retrying connection...');
   };
 
   // Group PDF files by section and type
@@ -261,6 +274,43 @@ const FieldDetailView = () => {
     // Return the original URL as fallback
     return url;
   };
+  
+  const renderErrorMessage = () => {
+    if (!error) return null;
+    
+    return (
+      <Alert className="my-4 bg-destructive/10 border-destructive/20">
+        <AlertTriangle className="h-5 w-5 text-destructive" />
+        <AlertTitle className="text-destructive">Error Loading Field Work</AlertTitle>
+        <AlertDescription className="space-y-4">
+          <p>{error}</p>
+          <div className="flex space-x-2">
+            <Button 
+              onClick={handleRetry} 
+              variant="secondary"
+              size="sm" 
+              className="mt-2"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Retry
+            </Button>
+            <Link to="/admin/files">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-2"
+              >
+                Manage Field Works
+              </Button>
+            </Link>
+          </div>
+          <p className="text-sm text-muted-foreground mt-2">
+            If this issue persists, you may need to set up the fieldworks tables and storage in Supabase.
+          </p>
+        </AlertDescription>
+      </Alert>
+    );
+  };
 
   if (loading) {
     return (
@@ -281,10 +331,7 @@ const FieldDetailView = () => {
             Back to Field Works
           </Button>
         </Link>
-        <div className="text-center py-8 bg-card rounded-lg shadow">
-          <h2 className="text-2xl font-bold text-destructive mb-2">Error</h2>
-          <p className="text-muted-foreground">{error || 'Field work not found'}</p>
-        </div>
+        {renderErrorMessage()}
       </div>
     );
   }

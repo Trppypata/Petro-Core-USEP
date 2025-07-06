@@ -13,6 +13,9 @@ import { AlertCircle } from 'lucide-react';
 import { TriviaButton } from '@/components/trivia/TriviaButton';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +25,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { IMineral } from "@/modules/admin/minerals/mineral.interface";
 
 // List of predefined colors for filters
 const COLORS = [
@@ -37,8 +41,11 @@ const ROCK_TYPES = [
 
 // List of predefined mineral categories
 const MINERAL_CATEGORIES = [
-  "Silicates", "Oxides", "Sulfides", "Carbonates", "Halides", 
-  "Phosphates", "Sulfates", "Native Elements"
+  "Silicates", "Oxides", "Hydroxides", "Sulfides", "Carbonates", 
+  "Halides", "Phosphates", "Sulfates", "Native Elements", "Sulfosalts",
+  "Borates", "Chromates", "Molybdates", "Tungstates", "Vanadates",
+  "Arsenates", "Tellurides", "Selenides", "Antimonides", "Arsenides", 
+  "Organics", "Nitrates"
 ];
 
 const RockMinerals = () => {
@@ -55,14 +62,20 @@ const RockMinerals = () => {
     colors: [],
     associatedMinerals: []
   });
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingStage, setLoadingStage] = useState("");
   
   useEffect(() => {
     fetchData();
-  }, [displayType, filters]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayType, JSON.stringify(filters)]);
 
   const fetchData = async () => {
     setIsLoading(true);
     setError(null);
+    setLoadingProgress(10);
+    setLoadingStage("Initializing...");
+    
     try {
       let data: RocksMineralsItem[] = [];
       
@@ -70,32 +83,52 @@ const RockMinerals = () => {
       
       // Fetch data based on display type
       if (displayType === "all") {
+        setLoadingStage("Fetching rocks and minerals...");
+        setLoadingProgress(20);
         // Use dedicated function to get both rocks and minerals
         data = await getRocksAndMinerals(searchTerm, filters);
+        setLoadingProgress(70);
       } else if (displayType === "rocks") {
+        setLoadingStage("Fetching rocks...");
+        setLoadingProgress(20);
         // Get only rocks
         data = await getRocks(searchTerm, filters);
+        setLoadingProgress(60);
         // Ensure only rock items are displayed
         data = data.filter(item => item.type === 'rock');
+        setLoadingProgress(70);
       } else if (displayType === "minerals") {
+        setLoadingStage("Fetching minerals...");
+        setLoadingProgress(20);
         // Get only minerals
         data = await getMinerals(searchTerm, filters);
+        setLoadingProgress(60);
         // Ensure only mineral items are displayed
         data = data.filter(item => item.type === 'mineral');
+        setLoadingProgress(70);
       }
       
       console.log(`Fetched ${data.length} items for display type: ${displayType}`);
       
       // Remove duplicates by ID
+      setLoadingStage("Processing results...");
+      setLoadingProgress(80);
       const uniqueItems = removeDuplicates(data);
       console.log(`After removing duplicates: ${uniqueItems.length} items`);
       
+      setLoadingProgress(90);
       setItems(uniqueItems);
+      setLoadingProgress(100);
     } catch (err) {
       console.error('Error fetching data:', err);
       setError('Failed to load items. Please try again later.');
     } finally {
-      setIsLoading(false);
+      // Small delay before hiding loading indicator for smoother transition
+      setTimeout(() => {
+        setIsLoading(false);
+        setLoadingProgress(0);
+        setLoadingStage("");
+      }, 300);
     }
   };
   
@@ -148,12 +181,24 @@ const RockMinerals = () => {
 
   const handleSearch = (term: string) => {
     setSearchTerm(term);
-    searchWithCurrentParams(term);
   };
+
+  useEffect(() => {
+    // Debounce search to prevent too many API calls
+    const timer = setTimeout(() => {
+      searchWithCurrentParams(searchTerm);
+    }, 500);
+    
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm]);
 
   const searchWithCurrentParams = async (term: string) => {
     setIsLoading(true);
     setError(null);
+    setLoadingProgress(10);
+    setLoadingStage("Searching...");
+    
     try {
       let data: RocksMineralsItem[] = [];
       
@@ -161,27 +206,43 @@ const RockMinerals = () => {
       
       // Apply the same fetching logic as in fetchData
       if (displayType === "all") {
+        setLoadingProgress(20);
         data = await getRocksAndMinerals(term, filters);
+        setLoadingProgress(70);
       } else if (displayType === "rocks") {
+        setLoadingProgress(20);
         data = await getRocks(term, filters);
+        setLoadingProgress(60);
         // Ensure only rock items are displayed
         data = data.filter(item => item.type === 'rock');
+        setLoadingProgress(70);
       } else if (displayType === "minerals") {
+        setLoadingProgress(20);
         data = await getMinerals(term, filters);
+        setLoadingProgress(60);
         // Ensure only mineral items are displayed
         data = data.filter(item => item.type === 'mineral');
+        setLoadingProgress(70);
       }
       
       console.log(`Search returned ${data.length} items`);
       
       // Remove duplicates
+      setLoadingProgress(80);
       const uniqueItems = removeDuplicates(data);
+      setLoadingProgress(90);
       setItems(uniqueItems);
+      setLoadingProgress(100);
     } catch (err) {
       console.error('Error during search:', err);
       setError('Failed to search. Please try again.');
     } finally {
-      setIsLoading(false);
+      // Small delay before hiding loading indicator for smoother transition
+      setTimeout(() => {
+        setIsLoading(false);
+        setLoadingProgress(0);
+        setLoadingStage("");
+      }, 300);
     }
   };
 
@@ -256,58 +317,62 @@ const RockMinerals = () => {
             Rocks and Minerals
           </h1>
           
-          <div className="flex justify-center mb-6">
-            <SearchBar 
-              onSearch={handleSearch} 
-              initialValue={searchTerm} 
-              placeholder="Search by name, color, locality, texture, minerals..."
-              className="max-w-md w-full"
-            />
-          </div>
+          <div className="relative flex flex-col space-y-4">
+            {/* Search and Filters Row */}
+            <div className="flex justify-center mb-6">
+              <div className="w-full max-w-md">
+                <SearchBar
+                  placeholder="Search by name, color, locality, texture, mineral composition..."
+                  onSearch={handleSearch}
+                  initialValue={searchTerm}
+                />
+              </div>
+            </div>
 
-          {/* Type Selection and Filter Buttons */}
-          <div className="flex flex-wrap gap-2 mb-6 justify-center">
-            <button
-              onClick={() => handleDisplayTypeChange("all")}
-              className={`rounded-full px-6 py-2 transition-all duration-200 shadow-sm flex items-center gap-2 ${
-                displayType === "all" 
-                  ? "bg-primary text-primary-foreground shadow-md" 
-                  : "bg-card hover:bg-muted border border-border"
-              }`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => handleDisplayTypeChange("rocks")}
-              className={`rounded-full px-6 py-2 transition-all duration-200 shadow-sm flex items-center gap-2 ${
-                displayType === "rocks" 
-                  ? "bg-primary text-primary-foreground shadow-md" 
-                  : "bg-card hover:bg-muted border border-border"
-              }`}
-            >
-              Rocks
-            </button>
-            <button
-              onClick={() => handleDisplayTypeChange("minerals")}
-              className={`rounded-full px-6 py-2 transition-all duration-200 shadow-sm flex items-center gap-2 ${
-                displayType === "minerals" 
-                  ? "bg-primary text-primary-foreground shadow-md" 
-                  : "bg-card hover:bg-muted border border-border"
-              }`}
-            >
-              Minerals
-            </button>
-            <Link
-              to="/rock-minerals/map"
-              className={`rounded-full px-6 py-2 transition-all duration-200 shadow-sm flex items-center gap-2 ${
-                location.pathname === "/rock-minerals/map" 
-                  ? "bg-primary text-primary-foreground shadow-md" 
-                  : "bg-card hover:bg-muted border border-border"
-              }`}
-            >
-              <MapPin className="h-4 w-4" />
-              Map
-            </Link>
+            {/* Type Selection and Filter Buttons */}
+            <div className="flex flex-wrap gap-2 mb-6 justify-center">
+              <button
+                onClick={() => handleDisplayTypeChange("all")}
+                className={`rounded-full px-6 py-2 transition-all duration-200 shadow-sm flex items-center gap-2 ${
+                  displayType === "all" 
+                    ? "bg-primary text-primary-foreground shadow-md" 
+                    : "bg-card hover:bg-muted border border-border"
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => handleDisplayTypeChange("rocks")}
+                className={`rounded-full px-6 py-2 transition-all duration-200 shadow-sm flex items-center gap-2 ${
+                  displayType === "rocks" 
+                    ? "bg-primary text-primary-foreground shadow-md" 
+                    : "bg-card hover:bg-muted border border-border"
+                }`}
+              >
+                Rocks
+              </button>
+              <button
+                onClick={() => handleDisplayTypeChange("minerals")}
+                className={`rounded-full px-6 py-2 transition-all duration-200 shadow-sm flex items-center gap-2 ${
+                  displayType === "minerals" 
+                    ? "bg-primary text-primary-foreground shadow-md" 
+                    : "bg-card hover:bg-muted border border-border"
+                }`}
+              >
+                Minerals
+              </button>
+              <Link
+                to="/rock-minerals/map"
+                className={`rounded-full px-6 py-2 transition-all duration-200 shadow-sm flex items-center gap-2 ${
+                  location.pathname === "/rock-minerals/map" 
+                    ? "bg-primary text-primary-foreground shadow-md" 
+                    : "bg-card hover:bg-muted border border-border"
+                }`}
+              >
+                <MapPin className="h-4 w-4" />
+                Map
+              </Link>
+            </div>
           </div>
         </div>
         
@@ -460,8 +525,14 @@ const RockMinerals = () => {
               )}
               
               {isLoading ? (
-                <div className="flex justify-center items-center min-h-[400px]">
-                  <Spinner size="lg" />
+                <div className="flex flex-col justify-center items-center min-h-[400px]">
+                  <div className="w-full max-w-md mb-4">
+                    <Progress value={loadingProgress} className="h-2" />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Spinner size="md" />
+                    <p className="text-muted-foreground">{loadingStage || "Loading..."}</p>
+                  </div>
                 </div>
               ) : items.length > 0 ? (
                 <>

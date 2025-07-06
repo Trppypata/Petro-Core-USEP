@@ -16,552 +16,532 @@ const API_URL = import.meta.env.VITE_local_url || 'http://localhost:8001/api';
 const DEFAULT_ROCK_IMAGE = '/petro-static/default-rock.jpg';
 const DEFAULT_MINERAL_IMAGE = '/petro-static/default-mineral.jpg';
 
-// Check if an image URL is valid
+/**
+ * Normalize search term - removes extra spaces, converts to lowercase
+ * @param searchTerm 
+ * @returns 
+ */
+const normalizeSearchTerm = (searchTerm: string): string => {
+  return searchTerm.trim().toLowerCase();
+};
+
+/**
+ * Check if a URL is valid
+ * @param url 
+ * @returns 
+ */
 const isValidImageUrl = (url: string | null | undefined): boolean => {
   if (!url) return false;
   
-  // Handle relative paths in public directory
-  if (url.startsWith('/')) {
+  // Handle Supabase storage URLs
+  if (url.includes('storage/v1/object/public/')) {
     return true;
   }
   
-  // Check if it's a Supabase URL
-  if (url.includes('supabase.co')) {
-    return true;
-  }
-  
-  // Check if it's a complete URL
+  // Basic URL validation for other URLs
   try {
     new URL(url);
     return true;
-  } catch {
+  } catch (e) {
     return false;
   }
 };
 
 /**
- * Transform a rock database object into a standard display format
+ * Transform a rock into a RocksMineralsItem
+ * @param rock 
+ * @returns 
  */
 const transformRockData = async (rock: IRock): Promise<RocksMineralsItem> => {
-  // Initialize image URL from the rock data, falling back to default
-  let imageUrl = isValidImageUrl(rock.image_url) ? rock.image_url : DEFAULT_ROCK_IMAGE;
+  // Set the appropriate imageUrl based on rock category
+  let defaultImageUrl = '/petro-static/default-rock.jpg';
   
-  try {
-    // Try to fetch additional images from the rock_images table
-    if (rock.id) {
-      const images = await getRockImages(rock.id);
-      // If there are additional images, use the first one as the main image
-      if (images && images.length > 0) {
-        imageUrl = images[0].image_url;
+  // Check if rock has an image_url and use it if valid
+  let imageUrl = rock.image_url;
+  
+  if (!isValidImageUrl(imageUrl)) {
+    // Get default image based on rock category
+    if (rock.category.toLowerCase().includes('igneous')) {
+      defaultImageUrl = '/petro-static/default-rock.jpg';
+    } else if (rock.category.toLowerCase().includes('metamorphic')) {
+      defaultImageUrl = '/petro-static/default-rock.jpg';
+    } else if (rock.category.toLowerCase().includes('sedimentary')) {
+      defaultImageUrl = '/petro-static/default-rock.jpg';
+    } else if (rock.category.toLowerCase().includes('ore')) {
+      defaultImageUrl = '/petro-static/default-rock.jpg';
+    }
+    
+    imageUrl = defaultImageUrl;
+  }
+  
+  // Only fetch additional images if we have a valid rock ID
+  let additionalImages: string[] = [];
+  if (rock.id) {
+    // Use a cached version of the rock images if available
+    const cacheKey = `rock_images_${rock.id}`;
+    const cachedImages = sessionStorage.getItem(cacheKey);
+    
+    if (cachedImages) {
+      try {
+        additionalImages = JSON.parse(cachedImages);
+      } catch (e) {
+        console.error('Error parsing cached images:', e);
+      }
+    } else {
+      try {
+        const { data: rockImages } = await supabase
+          .from('rock_images')
+          .select('image_url')
+          .eq('rock_id', rock.id)
+          .limit(5);
+          
+        if (rockImages && rockImages.length > 0) {
+          additionalImages = rockImages
+            .map((img: { image_url: string }) => img.image_url)
+            .filter((url: string) => isValidImageUrl(url));
+            
+          // Cache the results
+          sessionStorage.setItem(cacheKey, JSON.stringify(additionalImages));
+        }
+      } catch (error) {
+        console.error('Error fetching additional rock images:', error);
       }
     }
-  } catch (error) {
-    console.error(`Failed to fetch additional images for rock ${rock.id}:`, error);
-    // Continue with the default image
   }
   
-  // Format the description to show rock type and locality
-  const description = `${rock.category} rock from ${rock.locality || 'n/a'}`;
-  
-  const formattedCoordinates = rock.coordinates || 
-                           (rock.latitude && rock.longitude ? 
-                             `${rock.latitude}, ${rock.longitude}` : 
-                             undefined);
-  
-  // Calculate path for rock detail view
-  const path = rock.id ? `/rock-minerals/rock/${rock.id}` : undefined;
-  
-  // Determine the appropriate rockType value
-  let rockType = rock.type || '';
-  
-  // If rockType is empty, use the category
-  if (!rockType && rock.category) {
-    rockType = rock.category;
+  // Create a description from rock properties if it doesn't exist
+  let description = rock.description || '';
+  if (!description) {
+    const descParts = [];
+    if (rock.mineral_composition) descParts.push(`Composition: ${rock.mineral_composition}`);
+    if (rock.grain_size) descParts.push(`Grain size: ${rock.grain_size}`);
+    if (rock.texture) descParts.push(`Texture: ${rock.texture}`);
+    if (rock.color) descParts.push(`Color: ${rock.color}`);
+    
+    description = descParts.join('. ');
   }
   
-  // Special case for Ore Samples
-  if (rock.category === 'Ore Samples' || rockType === 'Ore') {
-    rockType = 'Ore Samples';
-  }
-  
-  // Transform to standard format
   return {
     id: rock.id || '',
-    title: rock.name || '',
-    description,
-    imageUrl,
-    path,
-    category: rock.category || '',
+    title: rock.name,
+    description: description || `${rock.category} rock sample`,
+    imageUrl: imageUrl,
+    additionalImages: additionalImages,
+    category: rock.category,
     type: 'rock',
-    color: rock.color || '',
-    associatedMinerals: rock.associated_minerals || rock.mineral_composition || '',
-    coordinates: formattedCoordinates,
+    color: rock.color,
+    associatedMinerals: rock.associated_minerals,
+    texture: rock.texture,
+    foliation: rock.foliation,
+    rockType: rock.type,
+    coordinates: rock.coordinates,
     latitude: rock.latitude,
     longitude: rock.longitude,
-    locality: rock.locality || '',
-    // Category-specific properties
-    texture: rock.texture || '',
-    foliation: rock.foliation || '',
-    rockType: rockType
+    locality: rock.locality
   };
 };
 
 /**
- * Transform a mineral database object into a standard display format
+ * Transform a mineral into a RocksMineralsItem
+ * @param mineral 
+ * @returns 
  */
 const transformMineralData = (mineral: IMineral): RocksMineralsItem => {
-  // Format the description to show mineral category and occurrence
-  const description = `${mineral.category || mineral.mineral_group || 'Mineral'} from ${mineral.occurrence || 'n/a'}`;
+  // Set default image for minerals
+  let defaultImageUrl = '/petro-static/default-mineral.jpg';
   
-  // Calculate path for mineral detail view
-  const path = mineral.id ? `/rock-minerals/mineral/${mineral.id}` : undefined;
+  // Use the mineral's image if valid
+  const imageUrl = isValidImageUrl(mineral.image_url) ? mineral.image_url : defaultImageUrl;
+  
+  // Create a description from mineral properties
+  let description = '';
+  const descParts = [];
+  
+  if (mineral.chemical_formula) descParts.push(`Formula: ${mineral.chemical_formula}`);
+  if (mineral.color) descParts.push(`Color: ${mineral.color}`);
+  if (mineral.mineral_group) descParts.push(`Group: ${mineral.mineral_group}`);
+  if (mineral.hardness) descParts.push(`Hardness: ${mineral.hardness}`);
+  
+  description = descParts.join('. ');
   
   return {
     id: mineral.id || '',
-    title: mineral.mineral_name || '',
-    description,
-    imageUrl: mineral.image_url || DEFAULT_MINERAL_IMAGE,
-    path,
-    category: mineral.category || mineral.mineral_group || '',
+    title: mineral.mineral_name,
+    description: description || `${mineral.category} mineral sample`,
+    imageUrl: imageUrl,
+    category: mineral.category,
     type: 'mineral',
-    color: mineral.color || '',
-    associatedMinerals: '',
-    locality: mineral.occurrence || '',
-    // Include these fields but they'll likely be empty for minerals
-    texture: '',
-    foliation: '',
-    rockType: ''
+    color: mineral.color
   };
 };
 
 /**
- * Helper function to deduplicate rocks by rock_code and name
+ * Remove duplicate rocks based on rock code
+ * @param rocks 
+ * @returns 
  */
 const deduplicateRocks = (rocks: IRock[]): IRock[] => {
-  const uniqueByCode = new Map<string, IRock>();
-  const uniqueByNameCategory = new Map<string, IRock>();
+  const uniqueRocks: IRock[] = [];
+  const seenCodes = new Set<string>();
+  const seenIds = new Set<string>();
   
-  // First pass: deduplicate by rock_code
-  rocks.forEach(rock => {
-    if (rock.rock_code) {
-      const cleanCode = rock.rock_code.replace(/\s+/g, '').toLowerCase();
-      
-      // If we already have this code, keep the most recently updated one
-      if (uniqueByCode.has(cleanCode)) {
-        const existing = uniqueByCode.get(cleanCode)!;
-        
-        // Compare updated_at dates if available
-        if (rock.updated_at && existing.updated_at) {
-          if (new Date(rock.updated_at) > new Date(existing.updated_at)) {
-            uniqueByCode.set(cleanCode, rock);
-          }
-        } else {
-          // If no dates, prefer the one with more complete data
-          const rockFields = Object.values(rock).filter(v => v !== null && v !== undefined && v !== '').length;
-          const existingFields = Object.values(existing).filter(v => v !== null && v !== undefined && v !== '').length;
-          
-          if (rockFields > existingFields) {
-            uniqueByCode.set(cleanCode, rock);
-          }
-        }
-      } else {
-        uniqueByCode.set(cleanCode, rock);
-      }
-    }
-  });
-  
-  // Second pass: handle rocks without codes by name+category
-  rocks.forEach(rock => {
-    // Skip if already included by code
-    if (rock.rock_code && uniqueByCode.has(rock.rock_code.replace(/\s+/g, '').toLowerCase())) {
-      return;
-    }
+  for (const rock of rocks) {
+    // Skip if we've seen this ID already
+    if (rock.id && seenIds.has(rock.id)) continue;
     
-    if (rock.name && rock.category) {
-      const nameKey = `${rock.name.toLowerCase()}-${rock.category.toLowerCase()}`;
-      
-      // If we already have this name+category, keep the most recently updated one
-      if (uniqueByNameCategory.has(nameKey)) {
-        const existing = uniqueByNameCategory.get(nameKey)!;
-        
-        // Compare updated_at dates if available
-        if (rock.updated_at && existing.updated_at) {
-          if (new Date(rock.updated_at) > new Date(existing.updated_at)) {
-            uniqueByNameCategory.set(nameKey, rock);
-          }
-        } else {
-          // If no dates, prefer the one with more complete data
-          const rockFields = Object.values(rock).filter(v => v !== null && v !== undefined && v !== '').length;
-          const existingFields = Object.values(existing).filter(v => v !== null && v !== undefined && v !== '').length;
-          
-          if (rockFields > existingFields) {
-            uniqueByNameCategory.set(nameKey, rock);
-          }
-        }
-      } else {
-        uniqueByNameCategory.set(nameKey, rock);
-      }
-    }
-  });
+    // Skip if we've seen this code already
+    if (rock.rock_code && seenCodes.has(rock.rock_code)) continue;
+    
+    // Add to our sets
+    if (rock.id) seenIds.add(rock.id);
+    if (rock.rock_code) seenCodes.add(rock.rock_code);
+    
+    uniqueRocks.push(rock);
+  }
   
-  // Combine both sets of unique rocks
-  const uniqueRocks = [...uniqueByCode.values(), ...uniqueByNameCategory.values()];
-  
-  console.log(`Deduplicated ${rocks.length} rocks to ${uniqueRocks.length} unique rocks`);
   return uniqueRocks;
 };
 
 /**
- * Enhanced search function for rocks
- * Searches across all relevant fields of rock data
+ * Apply text search to rocks based on a search term
+ * @param rocks 
+ * @param searchTerm 
+ * @returns 
+ */
+const applyRockTextSearch = (rocks: IRock[], searchTerm: string): IRock[] => {
+  if (!searchTerm) return rocks;
+  
+  const normalizedTerm = normalizeSearchTerm(searchTerm);
+  
+  // First try exact match on rock code or name
+  let exactMatches = rocks.filter(rock => 
+    rock.rock_code?.toLowerCase() === normalizedTerm || 
+    rock.name?.toLowerCase() === normalizedTerm
+  );
+  
+  // If we have exact matches, return those
+  if (exactMatches.length > 0) {
+    return exactMatches;
+  }
+  
+  // Otherwise do a broader search
+  return rocks.filter(rock => {
+    // Check various fields for the search term
+    const searchableFields = [
+      rock.rock_code,
+      rock.name,
+      rock.category,
+      rock.type,
+      rock.color,
+      rock.texture,
+      rock.mineral_composition,
+      rock.locality,
+      rock.description,
+      rock.associated_minerals,
+      rock.metamorphism_type,
+      rock.metamorphic_grade,
+      rock.formation,
+      rock.ore_group,
+      rock.commodity_type,
+    ];
+    
+    // Find any field that contains the search term
+    return searchableFields.some(field => 
+      field?.toLowerCase().includes(normalizedTerm)
+    );
+  });
+};
+
+/**
+ * Apply filters to rock data
+ * @param rocks 
+ * @param filters 
+ * @returns 
+ */
+const applyRockFilters = (rocks: IRock[], filters: FiltersState): IRock[] => {
+  if (!filters) return rocks;
+  
+  return rocks.filter(rock => {
+    // Apply rock type filter
+    if (filters.rockType.length > 0) {
+      const rockTypeMatches = filters.rockType.some(type => 
+        rock.category?.toLowerCase() === type.toLowerCase() ||
+        rock.type?.toLowerCase() === type.toLowerCase()
+      );
+      if (!rockTypeMatches) return false;
+    }
+    
+    // Apply color filter
+    if (filters.colors.length > 0) {
+      const colorMatches = filters.colors.some(color => 
+        rock.color?.toLowerCase().includes(color.toLowerCase())
+      );
+      if (!colorMatches) return false;
+    }
+    
+    // Apply associated minerals filter
+    if (filters.associatedMinerals.length > 0) {
+      const mineralMatches = filters.associatedMinerals.some(mineral => 
+        rock.associated_minerals?.toLowerCase().includes(mineral.toLowerCase()) ||
+        rock.mineral_composition?.toLowerCase().includes(mineral.toLowerCase())
+      );
+      if (!mineralMatches) return false;
+    }
+    
+    return true;
+  });
+};
+
+/**
+ * Get rocks based on search term and filters
+ * @param searchTerm 
+ * @param filters 
+ * @returns 
  */
 export const getRocks = async (searchTerm: string = '', filters?: FiltersState): Promise<RocksMineralsItem[]> => {
   try {
     console.log('Fetching rocks with search term:', searchTerm);
-    console.log('Filters applied:', filters);
     
-    // Fetch all rocks from the API or data source
-    const { data: rocks } = await fetchRocks('ALL', 1, 1000);
+    // Fetch all rocks first, then apply filters in-memory for better performance
+    let query = supabase.from('rocks').select('*');
+    
+    // Add a limit if there's no search term to avoid fetching too many records
+    if (!searchTerm) {
+      query = query.limit(100);
+    }
+    
+    const { data: rocks, error } = await query;
+    
+    if (error) {
+      console.error('Error fetching rocks:', error);
+      return [];
+    }
+    
     console.log(`Fetched ${rocks.length} rocks from database`);
     
-    // Deduplicate rocks first
+    // Remove duplicates
     const uniqueRocks = deduplicateRocks(rocks);
     console.log(`After deduplication: ${uniqueRocks.length} rocks`);
     
-    // Log the distribution of rock categories
-    const categoryDistribution: Record<string, number> = {};
-    uniqueRocks.forEach(rock => {
-      const category = rock.category || 'Unknown';
-      categoryDistribution[category] = (categoryDistribution[category] || 0) + 1;
-    });
-    console.log('Rock category distribution:', categoryDistribution);
-
-    // Apply search filtering if a search term is provided
-    const filteredRocks = uniqueRocks.filter(rock => {
-      if (!searchTerm) return true;
-
-      const searchLower = searchTerm.toLowerCase();
-      
-      // Comprehensive search across all relevant rock fields
-      return (
-        // Basic fields
-        (rock.name && rock.name.toLowerCase().includes(searchLower)) ||
-        (rock.rock_code && rock.rock_code.toLowerCase().includes(searchLower)) ||
-        (rock.category && rock.category.toLowerCase().includes(searchLower)) ||
-        (rock.type && rock.type.toLowerCase().includes(searchLower)) ||
-        (rock.color && rock.color.toLowerCase().includes(searchLower)) ||
-        (rock.hardness && rock.hardness.toLowerCase().includes(searchLower)) ||
-        (rock.texture && rock.texture.toLowerCase().includes(searchLower)) ||
-        (rock.grain_size && rock.grain_size.toLowerCase().includes(searchLower)) ||
-        (rock.locality && rock.locality.toLowerCase().includes(searchLower)) ||
-        (rock.mineral_composition && rock.mineral_composition.toLowerCase().includes(searchLower)) ||
-        (rock.description && rock.description.toLowerCase().includes(searchLower)) ||
-        (rock.formation && rock.formation.toLowerCase().includes(searchLower)) ||
-        (rock.depositional_environment && rock.depositional_environment.toLowerCase().includes(searchLower)) ||
-        
-        // Associated minerals
-        (rock.associated_minerals && rock.associated_minerals.toLowerCase().includes(searchLower)) ||
-        
-        // Coordinates or location
-        (rock.coordinates && rock.coordinates.toLowerCase().includes(searchLower)) ||
-        (rock.latitude && rock.latitude.toLowerCase().includes(searchLower)) ||
-        (rock.longitude && rock.longitude.toLowerCase().includes(searchLower)) ||
-        
-        // Category-specific fields
-        // Metamorphic
-        (rock.metamorphism_type && rock.metamorphism_type.toLowerCase().includes(searchLower)) || 
-        (rock.metamorphic_grade && rock.metamorphic_grade.toLowerCase().includes(searchLower)) || 
-        (rock.parent_rock && rock.parent_rock.toLowerCase().includes(searchLower)) ||
-        (rock.foliation && rock.foliation.toLowerCase().includes(searchLower)) ||
-        
-        // Igneous
-        (rock.silica_content && rock.silica_content.toLowerCase().includes(searchLower)) ||
-        (rock.cooling_rate && rock.cooling_rate.toLowerCase().includes(searchLower)) ||
-        (rock.mineral_content && rock.mineral_content.toLowerCase().includes(searchLower)) ||
-        
-        // Sedimentary
-        (rock.bedding && rock.bedding.toLowerCase().includes(searchLower)) ||
-        (rock.sorting && rock.sorting.toLowerCase().includes(searchLower)) ||
-        (rock.roundness && rock.roundness.toLowerCase().includes(searchLower)) ||
-        (rock.fossil_content && rock.fossil_content.toLowerCase().includes(searchLower)) ||
-        
-        // Ore samples
-        (rock.commodity_type && rock.commodity_type.toLowerCase().includes(searchLower)) ||
-        (rock.ore_group && rock.ore_group.toLowerCase().includes(searchLower)) ||
-        (rock.mining_company && rock.mining_company.toLowerCase().includes(searchLower))
-      );
-    });
-
-    // Apply additional filters if provided
-    let filteredAndSelectedRocks = filteredRocks;
-    
-    if (filters) {
-      filteredAndSelectedRocks = filteredAndSelectedRocks.filter(rock => {
-        // Filter by selected rock types
-        if (filters.rockType.length > 0) {
-          // Check both type and category fields for the rock type
-          const rockTypeMatches = filters.rockType.some(filterType => {
-            // Convert both to lowercase for case-insensitive comparison
-            const filterTypeLower = filterType.toLowerCase();
-            
-            // Check if the rock type matches directly
-            if (rock.type && rock.type.toLowerCase().includes(filterTypeLower)) {
-              return true;
-            }
-            
-            // Check if the rock category matches
-            if (rock.category && rock.category.toLowerCase().includes(filterTypeLower)) {
-              return true;
-            }
-            
-            // Special case for "Ore Samples" which might be stored as "Ore" in the type field
-            if (filterTypeLower === "ore samples" && rock.type && rock.type.toLowerCase() === "ore") {
-              return true;
-            }
-            
-            return false;
-          });
-          
-          if (!rockTypeMatches) {
-            return false;
-          }
-        }
-        
-        // Filter by color
-        if (filters.colors.length > 0 && rock.color) {
-          if (!filters.colors.some(c => rock.color?.toLowerCase().includes(c.toLowerCase()))) {
-            return false;
-          }
-        }
-        
-        // Filter by associated minerals
-        if (filters.associatedMinerals.length > 0 && 
-            (rock.associated_minerals || rock.mineral_composition)) {
-          const minerals = rock.associated_minerals || rock.mineral_composition || '';
-          if (!filters.associatedMinerals.some(m => minerals.toLowerCase().includes(m.toLowerCase()))) {
-            return false;
-          }
-        }
-        
-        return true;
-      });
-      
-      // Log filter results
-      if (filters.rockType.length > 0) {
-        console.log(`After rock type filtering: ${filteredAndSelectedRocks.length} rocks match`);
-        // Count by rock type
-        const matchesByType: Record<string, number> = {};
-        filteredAndSelectedRocks.forEach(rock => {
-          const category = rock.category || 'Unknown';
-          matchesByType[category] = (matchesByType[category] || 0) + 1;
-        });
-        console.log('Matches by category after filtering:', matchesByType);
-      }
-      
-      if (filters.colors.length > 0) {
-        console.log(`After color filtering: ${filteredAndSelectedRocks.length} rocks match`);
-      }
-      
-      if (filters.associatedMinerals.length > 0) {
-        console.log(`After mineral filtering: ${filteredAndSelectedRocks.length} rocks match`);
-      }
+    // Apply search term filter
+    let filteredRocks = uniqueRocks;
+    if (searchTerm) {
+      filteredRocks = applyRockTextSearch(filteredRocks, searchTerm);
+      console.log(`After text search: ${filteredRocks.length} rocks matching "${searchTerm}"`);
     }
-
-    // Transform to standard format
-    const transformedRocks = await Promise.all(
-      filteredAndSelectedRocks.map(rock => transformRockData(rock))
+    
+    // Apply other filters
+    if (filters) {
+      filteredRocks = applyRockFilters(filteredRocks, filters);
+      console.log(`After applying filters: ${filteredRocks.length} rocks`);
+    }
+    
+    // Transform to RocksMineralsItem format
+    const rockItems: RocksMineralsItem[] = await Promise.all(
+      filteredRocks.map(transformRockData)
     );
-
-    return transformedRocks;
-  } catch (error) {
-    console.error('Error getting rocks:', error);
+    
+    return rockItems;
+  } catch (err) {
+    console.error('Error in getRocks:', err);
     return [];
   }
 };
 
 /**
- * Enhanced search function for minerals
- * Searches across all relevant fields of mineral data
+ * Apply text search to minerals based on a search term
+ * @param minerals 
+ * @param searchTerm 
+ * @returns 
+ */
+const applyMineralTextSearch = (minerals: IMineral[], searchTerm: string): IMineral[] => {
+  if (!searchTerm) return minerals;
+  
+  const normalizedTerm = normalizeSearchTerm(searchTerm);
+  
+  // First try exact match on mineral code or name
+  let exactMatches = minerals.filter(mineral => 
+    mineral.mineral_code?.toLowerCase() === normalizedTerm || 
+    mineral.mineral_name?.toLowerCase() === normalizedTerm
+  );
+  
+  // If we have exact matches, return those
+  if (exactMatches.length > 0) {
+    return exactMatches;
+  }
+  
+  // Otherwise do a broader search
+  return minerals.filter(mineral => {
+    // Check various fields for the search term
+    const searchableFields = [
+      mineral.mineral_code,
+      mineral.mineral_name,
+      mineral.category,
+      mineral.chemical_formula,
+      mineral.mineral_group,
+      mineral.color,
+      mineral.streak,
+      mineral.luster,
+      mineral.cleavage,
+      mineral.fracture,
+      mineral.crystal_system,
+      mineral.habit,
+      mineral.occurrence,
+      mineral.uses
+    ];
+    
+    // Find any field that contains the search term
+    return searchableFields.some(field => 
+      field?.toLowerCase().includes(normalizedTerm)
+    );
+  });
+};
+
+/**
+ * Apply filters to mineral data
+ * @param minerals 
+ * @param filters 
+ * @returns 
+ */
+const applyMineralFilters = (minerals: IMineral[], filters: FiltersState): IMineral[] => {
+  if (!filters) return minerals;
+  
+  return minerals.filter(mineral => {
+    // Apply mineral category filter
+    if (filters.mineralCategory.length > 0) {
+      // More flexible category matching to handle format discrepancies
+      const categoryMatches = filters.mineralCategory.some(category => {
+        if (!mineral.category) return false;
+        
+        const normalizedCategory = mineral.category.toLowerCase().trim();
+        const normalizedFilter = category.toLowerCase().trim();
+        
+        // Check exact match
+        if (normalizedCategory === normalizedFilter) return true;
+        
+        // Check singular/plural variants
+        if (normalizedFilter === 'borates' && normalizedCategory === 'borate') return true;
+        if (normalizedFilter === 'borate' && normalizedCategory === 'borates') return true;
+        
+        if (normalizedFilter === 'carbonates' && normalizedCategory === 'carbonate') return true;
+        if (normalizedFilter === 'carbonate' && normalizedCategory === 'carbonates') return true;
+        
+        if (normalizedFilter === 'sulfates' && normalizedCategory === 'sulfate') return true;
+        if (normalizedFilter === 'sulfate' && normalizedCategory === 'sulfates') return true;
+        
+        if (normalizedFilter === 'phosphates' && normalizedCategory === 'phosphate') return true;
+        if (normalizedFilter === 'phosphate' && normalizedCategory === 'phosphates') return true;
+        
+        if (normalizedFilter === 'molybdates' && normalizedCategory === 'molybdate') return true;
+        if (normalizedFilter === 'molybdate' && normalizedCategory === 'molybdates') return true;
+        
+        // Add more variants as needed
+        
+        return false;
+      });
+      
+      if (!categoryMatches) return false;
+    }
+    
+    // Apply color filter
+    if (filters.colors.length > 0) {
+      const colorMatches = filters.colors.some(color => 
+        mineral.color?.toLowerCase().includes(color.toLowerCase())
+      );
+      if (!colorMatches) return false;
+    }
+    
+    return true;
+  });
+};
+
+/**
+ * Get minerals based on search term and filters
+ * @param searchTerm 
+ * @param filters 
+ * @returns 
  */
 export const getMinerals = async (searchTerm: string = '', filters?: FiltersState): Promise<RocksMineralsItem[]> => {
   try {
     console.log('Fetching minerals with search term:', searchTerm);
     
-    // First check for an active session
-    const { data: sessionData } = await supabase.auth.getSession();
-    console.log('Current session status:', sessionData?.session ? 'Authenticated' : 'Not authenticated');
+    // Fetch all minerals first, then apply filters in-memory
+    let query = supabase.from('minerals').select('*');
     
-    // Fetch all minerals from the API or data source
-    let minerals: IMineral[] = [];
-    let retryCount = 0;
-    const maxRetries = 3;
+    const { data: minerals, error } = await query;
     
-    while (retryCount <= maxRetries) {
-      try {
-        console.log(`Attempting to fetch minerals (attempt ${retryCount + 1}/${maxRetries + 1})...`);
-        
-        // Directly use Supabase client for more reliable access
-        const { data, error } = await supabase
-          .from('minerals')
-          .select('*');
-        
-        if (error) {
-          console.error(`Supabase error fetching minerals (attempt ${retryCount + 1}):`, error);
-          throw error;
-        }
-        
-        if (!data || !Array.isArray(data)) {
-          console.error(`Invalid minerals data format (attempt ${retryCount + 1}):`, data);
-          throw new Error('Invalid minerals data format');
-        }
-        
-        minerals = data;
-        console.log(`Successfully fetched ${minerals.length} minerals on attempt ${retryCount + 1}`);
-        break;
-      } catch (fetchError) {
-        console.error(`Error fetching minerals (attempt ${retryCount + 1}/${maxRetries + 1}):`, fetchError);
-        retryCount++;
-        
-        if (retryCount <= maxRetries) {
-          console.log(`Retrying mineral fetch (${retryCount}/${maxRetries})...`);
-          // Wait 1 second before retrying
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        } else {
-          console.error('Max retries reached for mineral fetch');
-          throw fetchError;
-        }
-      }
+    if (error) {
+      console.error('Error fetching minerals:', error);
+      return [];
     }
-
+    
     console.log(`Fetched ${minerals.length} minerals from database`);
     
-    // Apply search filtering if a search term is provided
-    const filteredMinerals = minerals.filter((mineral: IMineral) => {
-      if (!searchTerm) return true;
-
-      const searchLower = searchTerm.toLowerCase();
-      
-      // Comprehensive search across all relevant mineral fields
-      return (
-        // Search in mineral name
-        (mineral.mineral_name && mineral.mineral_name.toLowerCase().includes(searchLower)) ||
-        // Search in chemical formula
-        (mineral.chemical_formula && mineral.chemical_formula.toLowerCase().includes(searchLower)) ||
-        // Search in group
-        (mineral.mineral_group && mineral.mineral_group.toLowerCase().includes(searchLower)) ||
-        // Search in category
-        (mineral.category && mineral.category.toLowerCase().includes(searchLower)) ||
-        // Search in color
-        (mineral.color && mineral.color.toLowerCase().includes(searchLower)) ||
-        // Search in occurrence
-        (mineral.occurrence && mineral.occurrence.toLowerCase().includes(searchLower)) ||
-        // Search in crystal system
-        (mineral.crystal_system && mineral.crystal_system.toLowerCase().includes(searchLower))
-      );
-    });
-    
-    console.log(`Applied search filtering: ${filteredMinerals.length} minerals match the search term`);
-    
-    // Apply filters if they exist
-    let finalFilteredMinerals = filteredMinerals;
-    
-    if (filters) {
-      finalFilteredMinerals = filteredMinerals.filter((mineral: IMineral) => {
-        // Apply category filters
-        if (filters.mineralCategory && filters.mineralCategory.length > 0) {
-          if (!mineral.category && !mineral.mineral_group) return false;
-          
-          const mineralCategory = mineral.category || mineral.mineral_group || '';
-          if (!filters.mineralCategory.some(category => 
-            mineralCategory.toLowerCase().includes(category.toLowerCase())
-          )) {
-            return false;
-          }
-        }
-        
-        // Apply color filters
-        if (filters.colors && filters.colors.length > 0) {
-          if (!mineral.color) return false;
-          
-          if (!filters.colors.some(color => 
-            mineral.color?.toLowerCase().includes(color.toLowerCase())
-          )) {
-            return false;
-          }
-        }
-        
-        return true;
-      });
-      
-      console.log(`Applied additional filters: ${finalFilteredMinerals.length} minerals match all filters`);
+    // Apply search term filter
+    let filteredMinerals = minerals;
+    if (searchTerm) {
+      filteredMinerals = applyMineralTextSearch(filteredMinerals, searchTerm);
+      console.log(`After text search: ${filteredMinerals.length} minerals matching "${searchTerm}"`);
     }
-
-    // Transform mineral data to standard format
-    const transformedMinerals = finalFilteredMinerals.map(transformMineralData);
-    console.log(`Returning ${transformedMinerals.length} transformed minerals`);
-    return transformedMinerals;
-  } catch (error) {
-    console.error('Error getting minerals:', error);
-    // Show a toast notification about the error
-    toast.error('Failed to fetch minerals data. Please try again later.');
+    
+    // Apply other filters
+    if (filters) {
+      filteredMinerals = applyMineralFilters(filteredMinerals, filters);
+      console.log(`After applying filters: ${filteredMinerals.length} minerals`);
+    }
+    
+    // Transform to RocksMineralsItem format
+    const mineralItems: RocksMineralsItem[] = filteredMinerals.map(transformMineralData);
+    
+    return mineralItems;
+  } catch (err) {
+    console.error('Error in getMinerals:', err);
     return [];
   }
 };
 
 /**
- * Get combined rocks and minerals data
+ * Get both rocks and minerals based on search term and filters
+ * @param searchTerm 
+ * @param filters 
+ * @returns 
  */
 export const getRocksAndMinerals = async (searchTerm?: string, filters?: FiltersState): Promise<RocksMineralsItem[]> => {
   try {
-    console.log('Fetching combined rocks and minerals with search term:', searchTerm);
-    // Get both datasets in parallel
-    const [rocks, minerals] = await Promise.all([
+    // Fetch both rocks and minerals in parallel
+    const [rockItems, mineralItems] = await Promise.all([
       getRocks(searchTerm, filters),
       getMinerals(searchTerm, filters)
     ]);
     
     // Combine the results
-    return [...rocks, ...minerals];
-  } catch (error) {
-    console.error('Error getting combined data:', error);
+    return [...rockItems, ...mineralItems];
+  } catch (err) {
+    console.error('Error fetching rocks and minerals:', err);
     return [];
   }
 };
 
 /**
- * Fetch minerals directly from Supabase
+ * Helper function to fetch minerals from Supabase
+ * @param category 
+ * @returns 
  */
 async function fetchMineralsFromSupabase(category: string): Promise<IMineral[]> {
   try {
-    console.log(`Fetching minerals for category: ${category}`);
-    // First, check auth status to see if we have a valid session
-    const { data: sessionData } = await supabase.auth.getSession();
-    const isAuthenticated = !!sessionData?.session;
-    
-    console.log(`User authentication status: ${isAuthenticated ? 'Authenticated' : 'Not authenticated'}`);
-    
-    // Log the endpoint we're about to hit
-    console.log(`Fetching from Supabase table 'minerals' with${category !== 'ALL' ? ` category=${category}` : ' all categories'}`);
-    
-    // Fetch the minerals
-    let query = supabase.from('minerals').select('*');
-    
-    // Add category filter if specified
-    if (category !== 'ALL') {
-      query = query.eq('category', category);
-    }
-    
-    const { data, error } = await query;
-    
+    const { data, error } = await supabase
+      .from('minerals')
+      .select('*')
+      .eq('category', category);
+      
     if (error) {
-      console.error('Supabase error fetching minerals:', error);
-      throw error;
+      console.error('Error fetching minerals from Supabase:', error);
+      return [];
     }
     
-    console.log(`Successfully fetched ${data?.length || 0} minerals`);
     return data || [];
   } catch (err) {
     console.error('Error in fetchMineralsFromSupabase:', err);
-    throw err;
+    return [];
   }
 } 

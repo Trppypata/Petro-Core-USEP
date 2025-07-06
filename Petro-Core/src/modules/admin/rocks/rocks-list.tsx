@@ -226,10 +226,19 @@ const RocksList = ({
   }, [filteredRocks]);
   
   const renderTableContent = () => {
+    // Calculate colspan based on category
+    const getColspan = () => {
+      if (category === 'Igneous') return 14; // 4 base + 10 igneous specific
+      if (category === 'Sedimentary') return 15; // 4 base + 11 sedimentary specific
+      if (category === 'Metamorphic') return 13; // 4 base + 7 metamorphic specific + 2 actions/status
+      if (category === 'Ore Samples') return 13; // 4 base + 7 ore samples specific + 2 actions/status
+      return 11; // Default: 4 base + 5 general + 2 actions/status
+    };
+    
     if (isLoading) {
       return (
         <TableRow>
-          <TableCell colSpan={11} className="h-24 text-center">
+          <TableCell colSpan={getColspan()} className="h-24 text-center">
             <Spinner className="mx-auto" />
             <span className="sr-only">Loading rocks...</span>
           </TableCell>
@@ -240,7 +249,7 @@ const RocksList = ({
     if (error) {
       return (
         <TableRow>
-          <TableCell colSpan={11} className="h-24 text-center text-red-500">
+          <TableCell colSpan={getColspan()} className="h-24 text-center text-red-500">
             Error loading rocks. Please try again later.
           </TableCell>
         </TableRow>
@@ -250,7 +259,7 @@ const RocksList = ({
     if (!filteredRocks || filteredRocks.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={11} className="h-24 text-center">
+          <TableCell colSpan={getColspan()} className="h-24 text-center">
             No rocks found in {category} category.
           </TableCell>
         </TableRow>
@@ -355,25 +364,150 @@ const RocksList = ({
             </Badge>
           </TableCell>
           
-          {/* Type */}
-          <TableCell className="break-words">{rock.type || '-'}</TableCell>
-          
-          {/* Color */}
-          <TableCell className="break-words">{rock.color || '-'}</TableCell>
-          
-          {/* Mineral Composition */}
-          <TableCell className="break-words">{rock.mineral_composition || rock.associated_minerals || '-'}</TableCell>
-          
-          {/* Locality */}
-          <TableCell className="break-words">{rock.locality || '-'}</TableCell>
-          
-          {/* Coordinates */}
-          <TableCell className="break-words">
-            {rock.coordinates || 
-             (rock.latitude && rock.longitude ? 
-              `${rock.latitude}, ${rock.longitude}` : 
-              '-')}
-          </TableCell>
+          {/* Conditional rendering based on category */}
+          {category === 'Igneous' ? (
+            <>
+              {/* Locality */}
+              <TableCell className="break-words">{rock.locality || '-'}</TableCell>
+              
+              {/* Coordinates */}
+              <TableCell className="break-words">
+                {rock.coordinates || 
+                 (rock.latitude && rock.longitude ? 
+                  `${rock.latitude}, ${rock.longitude}` : 
+                  '-')}
+              </TableCell>
+              
+              {/* Associated Minerals */}
+              <TableCell className="break-words">{rock.associated_minerals || rock.mineral_composition || '-'}</TableCell>
+              
+              {/* Color */}
+              <TableCell className="break-words">{rock.color || '-'}</TableCell>
+              
+              {/* Luster */}
+              <TableCell className="break-words">{rock.luster || '-'}</TableCell>
+              
+              {/* Streak */}
+              <TableCell className="break-words">{rock.streak || '-'}</TableCell>
+              
+              {/* Hardness */}
+              <TableCell className="break-words">{rock.hardness || '-'}</TableCell>
+              
+              {/* Type */}
+              <TableCell className="break-words">{rock.type || '-'}</TableCell>
+              
+              {/* Origin */}
+              <TableCell className="break-words">{rock.origin || '-'}</TableCell>
+              
+              {/* Magnetism */}
+              <TableCell className="break-words">{rock.magnetism || '-'}</TableCell>
+            </>
+          ) : category === 'Sedimentary' ? (
+            <>
+              {/* Type */}
+              <TableCell className="break-words">{rock.type || '-'}</TableCell>
+              
+              {/* Depositional Environment */}
+              <TableCell className="break-words">{rock.depositional_environment || '-'}</TableCell>
+              
+              {/* Grain Size */}
+              <TableCell className="break-words">{rock.grain_size || '-'}</TableCell>
+              
+              {/* Texture */}
+              <TableCell className="break-words">{rock.texture || '-'}</TableCell>
+              
+              {/* Sorting */}
+              <TableCell className="break-words">{rock.sorting || '-'}</TableCell>
+              
+              {/* Associated Minerals */}
+              <TableCell className="break-words">{rock.associated_minerals || rock.mineral_composition || '-'}</TableCell>
+              
+              {/* Color */}
+              <TableCell className="break-words">{rock.color || '-'}</TableCell>
+              
+              {/* Fossils */}
+              <TableCell className="break-words">{rock.fossil_content || '-'}</TableCell>
+              
+              {/* Reaction to HCL */}
+              <TableCell className="break-words">{rock.reaction_to_hcl || '-'}</TableCell>
+              
+              {/* Locality */}
+              <TableCell className="break-words">{rock.locality || '-'}</TableCell>
+              
+              {/* Coordinates */}
+              <TableCell className="break-words">
+                {rock.coordinates || 
+                 (rock.latitude && rock.longitude ? 
+                  `${rock.latitude}, ${rock.longitude}` : 
+                  '-')}
+              </TableCell>
+            </>
+          ) : category === 'Metamorphic' ? (
+            <>
+                             {/* Metamorphism */}
+               <TableCell className="break-words">{rock.metamorphism_type || '-'}</TableCell>
+              
+              {/* Metamorphic Grade */}
+              <TableCell className="break-words">{rock.metamorphic_grade || '-'}</TableCell>
+              
+              {/* Reaction to HCL */}
+              <TableCell className="break-words">{rock.reaction_to_hcl || '-'}</TableCell>
+              
+              {/* Magnetism */}
+              <TableCell className="break-words">{rock.magnetism || '-'}</TableCell>
+              
+              {/* Protolith */}
+              <TableCell className="break-words">{rock.protolith || '-'}</TableCell>
+              
+              {/* Coordinates */}
+              <TableCell className="break-words">
+                {rock.coordinates || 
+                 (rock.latitude && rock.longitude ? 
+                  `${rock.latitude}, ${rock.longitude}` : 
+                  '-')}
+              </TableCell>
+              
+              {/* Locality */}
+              <TableCell className="break-words">{rock.locality || '-'}</TableCell>
+            </>
+          ) : category === 'Ore Samples' ? (
+            <>
+              <TableCell className="break-words">{rock.rock_code || '-'}</TableCell>
+              <TableCell className="break-words">{rock.commodity_type || '-'}</TableCell>
+              <TableCell className="break-words">{rock.ore_group || '-'}</TableCell>
+              <TableCell className="break-words">{rock.description || '-'}</TableCell>
+              <TableCell className="break-words">{rock.locality || '-'}</TableCell>
+              <TableCell className="break-words">{rock.mining_company || '-'}</TableCell>
+              <TableCell className="break-words">
+                {rock.coordinates || 
+                 (rock.latitude && rock.longitude ? 
+                  `${rock.latitude}, ${rock.longitude}` : 
+                  '-')}
+              </TableCell>
+            </>
+          ) : (
+            <>
+              {/* Type */}
+              <TableCell className="break-words">{rock.type || '-'}</TableCell>
+              
+              {/* Color */}
+              <TableCell className="break-words">{rock.color || '-'}</TableCell>
+              
+              {/* Mineral Composition */}
+              <TableCell className="break-words">{rock.mineral_composition || rock.associated_minerals || '-'}</TableCell>
+              
+              {/* Locality */}
+              <TableCell className="break-words">{rock.locality || '-'}</TableCell>
+              
+              {/* Coordinates */}
+              <TableCell className="break-words">
+                {rock.coordinates || 
+                 (rock.latitude && rock.longitude ? 
+                  `${rock.latitude}, ${rock.longitude}` : 
+                  '-')}
+              </TableCell>
+            </>
+          )}
           
           {/* Status */}
           <TableCell>
@@ -397,16 +531,18 @@ const RocksList = ({
                 variant="outline"
                 size="icon"
                 onClick={e => { e.stopPropagation(); handleEdit(rock); }}
-                title="Edit rock"
+                title="Edit"
               >
                 <Edit className="h-4 w-4" />
               </Button>
               <Button
                 variant="outline"
                 size="icon"
-                onClick={e => { e.stopPropagation(); setRockToDelete(rock); }}
-                className="text-destructive hover:text-destructive"
-                title="Delete rock"
+                onClick={e => { 
+                  e.stopPropagation(); 
+                  setRockToDelete(rock); 
+                }}
+                title="Delete"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -488,11 +624,62 @@ const RocksList = ({
               <TableHead>Name</TableHead>
               <TableHead>Code</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Color</TableHead>
-              <TableHead>Mineral Composition</TableHead>
-              <TableHead>Locality</TableHead>
-              <TableHead>Coordinates</TableHead>
+              {category === 'Igneous' ? (
+                <>
+                  <TableHead>Locality</TableHead>
+                  <TableHead>Coordinates</TableHead>
+                  <TableHead>Associated Minerals</TableHead>
+                  <TableHead>Color</TableHead>
+                  <TableHead>Luster</TableHead>
+                  <TableHead>Streak</TableHead>
+                  <TableHead>Hardness</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Origin</TableHead>
+                  <TableHead>Magnetism</TableHead>
+                </>
+              ) : category === 'Sedimentary' ? (
+                <>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Depositional Environment</TableHead>
+                  <TableHead>Grain Size</TableHead>
+                  <TableHead>Texture</TableHead>
+                  <TableHead>Sorting</TableHead>
+                  <TableHead>Associated Minerals</TableHead>
+                  <TableHead>Color</TableHead>
+                  <TableHead>Fossil Content</TableHead>
+                  <TableHead>Reaction to HCL</TableHead>
+                  <TableHead>Locality</TableHead>
+                  <TableHead>Coordinates</TableHead>
+                </>
+              ) : category === 'Metamorphic' ? (
+                <>
+                  <TableHead>Metamorphism</TableHead>
+                  <TableHead>Metamorphic Grade</TableHead>
+                  <TableHead>Reaction to HCL</TableHead>
+                  <TableHead>Magnetism</TableHead>
+                  <TableHead>Protolith</TableHead>
+                  <TableHead>Coordinates</TableHead>
+                  <TableHead>Locality</TableHead>
+                </>
+              ) : category === 'Ore Samples' ? (
+                <>
+                  <TableHead>Rock Code</TableHead>
+                  <TableHead>Type of Commodity</TableHead>
+                  <TableHead>Ore Group</TableHead>
+                  <TableHead>Overall Description</TableHead>
+                  <TableHead>Locality</TableHead>
+                  <TableHead>Mining Company</TableHead>
+                  <TableHead>Coordinates</TableHead>
+                </>
+              ) : (
+                <>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Color</TableHead>
+                  <TableHead>Mineral Composition</TableHead>
+                  <TableHead>Locality</TableHead>
+                  <TableHead>Coordinates</TableHead>
+                </>
+              )}
               <TableHead>Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>

@@ -1,8 +1,10 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { authService } from "@/services/auth.service";
+import { toast } from "sonner";
 
 type User = {
   id: string;
-  name: string;
+  name?: string;
   email: string;
   role: 'admin' | 'student';
 };
@@ -10,8 +12,9 @@ type User = {
 type AuthContextType = {
   user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
   loading: boolean;
+  isAdmin: boolean;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,49 +22,87 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const isAdmin = user?.role === 'admin';
 
+  // Load user on mount
   useEffect(() => {
-    // Check if user is logged in from localStorage
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
+    const loadUser = async () => {
+      try {
+        setLoading(true);
+        // Try to get current user from token
+        const currentUser = await authService.getCurrentUser();
+        
+        if (currentUser) {
+          const userData: User = {
+            id: currentUser.id,
+            email: currentUser.email,
+            name: currentUser.user_metadata?.first_name + ' ' + currentUser.user_metadata?.last_name,
+            role: currentUser.user_metadata?.role || 'student'
+          };
+          
+          setUser(userData);
+        }
+      } catch (error) {
+        console.error("Error loading user:", error);
+        // Clear any invalid auth data
+        localStorage.removeItem('access_token');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUser();
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       setLoading(true);
-      // For now, simulate login - in a real app, this would call your API
-      const mockUsers = [
-        { id: '1', name: 'Admin User', email: 'admin@example.com', password: 'admin123', role: 'admin' as const },
-        { id: '2', name: 'Student User', email: 'student@example.com', password: 'student123', role: 'student' as const }
-      ];
       
-      const foundUser = mockUsers.find(u => u.email === email && u.password === password);
+      // Use authService to login
+      const response = await authService.login({ email, password });
       
-      if (foundUser) {
-        const { password, ...userWithoutPassword } = foundUser;
-        setUser(userWithoutPassword);
-        localStorage.setItem("user", JSON.stringify(userWithoutPassword));
+      if (response && response.user) {
+        const userData: User = {
+          id: response.user.id,
+          email: response.user.email,
+          name: response.user.user_metadata?.first_name + ' ' + response.user.user_metadata?.last_name,
+          role: response.user.user_metadata?.role || 'student'
+        };
+        
+        setUser(userData);
+        
+        // Log success message
+        toast.success(`Welcome ${userData.name || userData.email}!`);
         return true;
       }
+      
       return false;
     } catch (error) {
       console.error("Login error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to login");
       return false;
     } finally {
       setLoading(false);
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("user");
+  const logout = async () => {
+    try {
+      setLoading(true);
+      // Use authService to logout
+      await authService.logout();
+      setUser(null);
+      toast.success("Logged out successfully");
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast.error("Error logging out");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, loading, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );

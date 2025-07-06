@@ -1,12 +1,13 @@
 import { SearchBar } from "@/components/search/SearchBar";
 import { FieldWorkGrid } from "@/components/FieldWorkGrid";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { TriviaToast } from "@/components/trivia/TriviaToast";
 import { supabase } from "@/lib/supabase";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface FieldWork {
   id: string;
@@ -21,6 +22,7 @@ export default function FieldWorks() {
   const [filteredWorks, setFilteredWorks] = useState<FieldWork[]>([]);
   const [loading, setLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchFieldWorks();
@@ -28,6 +30,7 @@ export default function FieldWorks() {
 
   const fetchFieldWorks = async () => {
     setLoading(true);
+    setError(null);
     
     try {
       console.log('Fetching fieldworks...');
@@ -49,11 +52,13 @@ export default function FieldWorks() {
           
         if (tableError) {
           console.error('Error checking fieldworks table:', tableError);
+          throw tableError;
         } else {
           console.log(`Fieldworks table exists with approximately ${count} rows`);
         }
       } catch (tableErr) {
         console.error('Error verifying fieldworks table:', tableErr);
+        throw tableErr;
       }
       
       // Perform the main query
@@ -70,8 +75,9 @@ export default function FieldWorks() {
       console.log("Fetched fieldworks:", data);
       setFieldWorks(data || []);
       setFilteredWorks(data || []);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching fieldworks:', err);
+      setError(err?.message || 'Failed to load field works data');
       toast.error('Failed to load field works data');
     } finally {
       setLoading(false);
@@ -95,6 +101,33 @@ export default function FieldWorks() {
   
   const handleRetry = () => {
     setRetryCount(prev => prev + 1);
+    toast.info('Retrying connection...');
+  };
+
+  const renderSetupInstructions = () => {
+    if (!error) return null;
+    
+    return (
+      <Alert className="my-4">
+        <AlertTriangle className="h-5 w-5" />
+        <AlertTitle>Database Connection Issue</AlertTitle>
+        <AlertDescription className="space-y-4">
+          <p>There appears to be an issue with the fieldworks database setup:</p>
+          <p className="text-sm text-muted-foreground">{error}</p>
+          <div className="flex space-x-2">
+            <Button onClick={handleRetry} size="sm" className="mt-2">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Retry Connection
+            </Button>
+            <Link to="/admin/files">
+              <Button variant="outline" size="sm" className="mt-2">
+                Go to Admin File Manager
+              </Button>
+            </Link>
+          </div>
+        </AlertDescription>
+      </Alert>
+    );
   };
   
   return (
@@ -118,6 +151,8 @@ export default function FieldWorks() {
           </div>
         </div>
         
+        {error && renderSetupInstructions()}
+        
         {location.pathname === "/field-works" && (
           <div className="space-y-6">
             <div className="bg-card rounded-xl p-6 shadow-sm border border-muted">
@@ -127,15 +162,16 @@ export default function FieldWorks() {
                 </div>
               ) : filteredWorks.length > 0 ? (
                 <FieldWorkGrid works={filteredWorks} />
-              ) : (
+              ) : !error ? (
                 <div className="text-center py-8">
                   <p className="text-lg font-semibold">No field works found</p>
                   <p className="text-muted-foreground mb-4">There might be an issue connecting to the database.</p>
                   <Button onClick={handleRetry} variant="outline">
+                    <RefreshCw className="mr-2 h-4 w-4" />
                     Retry
                   </Button>
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
         )}

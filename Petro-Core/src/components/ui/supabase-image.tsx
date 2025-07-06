@@ -1,6 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ImageIcon } from 'lucide-react';
+import { Skeleton } from './skeleton';
 import { cn } from '@/lib/utils';
+
+// Cache for already loaded/failed images
+const imageCache = new Map<string, boolean>();
 
 interface SupabaseImageProps {
   src: string | null | undefined;
@@ -21,108 +25,130 @@ export function SupabaseImage({
   height,
   objectFit = 'cover'
 }: SupabaseImageProps) {
-  const [imageError, setImageError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [imageUrl, setImageUrl] = useState<string | null | undefined>(src);
+  const [error, setError] = useState(false);
+  const isMounted = useRef(true);
+  const imgSrc = src || '';
 
-  // Reset states when src changes
+  // Check cache on initial render
   useEffect(() => {
-    if (src) {
-      console.log(`🖼️ Loading image: ${src}`);
-      setImageUrl(src);
-      setImageError(false);
-      setIsLoading(true);
-    } else {
-      console.log('🖼️ No image source provided');
-      setImageError(true);
-      setIsLoading(false);
-    }
-  }, [src]);
-
-  // Handle image load error
-  const handleError = () => {
-    console.error(`❌ Failed to load image: ${imageUrl}`);
+    isMounted.current = true;
     
-    // If the URL is a Supabase URL and it failed, try a different approach
-    if (imageUrl?.includes('supabase.co')) {
-      console.log('Trying to fix Supabase URL format...');
-      
-      // If we already tried to fix it once, just give up
-      if (imageUrl !== src) {
-        setImageError(true);
+    // If we've already tried this image and it failed, don't try again
+    if (imgSrc && imageCache.has(imgSrc)) {
+      const success = imageCache.get(imgSrc);
+      if (success === false) {
+        setError(true);
         setIsLoading(false);
-        return;
       }
-      
-      // Try to modify the URL format slightly for Supabase URLs
-      const fixedUrl = imageUrl.replace('/storage/v1/object/public/', '/storage/v1/object/sign/');
-      console.log('Trying with modified URL:', fixedUrl);
-      setImageUrl(fixedUrl);
-      return; // Don't set error yet, let it try the new URL
     }
     
-    // For all other URLs, just set the error state
-    setImageError(true);
-    setIsLoading(false);
+    return () => {
+      isMounted.current = false;
+    };
+  }, [imgSrc]);
+
+  const handleError = () => {
+    // Only update state if component is still mounted
+    if (isMounted.current) {
+      console.error(`❌ Failed to load image: ${imgSrc}`);
+      setError(true);
+      setIsLoading(false);
+      
+      // Cache this failure
+      if (imgSrc) {
+        imageCache.set(imgSrc, false);
+      }
+    }
   };
 
-  // Handle image load success
+  // Handle image paths that might be missing the leading slash
+  const fixImagePath = (path: string): string => {
+    // If it's a URL, return as is
+    if (path.startsWith('http') || path.startsWith('data:')) {
+      return path;
+    }
+    
+    // Fix paths that start with 'public/'
+    if (path.startsWith('public/')) {
+      return `/${path}`;
+    }
+    
+    // Fix paths that don't start with '/'
+    if (!path.startsWith('/')) {
+      return `/${path}`;
+    }
+    
+    return path;
+  };
+
   const handleLoad = () => {
-    console.log(`✅ Image loaded successfully: ${imageUrl}`);
-    setIsLoading(false);
+    // Only update state if component is still mounted
+    if (isMounted.current) {
+      setIsLoading(false);
+      
+      // Cache this success
+      if (imgSrc) {
+        imageCache.set(imgSrc, true);
+      }
+    }
   };
 
-  const containerStyle: React.CSSProperties = {
-    width: width || '100%',
-    height: height || 'auto',
-    maxWidth: '100%',
-    position: 'relative'
-  };
-
-  if (!imageUrl || imageError) {
-    // Render fallback when image URL is missing or failed to load
+  // If we have no src or it's already known to fail, show fallback immediately
+  if (!imgSrc || (imageCache.has(imgSrc) && imageCache.get(imgSrc) === false)) {
     return (
       <div 
         className={cn(
-          "bg-white flex items-center justify-center rounded-md border border-gray-200",
+          "bg-muted flex items-center justify-center rounded-md",
           fallbackClassName
         )}
-        style={containerStyle}
+        style={{ width, height }}
       >
-        <div className="text-center p-4">
-          <ImageIcon className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-          <p className="text-sm text-gray-500">{alt || 'Image not available'}</p>
-        </div>
+        <span className="text-muted-foreground text-xs">No image</span>
       </div>
     );
   }
 
+  // Fix the image path if needed
+  const correctedSrc = fixImagePath(imgSrc);
+
   return (
-    <div style={containerStyle} className="overflow-hidden rounded-md bg-white border border-gray-200">
+    <>
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-white animate-pulse rounded-md">
-          <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
-        </div>
+        <Skeleton 
+          className={cn("rounded-md", fallbackClassName)} 
+          style={{ width, height }}
+        />
       )}
       <img
-        src={imageUrl}
+        src={correctedSrc}
         alt={alt}
         className={cn(
-          "rounded-md transition-opacity",
-          isLoading ? "opacity-0" : "opacity-100",
-          className
+          className,
+          isLoading ? "hidden" : "block",
+          "rounded-md transition-all"
         )}
         style={{ 
-          objectFit,
-          maxWidth: '100%',
-          maxHeight: height ? `${height}px` : 'none',
-          width: objectFit === 'contain' ? 'auto' : (width || '100%'),
-          height: objectFit === 'contain' ? 'auto' : (height || 'auto'),
-          backgroundColor: 'white'
+          objectFit, 
+          width, 
+          height,
+          display: error ? "none" : undefined
         }}
         onError={handleError}
         onLoad={handleLoad}
+        loading="lazy"
       />
-    </div>
+      {error && (
+        <div 
+          className={cn(
+            "bg-muted flex items-center justify-center rounded-md",
+            fallbackClassName
+          )}
+          style={{ width, height }}
+        >
+          <span className="text-muted-foreground text-xs">Failed to load</span>
+        </div>
+      )}
+    </>
   );
 } 

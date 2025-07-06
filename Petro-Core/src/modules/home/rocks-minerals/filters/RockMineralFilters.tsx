@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { 
   Select, 
   SelectContent, 
+  SelectGroup,
   SelectItem, 
   SelectTrigger, 
+  SelectLabel,
   SelectValue 
 } from '@/components/ui/select';
 import { 
@@ -45,7 +47,9 @@ const COLOR_MAP: Record<string, string> = {
 const COMMON_ASSOCIATED_MINERALS = [
   'Quartz', 'Feldspar', 'Mica', 'Olivine', 'Pyroxene', 'Amphibole', 
   'Garnet', 'Calcite', 'Dolomite', 'Gypsum', 'Pyrite', 'Magnetite',
-  'Hematite', 'Halite', 'Biotite', 'Muscovite', 'Chlorite', 'Serpentine'
+  'Hematite', 'Halite', 'Biotite', 'Muscovite', 'Chlorite', 'Serpentine',
+  'Plagioclase', 'Orthoclase', 'Hornblende', 'Augite', 'Apatite', 'Zircon',
+  'Tourmaline', 'Rutile', 'Epidote', 'Andalusite', 'Sillimanite', 'Kyanite'
 ];
 
 export interface FiltersState {
@@ -101,6 +105,19 @@ const RockMineralFilters = ({ displayType, onFiltersChange }: RockMineralFilters
       colors: [],
       associatedMinerals: []
     });
+  };
+
+  // Group mineral categories for better organization
+  const groupedMineralCategories = {
+    'Native Elements': ['NATIVE ELEMENTS'],
+    'Sulfides and Related': ['SULFIDES', 'SULFOSALTS', 'TELLURIDES', 'SELENIDES', 'ARSENIDES', 'ANTIMONIDES'],
+    'Oxides and Hydroxides': ['OXIDES', 'HYDROXIDES'],
+    'Halides': ['HALIDES'],
+    'Carbonates and Nitrates': ['CARBONATES', 'NITRATES'],
+    'Borates and Sulfates': ['BORATES', 'SULFATES'],
+    'Phosphates and Related': ['PHOSPHATES', 'CHROMATES', 'MOLYBDATES', 'TUNGSTATES', 'VANADATES', 'ARSENATES'],
+    'Silicates': ['SILICATES'],
+    'Organic Compounds': ['ORGANICS']
   };
 
   // Count total active filters
@@ -164,11 +181,24 @@ const RockMineralFilters = ({ displayType, onFiltersChange }: RockMineralFilters
                           <SelectValue placeholder="Select rock type" />
                         </SelectTrigger>
                         <SelectContent>
-                          {ROCK_CATEGORIES.map(category => (
-                            <SelectItem key={category} value={category}>
-                              {category}
-                            </SelectItem>
-                          ))}
+                          <SelectGroup>
+                            <SelectLabel>Main Categories</SelectLabel>
+                            {ROCK_CATEGORIES.map(category => (
+                              <SelectItem key={category} value={category}>
+                                {category}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                          <SelectGroup>
+                            <SelectLabel>Subcategories</SelectLabel>
+                            <SelectItem value="Volcanic">Volcanic</SelectItem>
+                            <SelectItem value="Plutonic">Plutonic</SelectItem>
+                            <SelectItem value="Foliated">Foliated</SelectItem>
+                            <SelectItem value="Non-foliated">Non-foliated</SelectItem>
+                            <SelectItem value="Clastic">Clastic</SelectItem>
+                            <SelectItem value="Chemical">Chemical</SelectItem>
+                            <SelectItem value="Organic">Organic</SelectItem>
+                          </SelectGroup>
                         </SelectContent>
                       </Select>
                     </div>
@@ -221,13 +251,121 @@ const RockMineralFilters = ({ displayType, onFiltersChange }: RockMineralFilters
                           <SelectValue placeholder="Select mineral category" />
                         </SelectTrigger>
                         <SelectContent>
-                          {MINERAL_CATEGORIES.filter(cat => cat !== 'ALL').map(category => (
-                            <SelectItem key={category} value={category}>
-                              {category}
-                            </SelectItem>
+                          {Object.entries(groupedMineralCategories).map(([group, categories]) => (
+                            <SelectGroup key={group}>
+                              <SelectLabel>{group}</SelectLabel>
+                              {categories.map(category => (
+                                <SelectItem key={category} value={category}>
+                                  {category}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+                    
+                    {/* Quick selection buttons for common mineral categories */}
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs px-3 py-1"
+                        onClick={() => addFilter('mineralCategory', 'SILICATES')}
+                      >
+                        Silicates
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs px-3 py-1"
+                        onClick={() => addFilter('mineralCategory', 'OXIDES')}
+                      >
+                        Oxides
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs px-3 py-1"
+                        onClick={() => addFilter('mineralCategory', 'SULFIDES')}
+                      >
+                        Sulfides
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs px-3 py-1"
+                        onClick={() => addFilter('mineralCategory', 'CARBONATES')}
+                      >
+                        Carbonates
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs px-3 py-1"
+                        onClick={() => addFilter('mineralCategory', 'HALIDES')}
+                      >
+                        Halides
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs px-3 py-1"
+                        onClick={() => addFilter('mineralCategory', 'PHOSPHATES')}
+                      >
+                        Phosphates
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs px-3 py-1"
+                        onClick={() => addFilter('mineralCategory', 'SULFATES')}
+                      >
+                        Sulfates
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs px-3 py-1"
+                        onClick={() => addFilter('mineralCategory', 'NATIVE ELEMENTS')}
+                      >
+                        Native Elements
+                      </Button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs px-3 py-1"
+                        onClick={() => addFilter('mineralCategory', 'HYDROXIDES')}
+                      >
+                        Hydroxides
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs px-3 py-1"
+                        onClick={() => addFilter('mineralCategory', 'SULFOSALTS')}
+                      >
+                        Sulfosalts
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs px-3 py-1"
+                        onClick={() => addFilter('mineralCategory', 'BORATES')}
+                      >
+                        Borates
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs px-3 py-1"
+                        onClick={() => addFilter('mineralCategory', 'NITRATES')}
+                      >
+                        Nitrates
+                      </Button>
                     </div>
 
                     <div className="flex flex-wrap gap-2 mt-2">

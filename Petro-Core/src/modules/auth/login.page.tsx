@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { authService } from '@/services/auth.service';
-import type { AuthCredentials } from '@/services/auth.service';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,10 +7,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import petroLogo from "@/assets/petro.png";
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [credentials, setCredentials] = useState<AuthCredentials>({
+  const { login, loading: authLoading, isAdmin } = useAuth();
+  const [credentials, setCredentials] = useState({
     email: '',
     password: '',
   });
@@ -32,14 +32,18 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      const userData = await authService.login(credentials);
-      // Check user role to determine where to redirect
-      const userRole = userData?.user?.user_metadata?.role || 'student';
+      // Use AuthContext's login function
+      const success = await login(credentials.email, credentials.password);
       
-      if (userRole === 'admin') {
-        navigate('/dashboard-app'); // Admin goes to dashboard
+      if (success) {
+        // Navigate based on user role
+        if (isAdmin) {
+          navigate('/dashboard-app'); // Admin goes to dashboard
+        } else {
+          navigate('/home'); // Students go to home page
+        }
       } else {
-        navigate('/home'); // Students go to home page
+        setError('Invalid email or password');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to login. Please try again.');
@@ -55,8 +59,8 @@ export default function LoginPage() {
           <div className="mb-">
             <img 
               src={petroLogo} 
-              alt="Petro Core Logo" 
-              c
+              alt="Petro Core Logo"
+              className="w-24 h-24 mx-auto"
             />
           </div>
           <CardTitle className="text-2xl text-center font-bold ">LOGIN </CardTitle>

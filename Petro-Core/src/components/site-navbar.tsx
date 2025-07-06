@@ -1,4 +1,4 @@
-import { Menu, Lock, LogOut, User, BookOpen, Settings } from "lucide-react";
+import { Menu, Lock, LogOut, BookOpen, Settings } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { useLockdown } from "@/contexts/LockdownContext";
@@ -23,10 +23,9 @@ import { toast } from "sonner";
 import Cookies from 'js-cookie';
 
 const SiteNavbar = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { isLocked } = useLockdown();
-  const isAdmin = user?.role === 'admin';
   
   const handleLogout = async () => {
     try {
@@ -144,13 +143,6 @@ const SiteNavbar = () => {
                         </Link>
                       </DropdownMenuItem>
                     )}
-                    
-                    <DropdownMenuItem asChild>
-                      <Link to="/profile">
-                        <User className="mr-2 h-4 w-4" />
-                        <span>Profile</span>
-                      </Link>
-                    </DropdownMenuItem>
                     
                     <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
                       <LogOut className="mr-2 h-4 w-4" />
