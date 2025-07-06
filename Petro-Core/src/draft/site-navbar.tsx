@@ -4,7 +4,7 @@ import { Button } from "./ui/button";
 import { useLockdown } from "@/contexts/LockdownContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import petroLogo from "@/assets/petro.jpg";
+import petroLogo from "@/assets/petro.png";
 
 const SiteNavbar = () => {
   const { isLocked } = useLockdown();
@@ -18,7 +18,7 @@ const SiteNavbar = () => {
           <div className="flex items-center gap-8">
             <Link to="/home" className="flex items-center">
               <img 
-                src={petroLogo} 
+                src={} 
                 alt="Petro Core Logo" 
                 className="h-8 w-auto mr-2 rounded-full" 
               />

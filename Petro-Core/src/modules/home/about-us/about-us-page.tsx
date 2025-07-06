@@ -149,12 +149,6 @@ function AboutUsPage() {
         </div>
       </section>
 
-      {/* University Affiliation */}
-      <section className="text-center">
-        <p className="text-sm text-muted-foreground">
-          Affiliated with the University of Southeastern Philippines, College of Science and Mathematics
-        </p>
-      </section>
     </div>
   );
 }

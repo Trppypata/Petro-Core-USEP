@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import petroLogo from "@/assets/petro.jpg";
+import petroLogo from "@/assets/petro.png";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -52,11 +52,11 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-screen bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="flex items-center justify-center">
-          <div className="mb-4">
+          <div className="mb-">
             <img 
               src={petroLogo} 
               alt="Petro Core Logo" 
-              className="h-24 w-auto shadow-lg" 
+              c
             />
           </div>
           <CardTitle className="text-2xl text-center font-bold ">LOGIN </CardTitle>

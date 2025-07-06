@@ -874,15 +874,35 @@ const RockForm = ({
           <FormField
             control={form.control}
             name="type"
-            render={({ field }) => (
+            render={({ field }) => {
+              // Check if current category is Metamorphic
+              const isMetamorphic = form.watch('category') === 'Metamorphic';
+              
+              // If metamorphic, automatically set type to "Metamorphic"
+              if (isMetamorphic && field.value !== 'Metamorphic') {
+                field.onChange('Metamorphic');
+              }
+              
+              return (
               <FormItem>
                 <FormLabel>Type *</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., Igneous, Metamorphic" {...field} />
+                    <Input 
+                      placeholder="e.g., Igneous, Metamorphic" 
+                      {...field} 
+                      disabled={isMetamorphic}
+                      className={isMetamorphic ? "bg-muted" : ""}
+                    />
                 </FormControl>
+                  {isMetamorphic && (
+                    <FormDescription>
+                      Type is automatically set to Metamorphic
+                    </FormDescription>
+                  )}
                 <FormMessage />
               </FormItem>
-            )}
+              );
+            }}
           />
           
           {/* Category */}
@@ -894,7 +914,13 @@ const RockForm = ({
                 <FormLabel>Category *</FormLabel>
                 <Select
                   value={field.value}
-                  onValueChange={field.onChange}
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    // If changing to metamorphic, auto-set the type
+                    if (value === 'Metamorphic') {
+                      form.setValue('type', 'Metamorphic');
+                    }
+                  }}
                   defaultValue={category}
                 >
                   <FormControl>

@@ -18,7 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import petroLogo from "@/assets/petro.jpg";
+import petroLogo from "@/assets/petro.png";
 import { toast } from "sonner";
 import Cookies from 'js-cookie';
 

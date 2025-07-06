@@ -16,71 +16,39 @@ interface WorkCardProps {
 export function RockMineralsCard({ title, description, imageUrl, category, type = 'rock', texture, foliation, rockType }: WorkCardProps) {
   // Generate category badge color based on category name
   const getCategoryColor = (category?: string) => {
-    if (!category) return "bg-muted text-muted-foreground";
+    if (!category) return "bg-muted/90 text-muted-foreground border-muted";
     
     switch (category.toLowerCase()) {
       case 'igneous':
-        return "bg-igneous/20 text-igneous border-igneous/30";
+        return "bg-igneous/80 text-white border-igneous";
       case 'sedimentary':
-        return "bg-sedimentary/20 text-sedimentary border-sedimentary/30";
+        return "bg-sedimentary/80 text-white border-sedimentary";
       case 'metamorphic':
-        return "bg-metamorphic/20 text-metamorphic border-metamorphic/30";
+        return "bg-metamorphic/80 text-white border-metamorphic";
       case 'ore samples':
-        return "bg-ore/20 text-ore border-ore/30";
+        return "bg-ore/80 text-white border-ore";
       // Mineral categories
       case 'silicates':
-        return "bg-primary/20 text-primary border-primary/30";
+        return "bg-primary/80 text-white border-primary";
       case 'oxides':
-        return "bg-metamorphic/20 text-metamorphic border-metamorphic/30";
+        return "bg-metamorphic/80 text-white border-metamorphic";
       case 'sulfides':
-        return "bg-igneous/20 text-igneous border-igneous/30";
+        return "bg-igneous/80 text-white border-igneous";
       case 'native elements':
-        return "bg-ore/20 text-ore border-ore/30";
+        return "bg-ore/80 text-white border-ore";
       case 'carbonates':
       case 'carbonates ':
-        return "bg-sedimentary/20 text-sedimentary border-sedimentary/30";
+        return "bg-sedimentary/80 text-white border-sedimentary";
       case 'halides':
-        return "bg-accent/20 text-accent border-accent/30";
+        return "bg-accent/80 text-white border-accent";
+      case 'organics':
+        return "bg-green-600/80 text-white border-green-600";
       default:
-        return "bg-muted text-muted-foreground";
+        return "bg-gray-700/80 text-white border-gray-700";
     }
   };
   
-  // Determine which property to highlight based on rock category
-  const getCategorySpecificInfo = () => {
-    if (type !== 'rock' || !category) return null;
-    
-    const lowerCategory = category.toLowerCase();
-    
-    switch (lowerCategory) {
-      case 'igneous':
-        return texture ? (
-          <div className="text-xs text-gray-500 mt-1">
-            <span className="font-semibold">Texture:</span> {texture}
-          </div>
-        ) : null;
-      case 'metamorphic':
-        return foliation ? (
-          <div className="text-xs text-gray-500 mt-1">
-            <span className="font-semibold">Foliation:</span> {foliation}
-          </div>
-        ) : null;
-      case 'sedimentary':
-        return rockType ? (
-          <div className="text-xs text-gray-500 mt-1">
-            <span className="font-semibold">Type:</span> {rockType}
-          </div>
-        ) : null;
-      case 'ore samples':
-        return (
-          <div className="text-xs text-gray-500 mt-1">
-            <span className="font-semibold">Overall Description</span>
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
+  // This function has been removed as we no longer show location information
 
   return (
     <Card className="overflow-hidden h-full group border-muted shadow-sm hover:shadow-md transition-all duration-200 bg-white">
@@ -95,8 +63,8 @@ export function RockMineralsCard({ title, description, imageUrl, category, type 
         />
         {category && (
           <div className="absolute top-3 left-3 z-10">
-            <Badge variant="outline" className={`${getCategoryColor(category)} font-medium text-xs py-1 px-2 shadow-sm`}>
-              {category}
+            <Badge className={`${getCategoryColor(category)} font-semibold text-xs py-1 px-3 shadow-lg border`}>
+              {category.toUpperCase()}
             </Badge>
           </div>
         )}
@@ -105,10 +73,22 @@ export function RockMineralsCard({ title, description, imageUrl, category, type 
       
       <CardContent className="p-4">
         <CardTitle className="text-lg font-semibold line-clamp-1 mb-1">{title}</CardTitle>
+        {type === 'rock' && (
+          <div className="text-xs font-medium text-gray-600 mt-1 mb-1">
+            {category?.toLowerCase() === 'igneous' ? 'Texture:' :
+             category?.toLowerCase() === 'metamorphic' ? 'Foliation:' :
+             category?.toLowerCase() === 'sedimentary' ? 'Type:' :
+             'Overall Description:'}
+          </div>
+        )}
         <CardDescription className="text-sm text-muted-foreground line-clamp-2">
-          {description}
+          {type === 'rock' ? (
+            category?.toLowerCase() === 'igneous' ? (texture || 'Not specified') :
+            category?.toLowerCase() === 'metamorphic' ? (foliation || 'Not specified') :
+            category?.toLowerCase() === 'sedimentary' ? (rockType || 'Not specified') :
+            (description || 'No description available')
+          ) : description}
         </CardDescription>
-        {getCategorySpecificInfo()}
       </CardContent>
       
       <CardFooter className="p-4 pt-0 text-xs text-muted-foreground">

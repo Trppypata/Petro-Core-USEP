@@ -420,13 +420,12 @@ const RockDetailView = () => {
         </Card>
       </div>
 
-      {/* Category-specific properties section */}
-      {rock.category && (
-        <Card className="p-6 mb-8">
-          <h2 className="text-xl font-bold mb-4">{rock.category} Properties</h2>
+      {/* Other Information - Combined section for category-specific properties and physical properties */}
+      <Card className="p-6">
+        <h2 className="text-xl font-bold mb-4">Other Information</h2>
           
           <div className="grid md:grid-cols-2 gap-x-8 gap-y-4">
-            {/* Igneous-specific fields */}
+          {/* Category-specific properties */}
             {rock.category.toLowerCase() === 'igneous' && (
               <>
                 {rock.origin && (
@@ -442,31 +441,9 @@ const RockDetailView = () => {
                     <p className="text-lg">{rock.cooling_rate}</p>
                   </div>
                 )}
-                
-                {rock.luster && (
-                  <div className="mb-4">
-                    <h3 className="text-base font-bold text-gray-700">Luster</h3>
-                    <p className="text-lg">{rock.luster}</p>
-                  </div>
-                )}
-                
-                {rock.streak && (
-                  <div className="mb-4">
-                    <h3 className="text-base font-bold text-gray-700">Streak</h3>
-                    <p className="text-lg">{rock.streak}</p>
-                  </div>
-                )}
-                
-                {rock.magnetism && (
-                  <div className="mb-4">
-                    <h3 className="text-base font-bold text-gray-700">Magnetism</h3>
-                    <p className="text-lg">{rock.magnetism}</p>
-                  </div>
-                )}
               </>
             )}
             
-            {/* Metamorphic-specific fields */}
             {rock.category.toLowerCase() === 'metamorphic' && (
               <>
                 {rock.metamorphism_type && (
@@ -510,24 +487,9 @@ const RockDetailView = () => {
                     <p className="text-lg">{rock.foliation_type}</p>
                   </div>
                 )}
-                
-                {rock.reaction_to_hcl && (
-                  <div className="mb-4">
-                    <h3 className="text-base font-bold text-gray-700">Reaction to HCl</h3>
-                    <p className="text-lg">{rock.reaction_to_hcl}</p>
-                  </div>
-                )}
-                
-                {rock.magnetism && (
-                  <div className="mb-4">
-                    <h3 className="text-base font-bold text-gray-700">Magnetism</h3>
-                    <p className="text-lg">{rock.magnetism}</p>
-                  </div>
-                )}
               </>
             )}
             
-            {/* Sedimentary-specific fields */}
             {rock.category.toLowerCase() === 'sedimentary' && (
               <>
                 {rock.bedding && (
@@ -564,17 +526,9 @@ const RockDetailView = () => {
                     <p className="text-lg">{rock.sediment_source}</p>
                   </div>
                 )}
-                
-                {rock.reaction_to_hcl && (
-                  <div className="mb-4">
-                    <h3 className="text-base font-bold text-gray-700">Reaction to HCl</h3>
-                    <p className="text-lg">{rock.reaction_to_hcl}</p>
-                  </div>
-                )}
               </>
             )}
             
-            {/* Ore Samples specific fields */}
             {rock.category.toLowerCase() === 'ore samples' && (
               <>
                 {rock.commodity_type && (
@@ -599,65 +553,46 @@ const RockDetailView = () => {
                 )}
               </>
             )}
-          </div>
           
-          {/* Show a message if no category-specific properties are available */}
-          {(rock.category.toLowerCase() === 'igneous' && 
-            !rock.origin && !rock.cooling_rate && !rock.luster && !rock.streak && !rock.magnetism) ||
-           (rock.category.toLowerCase() === 'metamorphic' && 
-            !rock.metamorphism_type && !rock.metamorphic_grade && !rock.parent_rock && !rock.protolith &&
-            !rock.foliation && !rock.foliation_type && !rock.reaction_to_hcl && !rock.magnetism) ||
-           (rock.category.toLowerCase() === 'sedimentary' && 
-            !rock.bedding && !rock.sorting && !rock.roundness && !rock.fossil_content && 
-            !rock.sediment_source && !rock.reaction_to_hcl) ||
-           (rock.category.toLowerCase() === 'ore samples' && 
-            !rock.commodity_type && !rock.ore_group && !rock.mining_company) && (
-             <p className="text-muted-foreground">No specific properties available for this {rock.category} rock</p>
-           )}
-        </Card>
-      )}
-
-      {/* Physical Properties */}
-      <Card className="p-6">
-        <h2 className="text-xl font-bold mb-4">Physical Properties</h2>
-        
-        <div className="grid md:grid-cols-2 gap-x-8 gap-y-4">
-          {/* Only show properties that haven't been shown in category-specific sections */}
-          {rock.luster && rock.category.toLowerCase() !== 'igneous' && (
+          {/* Physical properties */}
+          {rock.luster && (
             <div className="mb-4">
               <h3 className="text-base font-bold text-gray-700">Luster</h3>
               <p className="text-lg">{rock.luster}</p>
             </div>
           )}
           
-          {rock.streak && rock.category.toLowerCase() !== 'igneous' && (
+          {rock.streak && (
             <div className="mb-4">
               <h3 className="text-base font-bold text-gray-700">Streak</h3>
               <p className="text-lg">{rock.streak}</p>
             </div>
           )}
           
-          {rock.reaction_to_hcl && 
-           rock.category.toLowerCase() !== 'metamorphic' && 
-           rock.category.toLowerCase() !== 'sedimentary' && (
+          {rock.reaction_to_hcl && (
             <div className="mb-4">
               <h3 className="text-base font-bold text-gray-700">Reaction to HCl</h3>
               <p className="text-lg">{rock.reaction_to_hcl}</p>
             </div>
           )}
           
-          {rock.magnetism && 
-           rock.category.toLowerCase() !== 'igneous' && 
-           rock.category.toLowerCase() !== 'metamorphic' && (
+          {rock.magnetism && (
             <div className="mb-4">
               <h3 className="text-base font-bold text-gray-700">Magnetism</h3>
               <p className="text-lg">{rock.magnetism}</p>
             </div>
           )}
           
-          {/* Show empty state if no physical properties are available */}
-          {!rock.luster && !rock.streak && !rock.reaction_to_hcl && !rock.magnetism && (
-            <p className="text-muted-foreground col-span-2">No additional physical properties available</p>
+          {/* Show empty state if no properties available */}
+          {((rock.category.toLowerCase() === 'igneous' && !rock.origin && !rock.cooling_rate) ||
+            (rock.category.toLowerCase() === 'metamorphic' && !rock.metamorphism_type && !rock.metamorphic_grade && 
+             !rock.parent_rock && !rock.protolith && !rock.foliation && !rock.foliation_type) ||
+            (rock.category.toLowerCase() === 'sedimentary' && !rock.bedding && !rock.sorting && 
+             !rock.roundness && !rock.fossil_content && !rock.sediment_source) ||
+            (rock.category.toLowerCase() === 'ore samples' && !rock.commodity_type && 
+             !rock.ore_group && !rock.mining_company)) &&
+           !rock.luster && !rock.streak && !rock.reaction_to_hcl && !rock.magnetism && (
+            <p className="text-muted-foreground col-span-2">No additional information available</p>
           )}
         </div>
       </Card>

@@ -71,6 +71,19 @@ const transformRockData = async (rock: IRock): Promise<RocksMineralsItem> => {
   // Calculate path for rock detail view
   const path = rock.id ? `/rock-minerals/rock/${rock.id}` : undefined;
   
+  // Determine the appropriate rockType value
+  let rockType = rock.type || '';
+  
+  // If rockType is empty, use the category
+  if (!rockType && rock.category) {
+    rockType = rock.category;
+  }
+  
+  // Special case for Ore Samples
+  if (rock.category === 'Ore Samples' || rockType === 'Ore') {
+    rockType = 'Ore Samples';
+  }
+  
   // Transform to standard format
   return {
     id: rock.id || '',
@@ -89,7 +102,7 @@ const transformRockData = async (rock: IRock): Promise<RocksMineralsItem> => {
     // Category-specific properties
     texture: rock.texture || '',
     foliation: rock.foliation || '',
-    rockType: rock.type || ''
+    rockType: rockType
   };
 };
 
@@ -205,11 +218,23 @@ const deduplicateRocks = (rocks: IRock[]): IRock[] => {
 export const getRocks = async (searchTerm: string = '', filters?: FiltersState): Promise<RocksMineralsItem[]> => {
   try {
     console.log('Fetching rocks with search term:', searchTerm);
+    console.log('Filters applied:', filters);
+    
     // Fetch all rocks from the API or data source
     const { data: rocks } = await fetchRocks('ALL', 1, 1000);
+    console.log(`Fetched ${rocks.length} rocks from database`);
     
     // Deduplicate rocks first
     const uniqueRocks = deduplicateRocks(rocks);
+    console.log(`After deduplication: ${uniqueRocks.length} rocks`);
+    
+    // Log the distribution of rock categories
+    const categoryDistribution: Record<string, number> = {};
+    uniqueRocks.forEach(rock => {
+      const category = rock.category || 'Unknown';
+      categoryDistribution[category] = (categoryDistribution[category] || 0) + 1;
+    });
+    console.log('Rock category distribution:', categoryDistribution);
 
     // Apply search filtering if a search term is provided
     const filteredRocks = uniqueRocks.filter(rock => {
@@ -273,8 +298,31 @@ export const getRocks = async (searchTerm: string = '', filters?: FiltersState):
     if (filters) {
       filteredAndSelectedRocks = filteredAndSelectedRocks.filter(rock => {
         // Filter by selected rock types
-        if (filters.rockType.length > 0 && rock.type) {
-          if (!filters.rockType.some(t => rock.type?.toLowerCase().includes(t.toLowerCase()))) {
+        if (filters.rockType.length > 0) {
+          // Check both type and category fields for the rock type
+          const rockTypeMatches = filters.rockType.some(filterType => {
+            // Convert both to lowercase for case-insensitive comparison
+            const filterTypeLower = filterType.toLowerCase();
+            
+            // Check if the rock type matches directly
+            if (rock.type && rock.type.toLowerCase().includes(filterTypeLower)) {
+              return true;
+            }
+            
+            // Check if the rock category matches
+            if (rock.category && rock.category.toLowerCase().includes(filterTypeLower)) {
+              return true;
+            }
+            
+            // Special case for "Ore Samples" which might be stored as "Ore" in the type field
+            if (filterTypeLower === "ore samples" && rock.type && rock.type.toLowerCase() === "ore") {
+              return true;
+            }
+            
+            return false;
+          });
+          
+          if (!rockTypeMatches) {
             return false;
           }
         }
@@ -297,6 +345,26 @@ export const getRocks = async (searchTerm: string = '', filters?: FiltersState):
         
         return true;
       });
+      
+      // Log filter results
+      if (filters.rockType.length > 0) {
+        console.log(`After rock type filtering: ${filteredAndSelectedRocks.length} rocks match`);
+        // Count by rock type
+        const matchesByType: Record<string, number> = {};
+        filteredAndSelectedRocks.forEach(rock => {
+          const category = rock.category || 'Unknown';
+          matchesByType[category] = (matchesByType[category] || 0) + 1;
+        });
+        console.log('Matches by category after filtering:', matchesByType);
+      }
+      
+      if (filters.colors.length > 0) {
+        console.log(`After color filtering: ${filteredAndSelectedRocks.length} rocks match`);
+      }
+      
+      if (filters.associatedMinerals.length > 0) {
+        console.log(`After mineral filtering: ${filteredAndSelectedRocks.length} rocks match`);
+      }
     }
 
     // Transform to standard format

@@ -31,7 +31,7 @@ const COLORS = [
 
 // List of predefined rock types
 const ROCK_TYPES = [
-  "Igneous", "Sedimentary", "Metamorphic", "Volcanic", "Plutonic", 
+  "Igneous", "Sedimentary", "Metamorphic", "Ore Samples", "Volcanic", "Plutonic", 
   "Clastic", "Chemical", "Organic", "Foliated", "Non-foliated"
 ];
 
