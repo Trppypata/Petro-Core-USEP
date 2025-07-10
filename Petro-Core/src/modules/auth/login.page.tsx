@@ -3,10 +3,17 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle } from 'lucide-react';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import petroLogo from "@/assets/petro.png";
+import petroLogo from '@/assets/petro.png';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginPage() {
@@ -18,6 +25,7 @@ export default function LoginPage() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCredentials({
@@ -34,7 +42,7 @@ export default function LoginPage() {
     try {
       // Use AuthContext's login function
       const success = await login(credentials.email, credentials.password);
-      
+
       if (success) {
         // Navigate based on user role
         if (isAdmin) {
@@ -46,7 +54,11 @@ export default function LoginPage() {
         setError('Invalid email or password');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to login. Please try again.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to login. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
@@ -57,13 +69,15 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="flex items-center justify-center">
           <div className="mb-">
-            <img 
-              src={petroLogo} 
+            <img
+              src={petroLogo}
               alt="Petro Core Logo"
-              className="w-24 h-24 mx-auto"
+              className="w-auto h-24 mx-auto"
             />
           </div>
-          <CardTitle className="text-2xl text-center font-bold ">LOGIN </CardTitle>
+          <CardTitle className="text-2xl text-center font-bold ">
+            LOGIN{' '}
+          </CardTitle>
           <CardDescription>
             Enter your credentials to access your account
           </CardDescription>
@@ -98,15 +112,31 @@ export default function LoginPage() {
                   Forgot password?
                 </Link>
               </div>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                value={credentials.password}
-                onChange={handleChange}
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={credentials.password}
+                  onChange={handleChange}
+                  required
+                  className="pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </Button>
+              </div>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Signing in...' : 'Sign In'}
@@ -124,4 +154,4 @@ export default function LoginPage() {
       </Card>
     </div>
   );
-} 
+}
