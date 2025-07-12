@@ -1,32 +1,36 @@
-import PageLayout from "@/layouts/page.layout";
-import HeroSection from "@/modules/home/hero/hero";
-import AdminLayout from "@/layouts/admin.layout";
-import DashboardPage from "@/modules/admin/dashboard/dashboard.page";
-import LoginPage from "@/modules/auth/login.page";
-import RegisterPage from "@/modules/auth/register.page";
-import ProtectedRoute from "@/components/protected-route";
-import RockMinerals from "@/modules/home/rocks-minerals/rocks-minerals-page";
-import RockDetailView from "@/modules/home/rocks-minerals/rock-detail-view";
-import MineralDetailView from "@/modules/home/rocks-minerals/mineral-detail-view";
-import RocksMineralsMap from "@/modules/home/map/maps-page";
-import { AdminGuard, StudentGuard } from "@/components/role-guard";
-import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
-import type { ReactNode } from "react";
-import { GeologyPage } from "@/modules/admin/geology";
-import UserPage from "@/modules/admin/users/users.page";
-import UsersList from "@/modules/admin/users/user-list";
-import FieldWorks from "@/modules/home/fieldworks/fieldworks.page";
-import FieldDetailView from "@/modules/home/fieldworks/field-detail-view";
-import LockdownPage from "@/modules/admin/lockdown/lockdown-page";
-import { LockdownGuard } from "@/components/lockdown-guard";
-import { SupabaseTester } from "@/supabase-tester";
-import FieldWorkFilePage from "@/modules/admin/files/file-page";
-import { TriviaPage } from "@/modules/admin/trivia";
-import AboutUsPage from "@/modules/home/about-us/about-us-page";
+import PageLayout from '@/layouts/page.layout';
+import HeroSection from '@/modules/home/hero/hero';
+import AdminLayout from '@/layouts/admin.layout';
+import DashboardPage from '@/modules/admin/dashboard/dashboard.page';
+import LoginPage from '@/modules/auth/login.page';
+import RegisterPage from '@/modules/auth/register.page';
+import ForgotPasswordPage from '@/modules/auth/forgotPassword.page';
+import ProtectedRoute from '@/components/protected-route';
+import RockMinerals from '@/modules/home/rocks-minerals/rocks-minerals-page';
+import RockDetailView from '@/modules/home/rocks-minerals/rock-detail-view';
+import MineralDetailView from '@/modules/home/rocks-minerals/mineral-detail-view';
+import RocksMineralsMap from '@/modules/home/map/maps-page';
+import { AdminGuard, StudentGuard } from '@/components/role-guard';
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
+import type { ReactNode } from 'react';
+import { GeologyPage } from '@/modules/admin/geology';
+import UserPage from '@/modules/admin/users/users.page';
+import UsersList from '@/modules/admin/users/user-list';
+import FieldWorks from '@/modules/home/fieldworks/fieldworks.page';
+import FieldDetailView from '@/modules/home/fieldworks/field-detail-view';
+import LockdownPage from '@/modules/admin/lockdown/lockdown-page';
+import { LockdownGuard } from '@/components/lockdown-guard';
+import { SupabaseTester } from '@/supabase-tester';
+import FieldWorkFilePage from '@/modules/admin/files/file-page';
+import { TriviaPage } from '@/modules/admin/trivia';
+import AboutUsPage from '@/modules/home/about-us/about-us-page';
 import TestFieldworksBucket from '../test-fieldworks-bucket';
 
 // Higher order component to wrap routes with role guards
-const withRoleGuard = (Component: React.ComponentType, guard: React.FC<{children: ReactNode}>) => {
+const withRoleGuard = (
+  Component: React.ComponentType,
+  guard: React.FC<{ children: ReactNode }>
+) => {
   const GuardComponent = guard;
   return () => (
     <GuardComponent>
@@ -47,21 +51,25 @@ const withLockdownGuard = (Component: React.ComponentType) => {
 const router = createBrowserRouter([
   // Root path redirects to login
   {
-    path: "/",
+    path: '/',
     element: <Navigate to="/login" replace />,
   },
   // Auth routes
   {
-    path: "/login",
+    path: '/login',
     Component: LoginPage,
   },
   {
-    path: "/register",
+    path: '/register',
     Component: RegisterPage,
+  },
+  {
+    path: '/forgot-password',
+    Component: ForgotPasswordPage,
   },
   // Supabase testing route
   {
-    path: "/supabase-test",
+    path: '/supabase-test',
     element: <SupabaseTester />,
   },
   // Main application routes
@@ -73,39 +81,39 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { 
-        path: "home",
+      {
+        path: 'home',
         Component: HeroSection,
       },
       {
-        path: "about-us",
+        path: 'about-us',
         Component: AboutUsPage,
       },
       {
-        path: "rock-minerals",
+        path: 'rock-minerals',
         Component: withLockdownGuard(RockMinerals),
       },
       {
-        path: "rock-minerals/rock/:id",
+        path: 'rock-minerals/rock/:id',
         Component: withLockdownGuard(RockDetailView),
       },
       {
-        path: "rock-minerals/mineral/:id",
+        path: 'rock-minerals/mineral/:id',
         Component: withLockdownGuard(MineralDetailView),
       },
       {
-        path: "rock-minerals/map",
+        path: 'rock-minerals/map',
         Component: withLockdownGuard(RocksMineralsMap),
       },
       {
-        path: "field-works",
+        path: 'field-works',
         Component: withLockdownGuard(FieldWorks),
       },
       {
-        path: "field-works/:fieldId",
+        path: 'field-works/:fieldId',
         Component: withLockdownGuard(FieldDetailView),
       },
-    ]
+    ],
   },
   // Admin dashboard routes - only accessible by admins
   {
@@ -125,7 +133,7 @@ const router = createBrowserRouter([
             index: true,
             Component: DashboardPage,
           },
-      
+
           {
             path: 'users',
             Component: UserPage,
@@ -156,14 +164,14 @@ const router = createBrowserRouter([
             path: 'field-work-files',
             Component: FieldWorkFilePage,
           },
-        ]
-      }
-    ]
+        ],
+      },
+    ],
   },
   // Add the test route
   {
     path: '/test-fieldworks',
-    element: <TestFieldworksBucket />
+    element: <TestFieldworksBucket />,
   },
 ]);
 
