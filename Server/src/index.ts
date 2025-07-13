@@ -26,11 +26,9 @@ const PORT = process.env.PORT || 8001;
 app.use(cors({
   origin: [
     'http://localhost:5173',
-    'http://localhost:5174',
-    'http://127.0.0.1:5173',
     'https://petro-core-usep.onrender.com',
   ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true
 }));
 app.use(express.json());
@@ -57,6 +55,9 @@ app.get('*', (req, res) => {
   res.sendFile(path.resolve(__dirname, 'build', 'index.html'));
 });
 
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'Server is running' });
+});
 
 // Start server
 app.listen(PORT, () => {

@@ -59,6 +59,13 @@ export default function LoginPage() {
           ? err.message
           : 'Failed to login. Please try again.'
       );
+      console.log('error:', err);
+      console.log(
+        'error message:',
+        err instanceof Error
+          ? err.message
+          : 'Failed to login. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
