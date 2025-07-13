@@ -28,38 +28,41 @@ export interface RegisterCredentials extends AuthCredentials {
 
 export const authService = {
   /**
-   * Login with email and password
+   * Login with email and password - OPTIMIZED
    */
   async login({ email, password }: AuthCredentials) {
     try {
       const response = await axios.post(`${API_URL}/api/auth/login`, {
         email,  
         password,
+      }, {
+        timeout: 5000 // Add explicit timeout
       });
 
       if (response.data.success) {
-        // Save user info to localStorage for easy access
-        localStorage.setItem('first_name', response.data.data.user.user_metadata?.first_name || '');
-        localStorage.setItem('email', response.data.data.user.email || '');
+        // Batch localStorage operations
+        const userData = response.data.data.user;
+        const sessionData = response.data.data.session;
         
-        // Save user role
-        localStorage.setItem('role', response.data.data.user.user_metadata?.role || 'student');
+        // Use a single operation to set multiple items
+        const storageData = {
+          'first_name': userData.user_metadata?.first_name || '',
+          'email': userData.email || '',
+          'role': userData.user_metadata?.role || 'student',
+          'access_token': sessionData.access_token
+        };
         
-        // Save token
-        localStorage.setItem('access_token', response.data.data.session.access_token);
+        Object.entries(storageData).forEach(([key, value]) => {
+          localStorage.setItem(key, value);
+        });
         
-        console.log('Token saved:', response.data.data.session.access_token.substring(0, 20) + '...');
-        console.log('first_name:', response.data.data.user.user_metadata?.first_name);
-        console.log('email:', response.data.data.user.email);
-        console.log('role:', response.data.data.user.user_metadata?.role);
-        console.log('access_token:', response.data.data.session.access_token);
+        console.log('Login successful - data saved to localStorage');
       }
       
       return response.data.data;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
         throw new Error(error.response.data.message || 'Login failed');
-        console.log('error:', error);
       }
       throw error;
     }

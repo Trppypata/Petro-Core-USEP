@@ -62,11 +62,11 @@ export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   },
   global: {
     fetch: (...args) => {
-      // Add a timeout to fetch requests
+      // Reduce timeout from 10 seconds to 5 seconds
       const [resource, config] = args;
       return fetch(resource, {
         ...config,
-        signal: AbortSignal.timeout(10000), // 10 second timeout
+        signal: AbortSignal.timeout(5000), // 5 second timeout instead of 10
       }).catch(error => {
         console.error(`Fetch error for ${typeof resource === 'string' ? resource : 'request'}:`, error);
         throw error;

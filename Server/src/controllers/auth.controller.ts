@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 
-// Login user
+// Login user - OPTIMIZED VERSION
 export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
@@ -13,43 +13,35 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    // First authenticate the user
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    // Use Promise.all to run both calls in parallel
+    const [authResult, studentResult] = await Promise.all([
+      supabase.auth.signInWithPassword({ email, password }),
+      // Pre-fetch student data if user exists (we'll check the result later)
+      supabase.from('students').select('*').eq('email', email).single()
+    ]);
 
-    if (error) {
+    if (authResult.error) {
       return res.status(401).json({
         success: false,
-        message: error.message,
+        message: authResult.error.message,
       });
     }
 
-    // Check if we have a corresponding student record
-    if (data.user) {
-      const { data: studentData, error: studentError } = await supabase
-        .from('students')
-        .select('*')
-        .eq('user_id', data.user.id)
-        .single();
-
-      if (!studentError && studentData) {
-        // Add student data to the response
-        return res.status(200).json({
-          success: true,
-          data: {
-            ...data,
-            student: studentData
-          },
-        });
-      }
+    // If we have both user and student data, return combined response
+    if (authResult.data.user && studentResult.data && !studentResult.error) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          ...authResult.data,
+          student: studentResult.data
+        },
+      });
     }
 
     // Return user and session (without student data if not found)
     return res.status(200).json({
       success: true,
-      data,
+      data: authResult.data,
     });
   } catch (error) {
     console.error('Login error:', error);

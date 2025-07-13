@@ -39,29 +39,31 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
+    const startTime = performance.now();
+
     try {
-      // Use AuthContext's login function
       const success = await login(credentials.email, credentials.password);
 
+      const endTime = performance.now();
+      console.log(`Login took ${endTime - startTime} milliseconds`);
+
       if (success) {
-        // Navigate based on user role
         if (isAdmin) {
-          navigate('/dashboard-app'); // Admin goes to dashboard
+          navigate('/dashboard-app');
         } else {
-          navigate('/home'); // Students go to home page
+          navigate('/home');
         }
       } else {
         setError('Invalid email or password');
       }
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to login. Please try again.'
+      const endTime = performance.now();
+      console.error(
+        `Login failed after ${endTime - startTime} milliseconds:`,
+        err
       );
-      console.log('error:', err);
-      console.log(
-        'error message:',
+
+      setError(
         err instanceof Error
           ? err.message
           : 'Failed to login. Please try again.'
