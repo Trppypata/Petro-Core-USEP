@@ -37,7 +37,7 @@ export const authService = {
         password,
       });
 
-      if (response.data.success && response.data.data.user) {
+      if (response.data.success) {
         // Save user info to localStorage for easy access
         localStorage.setItem('first_name', response.data.data.user.user_metadata?.first_name || '');
         localStorage.setItem('email', response.data.data.user.email || '');
@@ -49,6 +49,10 @@ export const authService = {
         localStorage.setItem('access_token', response.data.data.session.access_token);
         
         console.log('Token saved:', response.data.data.session.access_token.substring(0, 20) + '...');
+        console.log('first_name:', response.data.data.user.user_metadata?.first_name);
+        console.log('email:', response.data.data.user.email);
+        console.log('role:', response.data.data.user.user_metadata?.role);
+        console.log('access_token:', response.data.data.session.access_token);
       }
       
       return response.data.data;
@@ -71,10 +75,10 @@ export const authService = {
         firstName, 
         lastName, 
         role,
-        endpoint: `${API_URL}/auth/register`
+        endpoint: `${API_URL}/api/auth/register`
       });
       
-      const response = await axios.post(`${API_URL}/auth/register`, {
+      const response = await axios.post(`${API_URL}/api/auth/register`, {
         email,
         password,
         firstName,
@@ -106,7 +110,7 @@ export const authService = {
    */
   async logout() {
     try {
-      await axios.post(`${API_URL}/auth/logout`);
+      await axios.post(`${API_URL}/api/auth/logout`);
       
       // Clear localStorage
       localStorage.removeItem('first_name');
@@ -135,7 +139,7 @@ export const authService = {
         return null;
       }
       
-      const response = await axios.post(`${API_URL}/auth/current-user`, {
+      const response = await axios.post(`${API_URL}/api/auth/current-user`, {
         token
       });
       
@@ -154,7 +158,7 @@ export const authService = {
    */
   async resetPassword(email: string) {
     try {
-      const response = await axios.post(`${API_URL}/auth/reset-password`, {
+      const response = await axios.post(`${API_URL}/api/auth/reset-password`, {
         email
       });
       
