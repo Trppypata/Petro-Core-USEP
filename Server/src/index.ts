@@ -26,9 +26,11 @@ const PORT = process.env.PORT || 8001;
 app.use(cors({
   origin: [
     'http://localhost:5173',
-    'https://petro-core-usep.onrender.com',
+    'http://localhost:5174',
+    'http://127.0.0.1:5173',
+    'https://petro-core-usep.onrender.com'
   ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
   credentials: true
 }));
 app.use(express.json());
@@ -42,22 +44,26 @@ app.use('/api/minerals', mineralsRoutes);
 app.use('/api/rocks', rocksRoutes);
 app.use('/api/rock-images', rockImagesRoutes);
 
+// Health check routes
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'Server is running' });
+});
 
+// Add API prefix health check endpoint to match client expectations
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'Server is running' });
+});
 
 // Initialize Supabase storage buckets
 setupStorageBuckets().catch(err => {
   console.error('Error setting up storage buckets:', err);
 });
 
-app.use(express.static('build'));
-
-app.get('*', (req, res) => {
-  res.sendFile(path.resolve(__dirname, 'build', 'index.html'));
-});
-
-app.get('/', (req, res) => {
-  res.status(200).json({ status: 'ok', message: 'Server is running' });
-});
+// Remove the static file serving - this is causing the error
+// app.use(express.static('build'));
+// app.get('*', (req, res) => {
+//   res.sendFile(path.resolve(__dirname, 'build', 'index.html'));
+// });
 
 // Start server
 app.listen(PORT, () => {
