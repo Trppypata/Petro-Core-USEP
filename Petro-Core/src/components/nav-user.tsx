@@ -53,7 +53,10 @@ export function NavUser({
     localStorage.removeItem('uid');
     localStorage.removeItem('first_name');
     localStorage.removeItem('email');
+    localStorage.removeItem('role');
+    localStorage.removeItem('access_token');
     localStorage.removeItem('posiion');
+    localStorage.removeItem('system_lockdown');
 
     Cookies.remove('access_token');
     Cookies.remove('profile_url');
