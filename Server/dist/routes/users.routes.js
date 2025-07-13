@@ -9,6 +9,8 @@ router.post('/registerStudent', users_controller_1.registerStudent);
 router.get('/fetchUserDetails', users_controller_1.fetchUserDetails);
 // Get all teams/courses
 router.get('/teams', users_controller_1.getTeams);
+// Count total users
+router.get('/countUsers', users_controller_1.countUsers);
 // Update user
 router.put('/:id', users_controller_1.updateUser);
 // Delete user

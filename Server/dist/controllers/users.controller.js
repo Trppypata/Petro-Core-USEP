@@ -1,7 +1,33 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getTeams = exports.deleteUser = exports.updateUser = exports.fetchUserDetails = exports.registerStudent = void 0;
+exports.getTeams = exports.deleteUser = exports.updateUser = exports.fetchUserDetails = exports.registerStudent = exports.countUsers = void 0;
 const supabase_1 = require("../config/supabase");
+// Count total users
+const countUsers = async (_req, res) => {
+    try {
+        const { count, error } = await supabase_1.supabase
+            .from('students')
+            .select('*', { count: 'exact', head: true });
+        if (error) {
+            return res.status(400).json({
+                success: false,
+                message: error.message,
+            });
+        }
+        return res.status(200).json({
+            success: true,
+            totalUsers: count,
+        });
+    }
+    catch (error) {
+        console.error('Count users error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error',
+        });
+    }
+};
+exports.countUsers = countUsers;
 // Register student
 const registerStudent = async (req, res) => {
     try {

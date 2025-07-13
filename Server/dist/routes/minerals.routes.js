@@ -29,6 +29,7 @@ const upload = (0, multer_1.default)({
 router.get('/', minerals_controller_1.getAllMinerals);
 router.get('/:id', minerals_controller_1.getMineralById);
 router.post('/import', upload.single('file'), minerals_controller_1.importMineralsFromExcel); // Import without auth
+router.post('/import-default', minerals_controller_1.importDefaultMinerals); // Import default data without auth
 // Protected routes (authentication required)
 router.post('/', auth_middleware_1.verifyToken, minerals_controller_1.addMineral);
 router.put('/:id', auth_middleware_1.verifyToken, minerals_controller_1.updateMineral);

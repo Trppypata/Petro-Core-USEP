@@ -44,15 +44,7 @@ app.use('/api/minerals', mineralsRoutes);
 app.use('/api/rocks', rocksRoutes);
 app.use('/api/rock-images', rockImagesRoutes);
 
-// Health check routes
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', message: 'Server is running' });
-});
 
-// Add API prefix health check endpoint to match client expectations
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok', message: 'Server is running' });
-});
 
 // Initialize Supabase storage buckets
 setupStorageBuckets().catch(err => {

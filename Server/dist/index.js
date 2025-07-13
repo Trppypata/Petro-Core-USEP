@@ -25,8 +25,13 @@ const app = (0, express_1.default)();
 const PORT = process.env.PORT || 8001;
 // Middleware
 app.use((0, cors_1.default)({
-    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    origin: [
+        'http://localhost:5173',
+        'http://localhost:5174',
+        'http://127.0.0.1:5173',
+        'https://petro-core-usep.onrender.com'
+    ],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
     credentials: true
 }));
 app.use(express_1.default.json());
@@ -38,13 +43,13 @@ app.use('/api/users', users_routes_1.default);
 app.use('/api/minerals', minerals_routes_1.default);
 app.use('/api/rocks', rocks_routes_1.default);
 app.use('/api/rock-images', rock_images_routes_1.default);
-// Health check route
-app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'ok', message: 'Server is running' });
-});
 // Initialize Supabase storage buckets
 (0, setup_storage_1.setupStorageBuckets)().catch(err => {
     console.error('Error setting up storage buckets:', err);
+});
+app.use(express_1.default.static('build'));
+app.get('*', (req, res) => {
+    res.sendFile(path_1.default.resolve(__dirname, 'build', 'index.html'));
 });
 // Start server
 app.listen(PORT, () => {

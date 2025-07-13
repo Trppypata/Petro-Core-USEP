@@ -157,56 +157,84 @@ const importRocksFromExcel = async (req, res) => {
                     longitude: row['Longitude'] || row['LONG'] || '',
                     coordinates: coordinates,
                     locality: row['Locality'] || row['Location'] || '',
-                    mineral_composition: row['Mineral Composition'] || row['Associated Minerals'] || row['Associated Minerals '] || '',
+                    mineral_composition: row['Mineral Composition'] || '',
                     description: row['Description'] || row['Overall Description'] || '',
                     formation: row['Formation'] || '',
                     geological_age: row['Geological Age'] || row['Age'] || '',
                     status: row['Status'] || 'active',
                     image_url: row['Image URL'] || '',
-                    // Metamorphic rock specific fields
-                    associated_minerals: row['Associated Minerals'] || '',
-                    metamorphism_type: row['Metamorphism Type'] || row['Metamorpism'] || '',
+                    // Add all potential fields for all categories with default values
+                    associated_minerals: row['Associated Minerals'] || row['Associated Minerals '] || '',
+                    metamorphism_type: row['Metamorphism Type'] || row['Metamorphism'] || row['Metamorpism'] || '',
                     metamorphic_grade: row['Metamorphic Grade'] || '',
                     parent_rock: row['Parent Rock'] || '',
-                    foliation: row['Foliation'] || '',
-                    // Igneous rock specific fields
+                    foliation: row['Foliation'] || (category === 'Metamorphic' ? 'Present' : ''),
+                    foliation_type: row['Foliation Type'] || (category === 'Metamorphic' ? 'Not specified' : ''),
+                    // Igneous specific
                     silica_content: row['Silica Content'] || '',
                     cooling_rate: row['Cooling Rate'] || '',
                     mineral_content: row['Mineral Content'] || '',
-                    // Sedimentary rock specific fields
+                    origin: row['Origin'] || (category === 'Igneous' ? 'Igneous origin' : ''),
+                    // Sedimentary specific
                     bedding: row['Bedding'] || '',
                     sorting: row['Sorting'] || row['Sorting '] || '',
                     roundness: row['Roundness'] || '',
                     fossil_content: row['Fossil Content'] || row['Fossils'] || row['Fossils '] || '',
                     sediment_source: row['Sediment Source'] || '',
-                    // Ore samples specific fields
+                    // Ore samples specific
                     commodity_type: row['Type of Commodity'] || row['Commodity Type'] || '',
                     ore_group: row['Ore Group'] || row['Type of Deposit'] || '',
-                    mining_company: row['Mining Company'] || row['Mining Company/Donated by'] || '',
-                    // Additional fields
+                    mining_company: row['Mining Company'] || row['Mining Company/Donated by'] || (category === 'Ore Samples' ? 'Unspecified mining company' : ''),
+                    // Common additional fields
                     luster: row['Luster'] || row['Luster '] || '',
                     reaction_to_hcl: row['Reaction to HCl'] || row['Reaction to HCL'] || '',
                     magnetism: row['Magnetism'] || row['Magnetism '] || '',
-                    // Add protolith field
-                    protolith: row['Protolith'] || ''
+                    streak: row['Streak'] || '',
+                    protolith: row['Protolith'] || row['Parent Rock'] || (category === 'Metamorphic' ? 'Unknown parent rock' : '')
                 };
-                // Add category-specific fields
+                // Process category-specific fields and add any missing default values
                 if (category === 'Metamorphic') {
-                    rock.associated_minerals = row['Associated Minerals'] || '';
-                    rock.metamorphism_type = row['Metamorphism Type'] || row['Metamorpism'] || '';
-                    rock.metamorphic_grade = row['Metamorphic Grade'] || '';
-                    rock.parent_rock = row['Parent Rock'] || '';
-                    rock.foliation = row['Foliation'] || '';
+                    // Ensure protolith has a value for metamorphic rocks
+                    if (!rock.protolith) {
+                        rock.protolith = rock.parent_rock || 'Unknown parent rock';
+                    }
+                    // Ensure foliation has a value
+                    if (!rock.foliation) {
+                        rock.foliation = 'Present';
+                    }
+                    // Ensure foliation_type has a value
+                    if (!rock.foliation_type) {
+                        rock.foliation_type = 'Not specified';
+                    }
                 }
                 else if (category === 'Igneous') {
-                    rock.silica_content = row['Silica Content'] || '';
-                    rock.cooling_rate = row['Cooling Rate'] || '';
-                    rock.mineral_content = row['Mineral Content'] || '';
+                    // Ensure origin has a value for igneous rocks
+                    if (!rock.origin) {
+                        rock.origin = 'Igneous origin';
+                    }
                 }
                 else if (category === 'Ore Samples') {
-                    rock.commodity_type = row['Type of Commodity'] || row['Commodity Type'] || '';
-                    rock.ore_group = row['Ore Group'] || row['Type of Deposit'] || '';
-                    rock.mining_company = row['Mining Company'] || row['Mining Company/Donated by'] || '';
+                    // Ensure mining_company has a value for ore samples
+                    if (!rock.mining_company) {
+                        if (rock.locality) {
+                            rock.mining_company = `Mining operation at ${rock.locality}`;
+                        }
+                        else {
+                            rock.mining_company = 'Unspecified mining company';
+                        }
+                    }
+                    // Ensure associated_minerals has a value for ore samples
+                    if (!rock.associated_minerals) {
+                        if (rock.mineral_composition) {
+                            rock.associated_minerals = rock.mineral_composition;
+                        }
+                        else if (rock.commodity_type) {
+                            rock.associated_minerals = `Minerals associated with ${rock.commodity_type}`;
+                        }
+                        else {
+                            rock.associated_minerals = 'Various ore minerals';
+                        }
+                    }
                 }
                 rocks.push(rock);
                 sheetCounts[sheetName].processed++;
@@ -496,7 +524,7 @@ const updateRock = async (req, res) => {
         delete safeRockData.user;
         delete safeRockData.user_id;
         delete safeRockData.user_metadata;
-        delete safeRockData.origin; // This might not be in the interface
+        // Note: origin field is needed and should not be deleted
         // Also filter out any undefined or null values
         const cleanedData = Object.fromEntries(Object.entries(safeRockData).filter(([_, v]) => v !== null && v !== undefined));
         console.log('🧹 CLEANED rock data for update:', JSON.stringify(cleanedData, null, 2));
@@ -746,15 +774,17 @@ const importDefaultRocks = async (_req, res) => {
                     status: row['Status'] || 'active',
                     image_url: row['Image URL'] || '',
                     // Metamorphic rock specific fields
-                    associated_minerals: row['Associated Minerals'] || '',
-                    metamorphism_type: row['Metamorphism Type'] || '',
+                    associated_minerals: row['Associated Minerals'] || row['Associated Minerals '] || '',
+                    metamorphism_type: row['Metamorphism Type'] || row['Metamorphism'] || '',
                     metamorphic_grade: row['Metamorphic Grade'] || '',
                     parent_rock: row['Parent Rock'] || '',
                     foliation: row['Foliation'] || '',
+                    foliation_type: row['Foliation Type'] || '',
                     // Igneous rock specific fields
                     silica_content: row['Silica Content'] || '',
                     cooling_rate: row['Cooling Rate'] || '',
                     mineral_content: row['Mineral Content'] || '',
+                    origin: row['Origin'] || '',
                     // Sedimentary rock specific fields
                     bedding: row['Bedding'] || '',
                     sorting: row['Sorting'] || '',
@@ -769,8 +799,8 @@ const importDefaultRocks = async (_req, res) => {
                     luster: row['Luster'] || row['Luster '] || '',
                     reaction_to_hcl: row['Reaction to HCl'] || row['Reaction to HCL'] || '',
                     magnetism: row['Magnetism'] || row['Magnetism '] || '',
-                    // Add protolith field
-                    protolith: row['Protolith'] || ''
+                    streak: row['Streak'] || row['Streak '] || '',
+                    protolith: row['Protolith'] || row['Parent Rock'] || ''
                 };
                 // Ensure all rocks have a rock_code
                 if (!rock.rock_code || rock.rock_code.trim() === '') {
@@ -784,31 +814,8 @@ const importDefaultRocks = async (_req, res) => {
                     }
                     console.log(`Generated rock code ${rock.rock_code} for ${rockName}`);
                 }
-                // Add category-specific fields
-                if (category === 'Metamorphic') {
-                    rock.associated_minerals = row['Associated Minerals'] || '';
-                    rock.metamorphism_type = row['Metamorphism Type'] || '';
-                    rock.metamorphic_grade = row['Metamorphic Grade'] || '';
-                    rock.parent_rock = row['Parent Rock'] || '';
-                    rock.foliation = row['Foliation'] || '';
-                }
-                else if (category === 'Igneous') {
-                    rock.silica_content = row['Silica Content'] || '';
-                    rock.cooling_rate = row['Cooling Rate'] || '';
-                    rock.mineral_content = row['Mineral Content'] || '';
-                }
-                else if (category === 'Sedimentary') {
-                    rock.bedding = row['Bedding'] || '';
-                    rock.sorting = row['Sorting'] || '';
-                    rock.roundness = row['Roundness'] || '';
-                    rock.fossil_content = row['Fossil Content'] || '';
-                    rock.sediment_source = row['Sediment Source'] || '';
-                }
-                else if (category === 'Ore Samples') {
-                    rock.commodity_type = row['Commodity Type'] || row['Type of Commodity'] || row['Metal'] || row['Mineral'] || row['Type'] || '';
-                    rock.ore_group = row['Ore Group'] || row['Type of Deposit'] || row['Deposit Type'] || '';
-                    rock.mining_company = row['Mining Company'] || row['Mining Company/Donated by'] || row['Mining Company/Donated by:'] || row['Source'] || '';
-                    // Ensure ore samples always have an O- code
+                // Ensure ore samples always have an O- code
+                if (category === 'Ore Samples') {
                     if (!rock.rock_code || rock.rock_code.trim() === '' || !rock.rock_code.startsWith('O-')) {
                         rock.rock_code = `O-${String(index + 1).padStart(4, '0')}`;
                     }
