@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import Cookies from 'js-cookie';
 import { cleanRockData } from './rock.service';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = 'https://petro-core-usep.onrender.com';
 console.log('API URL for rocks service:', API_URL);
 
 /**

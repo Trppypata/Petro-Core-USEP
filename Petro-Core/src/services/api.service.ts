@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 
 // API base URL
 // const API_URL = import.meta.env.VITE_local_url || import.meta.env.VITE_API_URL || 'http://localhost:8001/api';
-const API_URL = 'https://petro-core-usep.onrender.com';
+const API_URL = 'https://petro-core-usep.onrender.com/';
 
 // Create a custom axios instance
 const apiClient = axios.create({
@@ -94,7 +94,7 @@ export const createAuthApi = (token?: string) => {
   
   return axios.create({
     baseURL: API_URL,
-    timeout: 2000,
+    timeout: 10000,
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${authToken}`
