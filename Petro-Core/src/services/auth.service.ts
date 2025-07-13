@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // API base URL
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001/api';
+const API_URL = import.meta.env.VITE_API_URL;
 
 // Configure axios to use the token for all requests
 axios.interceptors.request.use(
@@ -32,7 +32,7 @@ export const authService = {
    */
   async login({ email, password }: AuthCredentials) {
     try {
-      const response = await axios.post(`${API_URL}/auth/login`, {
+      const response = await axios.post(`${API_URL}/api/auth/login`, {
         email,
         password,
       });

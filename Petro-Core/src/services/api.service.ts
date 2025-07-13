@@ -2,7 +2,8 @@ import axios from 'axios';
 import { toast } from 'sonner';
 
 // API base URL
-const API_URL = import.meta.env.VITE_local_url || import.meta.env.VITE_API_URL || 'http://localhost:8001/api';
+// const API_URL = import.meta.env.VITE_local_url || import.meta.env.VITE_API_URL || 'http://localhost:8001/api';
+const API_URL = import.meta.env.VITE_API_URL;
 
 // Create a custom axios instance
 const apiClient = axios.create({

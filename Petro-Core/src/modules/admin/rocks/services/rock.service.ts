@@ -4,7 +4,7 @@ import Cookies from 'js-cookie';
 import { toast } from 'sonner';
 import { apiClient } from '@/services/api.service';
 
-const API_URL = import.meta.env.VITE_local_url || 'http://localhost:8001/api';
+const API_URL = import.meta.env.VITE_API_URL;
 console.log('API URL for rocks service:', API_URL);
 
 /**
