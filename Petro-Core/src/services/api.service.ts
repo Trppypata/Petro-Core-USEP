@@ -94,7 +94,7 @@ export const createAuthApi = (token?: string) => {
   
   return axios.create({
     baseURL: API_URL,
-    timeout: 10000,
+    timeout: 2000,
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${authToken}`

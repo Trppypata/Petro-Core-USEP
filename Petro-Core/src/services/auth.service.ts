@@ -33,7 +33,7 @@ export const authService = {
   async login({ email, password }: AuthCredentials) {
     try {
       const response = await axios.post(`${API_URL}/api/auth/login`, {
-        email,
+        email,  
         password,
       });
 
@@ -59,6 +59,7 @@ export const authService = {
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
         throw new Error(error.response.data.message || 'Login failed');
+        console.log('error:', error);
       }
       throw error;
     }
