@@ -4,7 +4,7 @@ import Cookies from 'js-cookie';
 import { toast } from 'sonner';
 import { apiClient } from '@/services/api.service';
 
-const API_URL = 'https://petro-core-usep.onrender.com';
+const API_URL = 'https://petro-core-usep.onrender.com/';
 console.log('API URL for rocks service:', API_URL);
 
 /**
