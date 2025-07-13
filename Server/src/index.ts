@@ -60,10 +60,10 @@ setupStorageBuckets().catch(err => {
 });
 
 // Remove the static file serving - this is causing the error
-// app.use(express.static('build'));
-// app.get('*', (req, res) => {
-//   res.sendFile(path.resolve(__dirname, 'build', 'index.html'));
-// });
+app.use(express.static('build'));
+app.get('*', (req, res) => {
+  res.sendFile(path.resolve(__dirname, 'build', 'index.html'));
+});
 
 // Start server
 app.listen(PORT, () => {
