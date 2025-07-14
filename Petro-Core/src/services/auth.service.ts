@@ -136,5 +136,11 @@ export const authService = {
    */
   getToken() {
     return localStorage.getItem('access_token');
-  }
+  },
+
+  getCurrentUser: async function () {
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user) return null;
+    return data.user;
+  },
 }; 

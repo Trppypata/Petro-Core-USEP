@@ -1,4 +1,4 @@
-import { useEffect, useState, ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { authService } from '@/services/auth.service';
 import { Spinner } from './spinner';
@@ -18,6 +18,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
         setIsAuthenticated(!!user);
       } catch (error) {
         setIsAuthenticated(false);
+        console.error('Error checking authentication:', error);
       }
     };
 
@@ -40,4 +41,4 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   // User is authenticated, render the protected content
   return <>{children}</>;
-} 
+}
