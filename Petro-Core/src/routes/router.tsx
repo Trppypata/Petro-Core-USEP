@@ -27,17 +27,10 @@ import AboutUsPage from '@/modules/home/about-us/about-us-page';
 import TestFieldworksBucket from '../test-fieldworks-bucket';
 
 // Higher order component to wrap routes with role guards
-const withRoleGuard = (
-  Component: React.ComponentType,
-  guard: React.FC<{ children: ReactNode }>
-) => {
-  const GuardComponent = guard;
-  return () => (
-    <GuardComponent>
-      <Component />
-    </GuardComponent>
-  );
-};
+// This function is currently unused and can be removed or exported if needed elsewhere.
+// If you intend to use it, consider exporting it or using it in your route definitions.
+// Removed unused 'withRoleGuard' to fix lint error.
+// (Function removed. No code needed.)
 
 // Higher order component to wrap routes with lockdown guard
 const withLockdownGuard = (Component: React.ComponentType) => {
