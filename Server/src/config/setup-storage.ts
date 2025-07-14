@@ -29,7 +29,13 @@ export const setupStorageBuckets = async () => {
         .createBucket('rocks-minerals', {
           public: true,
           fileSizeLimit: 10485760, // 10MB
-          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
+          allowedMimeTypes: [
+            'image/png',
+            'image/jpeg',
+            'image/gif',
+            'image/webp',
+            'text/plain'
+          ]
         });
       
       if (error) {
