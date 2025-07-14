@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { IRock } from '../rock.interface';
 
-const API_URL = import.meta.env.VITE_local_url || 'http://localhost:8001/api';
+const API_URL = 'https://petro-core-usep.onrender.com';
 
 // Get all rocks by category
 export const getRocks = async (category: string): Promise<IRock[]> => {
@@ -49,6 +49,7 @@ const mockRocks: IRock[] = [
   {
     id: 'r-001',
     name: 'Granite',
+    rock_code: 'I-0001',
     chemical_formula: 'Complex mixture',
     hardness: '6-7',
     category: 'Igneous',
@@ -58,6 +59,7 @@ const mockRocks: IRock[] = [
   {
     id: 'r-002',
     name: 'Basalt',
+    rock_code: 'I-0002',
     chemical_formula: 'Complex mixture',
     hardness: '5-6',
     category: 'Igneous',
@@ -67,6 +69,7 @@ const mockRocks: IRock[] = [
   {
     id: 'r-003',
     name: 'Limestone',
+    rock_code: 'S-0001',
     chemical_formula: 'CaCO₃',
     hardness: '3',
     category: 'Sedimentary',
@@ -76,6 +79,7 @@ const mockRocks: IRock[] = [
   {
     id: 'r-004',
     name: 'Marble',
+    rock_code: 'M-0001',
     chemical_formula: 'CaCO₃',
     hardness: '3-4',
     category: 'Metamorphic',

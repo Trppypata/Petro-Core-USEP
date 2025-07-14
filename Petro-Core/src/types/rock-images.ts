@@ -11,6 +11,5 @@ export interface IRockImage {
   updated_at?: string;
 }
 
-// Make sure both named and default exports are available
-export { IRockImage };
-export default IRockImage; 
+// Use only named type export
+export type { IRockImage }; 

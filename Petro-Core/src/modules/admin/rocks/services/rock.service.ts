@@ -4,7 +4,7 @@ import Cookies from 'js-cookie';
 import { toast } from 'sonner';
 import { apiClient } from '@/services/api.service';
 
-const API_URL = 'https://petro-core-usep.onrender.com/';
+const API_URL = 'https://petro-core-usep.onrender.com';
 console.log('API URL for rocks service:', API_URL);
 
 /**
@@ -33,27 +33,27 @@ const getAuthToken = () => {
 
 /**
  * Get axios instance with auth headers
- */
-const getAuthAxios = () => {
-  const token = getAuthToken();
-  
-  if (!token) {
-    console.error('No authentication token found');
-    toast.error('Authentication required. Please log in again.');
-    throw new Error('Authentication token not found');
-  }
-  
-  // Create a fresh axios instance with auth headers
-  return axios.create({
-    baseURL: API_URL,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
-    // Add a timeout to avoid hanging requests
-    timeout: 10000
-  });
-};
+//  */
+// const getAuthAxios = () => {
+//   const token = getAuthToken();
+//   
+//   if (!token) {
+//     console.error('No authentication token found');
+//     toast.error('Authentication required. Please log in again.');
+//     throw new Error('Authentication token not found');
+//   }
+//   
+//   // Create a fresh axios instance with auth headers
+//   return axios.create({
+//     baseURL: API_URL,
+//     headers: {
+//       'Content-Type': 'application/json',
+//       'Authorization': `Bearer ${token}`
+//     },
+//     // Add a timeout to avoid hanging requests
+//     timeout: 10000
+//   });
+// };
 
 // Get all rocks
 export const getRocks = async (category: string): Promise<IRock[]> => {

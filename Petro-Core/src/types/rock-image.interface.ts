@@ -9,5 +9,5 @@ interface IRockImage {
   updated_at?: string;
 }
 
-// Export the interface
-export { IRockImage }; 
+// Export the interface as a type
+export type { IRockImage }; 

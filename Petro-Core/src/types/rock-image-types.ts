@@ -9,7 +9,5 @@ export interface IRockImage {
   updated_at?: string;
 }
 
-// Explicit named export
-export { IRockImage };
-// Default export
-export default IRockImage; 
+// Explicit named type export (for verbatimModuleSyntax)
+export type { IRockImage }; 

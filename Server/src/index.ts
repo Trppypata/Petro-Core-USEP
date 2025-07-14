@@ -54,15 +54,28 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Server is running' });
 });
 
+// 404 handler for unmatched routes
+app.use('*', (req, res) => {
+  res.status(404).json({ 
+    error: 'Not Found', 
+    message: `Route ${req.method} ${req.originalUrl} not found`,
+    availableRoutes: [
+      '/api/auth/*',
+      '/api/admin/*', 
+      '/api/student/*',
+      '/api/users/*',
+      '/api/minerals/*',
+      '/api/rocks/*',
+      '/api/rock-images/*',
+      '/health',
+      '/api/health'
+    ]
+  });
+});
+
 // Initialize Supabase storage buckets
 setupStorageBuckets().catch(err => {
   console.error('Error setting up storage buckets:', err);
-});
-
-// Remove the static file serving - this is causing the error
-app.use(express.static('build'));
-app.get('*', (req, res) => {
-  res.sendFile(path.resolve(__dirname, 'build', 'index.html'));
 });
 
 // Start server
