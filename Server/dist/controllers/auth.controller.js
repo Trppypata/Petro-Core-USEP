@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.updatePassword = exports.resetPassword = exports.logout = exports.getCurrentUser = exports.register = exports.login = void 0;
 const supabase_1 = require("../config/supabase");
-// Login user
+// Login user - OPTIMIZED VERSION
 const login = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -12,39 +12,32 @@ const login = async (req, res) => {
                 message: 'Email and password are required',
             });
         }
-        // First authenticate the user
-        const { data, error } = await supabase_1.supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
-        if (error) {
+        // Use Promise.all to run both calls in parallel
+        const [authResult, studentResult] = await Promise.all([
+            supabase_1.supabase.auth.signInWithPassword({ email, password }),
+            // Pre-fetch student data if user exists (we'll check the result later)
+            supabase_1.supabase.from('students').select('*').eq('email', email).single()
+        ]);
+        if (authResult.error) {
             return res.status(401).json({
                 success: false,
-                message: error.message,
+                message: authResult.error.message,
             });
         }
-        // Check if we have a corresponding student record
-        if (data.user) {
-            const { data: studentData, error: studentError } = await supabase_1.supabase
-                .from('students')
-                .select('*')
-                .eq('user_id', data.user.id)
-                .single();
-            if (!studentError && studentData) {
-                // Add student data to the response
-                return res.status(200).json({
-                    success: true,
-                    data: {
-                        ...data,
-                        student: studentData
-                    },
-                });
-            }
+        // If we have both user and student data, return combined response
+        if (authResult.data.user && studentResult.data && !studentResult.error) {
+            return res.status(200).json({
+                success: true,
+                data: {
+                    ...authResult.data,
+                    student: studentResult.data
+                },
+            });
         }
         // Return user and session (without student data if not found)
         return res.status(200).json({
             success: true,
-            data,
+            data: authResult.data,
         });
     }
     catch (error) {

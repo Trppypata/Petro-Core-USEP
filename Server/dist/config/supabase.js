@@ -7,22 +7,20 @@ exports.supabase = void 0;
 const supabase_js_1 = require("@supabase/supabase-js");
 const dotenv_1 = __importDefault(require("dotenv"));
 const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
 // Configure dotenv with explicit path to .env file
-// Try multiple possible locations for the .env file
 const possiblePaths = [
-    path_1.default.resolve(process.cwd(), '.env'), // Root of the project where npm run is executed
-    path_1.default.resolve(__dirname, '../../.env'), // Server directory
-    path_1.default.resolve(__dirname, '../../../.env'), // Parent directory
+    path_1.default.resolve(process.cwd(), '.env'),
+    path_1.default.resolve(__dirname, '../../.env'),
+    path_1.default.resolve(__dirname, '../../../.env'),
 ];
 console.log('Checking for .env files at:');
 possiblePaths.forEach(p => console.log(` - ${p}`));
-// Try each path until we find one that works
 let envLoaded = false;
 for (const envPath of possiblePaths) {
-    if (require('fs').existsSync(envPath)) {
+    if (fs_1.default.existsSync(envPath)) {
         console.log(`Found .env file at: ${envPath}`);
         dotenv_1.default.config({ path: envPath });
-        // Check if it loaded correctly
         if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
             console.log('Successfully loaded environment variables from:', envPath);
             envLoaded = true;
@@ -35,10 +33,7 @@ for (const envPath of possiblePaths) {
 }
 if (!envLoaded) {
     console.error('Could not find valid .env file with required variables in any of the checked locations');
-    // Instead of immediately failing, let's continue and see if the environment variables
-    // might be set by other means (like system environment variables)
 }
-// Debug environment variables
 console.log('Environment variables loaded:');
 console.log('SUPABASE_URL exists:', !!process.env.SUPABASE_URL);
 console.log('SUPABASE_URL format check:', process.env.SUPABASE_URL?.startsWith('https://'));
@@ -60,15 +55,21 @@ exports.supabase = (0, supabase_js_1.createClient)(supabaseUrl, supabaseServiceK
     },
     global: {
         fetch: (...args) => {
-            // Add a timeout to fetch requests
             const [resource, config] = args;
-            return fetch(resource, {
-                ...config,
-                signal: AbortSignal.timeout(10000), // 10 second timeout
-            }).catch(error => {
-                console.error(`Fetch error for ${typeof resource === 'string' ? resource : 'request'}:`, error);
-                throw error;
-            });
+            // Node.js 18+ supports AbortSignal.timeout
+            if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+                return fetch(resource, {
+                    ...config,
+                    signal: AbortSignal.timeout(5000),
+                }).catch(error => {
+                    console.error(`Fetch error for ${typeof resource === 'string' ? resource : 'request'}:`, error);
+                    throw error;
+                });
+            }
+            else {
+                // Fallback: no timeout
+                return fetch(resource, config);
+            }
         }
     }
 });
@@ -90,4 +91,4 @@ async function testSupabaseConnection() {
     }
 }
 // Run the test connection (don't await it to avoid blocking server startup)
-testSupabaseConnection();
+Promise.resolve().then(testSupabaseConnection);

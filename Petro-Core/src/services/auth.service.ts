@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { supabase } from '@/lib/supabase';
 
 // API base URL
 const API_URL = 'https://petro-core-usep.onrender.com';
@@ -28,44 +29,21 @@ export interface RegisterCredentials extends AuthCredentials {
 
 export const authService = {
   /**
-   * Login with email and password - OPTIMIZED
+   * Login with email and password - now uses Supabase Auth
    */
   async login({ email, password }: AuthCredentials) {
-    try {
-      const response = await axios.post(`${API_URL}/api/auth/login`, {
-        email,  
-        password,
-      }, {
-        timeout: 5000 // Add explicit timeout
-      });
-
-      if (response.data.success) {
-        // Batch localStorage operations
-        const userData = response.data.data.user;
-        const sessionData = response.data.data.session;
-        
-        // Use a single operation to set multiple items
-        const storageData = {
-          'first_name': userData.user_metadata?.first_name || '',
-          'email': userData.email || '',
-          'role': userData.user_metadata?.role || 'student',
-          'access_token': sessionData.access_token
-        };
-        
-        Object.entries(storageData).forEach(([key, value]) => {
-          localStorage.setItem(key, value);
-        });
-        
-        console.log('Login successful - data saved to localStorage');
-      }
-      
-      return response.data.data;
-    } catch (error) {
-      if (axios.isAxiosError(error) && error.response) {
-        throw new Error(error.response.data.message || 'Login failed');
-      }
-      throw error;
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) {
+      throw new Error(error.message || 'Login failed');
     }
+    // Supabase automatically persists session if configured
+    if (data.user) {
+      return { user: data.user, session: data.session };
+    }
+    return null;
   },
 
   /**
@@ -106,54 +84,6 @@ export const authService = {
         throw new Error(errorMessage);
       }
       throw error;
-    }
-  },
-
-  /**
-   * Logout the current user
-   */
-  async logout() {
-    try {
-      await axios.post(`${API_URL}/api/auth/logout`);
-      
-      // Clear localStorage
-      localStorage.removeItem('first_name');
-      localStorage.removeItem('email');
-      localStorage.removeItem('role');
-      localStorage.removeItem('access_token');
-      
-      // Return to login page
-      window.location.href = '/login';
-    } catch (error) {
-      if (axios.isAxiosError(error) && error.response) {
-        throw new Error(error.response.data.message || 'Logout failed');
-      }
-      throw error;
-    }
-  },
-
-  /**
-   * Get the current logged in user
-   */
-  async getCurrentUser() {
-    try {
-      const token = localStorage.getItem('access_token');
-      
-      if (!token) {
-        return null;
-      }
-      
-      const response = await axios.post(`${API_URL}/api/auth/current-user`, {
-        token
-      });
-      
-      return response.data.data.user;
-    } catch (error) {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('first_name');
-      localStorage.removeItem('email');
-      
-      return null;
     }
   },
 

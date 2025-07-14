@@ -26,12 +26,9 @@ const PORT = process.env.PORT || 8001;
 // Middleware
 app.use((0, cors_1.default)({
     origin: [
-        'http://localhost:5173',
-        'http://localhost:5174',
-        'http://127.0.0.1:5173',
         'https://petro-core-usep.onrender.com'
     ],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     credentials: true
 }));
 app.use(express_1.default.json());
@@ -51,13 +48,27 @@ app.get('/health', (req, res) => {
 app.get('/api/health', (req, res) => {
     res.status(200).json({ status: 'ok', message: 'Server is running' });
 });
+// 404 handler for unmatched routes
+app.use('*', (req, res) => {
+    res.status(404).json({
+        error: 'Not Found',
+        message: `Route ${req.method} ${req.originalUrl} not found`,
+        availableRoutes: [
+            '/api/auth/*',
+            '/api/admin/*',
+            '/api/student/*',
+            '/api/users/*',
+            '/api/minerals/*',
+            '/api/rocks/*',
+            '/api/rock-images/*',
+            '/health',
+            '/api/health'
+        ]
+    });
+});
 // Initialize Supabase storage buckets
 (0, setup_storage_1.setupStorageBuckets)().catch(err => {
     console.error('Error setting up storage buckets:', err);
-});
-app.use(express_1.default.static('build'));
-app.get('*', (req, res) => {
-    res.sendFile(path_1.default.resolve(__dirname, 'build', 'index.html'));
 });
 // Start server
 app.listen(PORT, () => {
