@@ -24,6 +24,7 @@ import FieldWorkFilePage from '@/modules/admin/files/file-page';
 import { TriviaPage } from '@/modules/admin/trivia';
 import AboutUsPage from '@/modules/home/about-us/about-us-page';
 import TestFieldworksBucket from '../test-fieldworks-bucket';
+import ErrorPage from '@/components/error-page';
 
 // Higher order component to wrap routes with role guards
 // This function is currently unused and can be removed or exported if needed elsewhere.
@@ -45,24 +46,29 @@ const router = createBrowserRouter([
   {
     path: '/',
     element: <Navigate to="/login" replace />,
+    errorElement: <ErrorPage />,
   },
   // Auth routes
   {
     path: '/login',
     Component: LoginPage,
+    errorElement: <ErrorPage />,
   },
   {
     path: '/register',
     Component: RegisterPage,
+    errorElement: <ErrorPage />,
   },
   {
     path: '/forgot-password',
     Component: ForgotPasswordPage,
+    errorElement: <ErrorPage />,
   },
   // Supabase testing route
   {
     path: '/supabase-test',
     element: <SupabaseTester />,
+    errorElement: <ErrorPage />,
   },
   // Main application routes
   {
@@ -72,6 +78,7 @@ const router = createBrowserRouter([
         <PageLayout />
       </ProtectedRoute>
     ),
+    errorElement: <ErrorPage />,
     children: [
       {
         path: 'home',
@@ -117,6 +124,7 @@ const router = createBrowserRouter([
         </AdminGuard>
       </ProtectedRoute>
     ),
+    errorElement: <ErrorPage />,
     children: [
       {
         path: '',
@@ -164,6 +172,12 @@ const router = createBrowserRouter([
   {
     path: '/test-fieldworks',
     element: <TestFieldworksBucket />,
+    errorElement: <ErrorPage />,
+  },
+  // Catch-all for unknown routes
+  {
+    path: '*',
+    element: <ErrorPage />,
   },
 ]);
 
