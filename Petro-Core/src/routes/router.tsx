@@ -10,9 +10,8 @@ import RockMinerals from '@/modules/home/rocks-minerals/rocks-minerals-page';
 import RockDetailView from '@/modules/home/rocks-minerals/rock-detail-view';
 import MineralDetailView from '@/modules/home/rocks-minerals/mineral-detail-view';
 import RocksMineralsMap from '@/modules/home/map/maps-page';
-import { AdminGuard, StudentGuard } from '@/components/role-guard';
-import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
-import type { ReactNode } from 'react';
+import { AdminGuard } from '@/components/role-guard';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { GeologyPage } from '@/modules/admin/geology';
 import UserPage from '@/modules/admin/users/users.page';
 import UsersList from '@/modules/admin/users/user-list';
@@ -67,7 +66,7 @@ const router = createBrowserRouter([
   },
   // Main application routes
   {
-    path: "/",
+    path: '/',
     element: (
       <ProtectedRoute>
         <PageLayout />
@@ -118,7 +117,7 @@ const router = createBrowserRouter([
         </AdminGuard>
       </ProtectedRoute>
     ),
-    children: [ 
+    children: [
       {
         path: '',
         children: [
