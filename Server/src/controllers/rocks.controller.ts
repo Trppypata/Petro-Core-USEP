@@ -1045,6 +1045,7 @@ export const importRocksDirectly = async (req: Request, res: Response) => {
 export const getRockById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    console.log('[getRockById] Received id:', id);
     
     if (!id) {
       return res.status(400).json({
@@ -1055,11 +1056,21 @@ export const getRockById = async (req: Request, res: Response) => {
     
     console.log(`Fetching rock with ID: ${id}`);
     
+    const numericId = Number(id);
+    if (!id || isNaN(numericId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid rock ID',
+      });
+    }
+
     const { data, error } = await supabase
       .from('rocks')
       .select('*')
-      .eq('id', id)
+      .eq('uuid', id)
       .single();
+    console.log('[getRockById] Supabase data:', data);
+    console.log('[getRockById] Supabase error:', error);
     
     if (error) {
       console.error('Error fetching rock by ID:', error);

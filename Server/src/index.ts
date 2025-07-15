@@ -5,7 +5,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 // Debug environment variables
 console.log('Environment loaded: NODE_ENV =', process.env.NODE_ENV);
-console.log('API running at port:', process.env.PORT || 8001);
+console.log('API running at port:',  process.env.PORT || 8001);
 
 import express from 'express';
 import cors from 'cors';
@@ -26,9 +26,11 @@ const PORT = process.env.PORT || 8001;
 app.use(cors({
   origin: [
  
-    'https://petro-core-usep.onrender.com'
+    'https://petro-core-usep.onrender.com',
+    'http://localhost:5173',
+    'http://localhost:8001'
   ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
   credentials: true
 }));
 app.use(express.json());
