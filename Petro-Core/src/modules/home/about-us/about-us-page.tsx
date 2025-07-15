@@ -1,9 +1,9 @@
-import { Mail, Github, Linkedin, ExternalLink } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { SupabaseImage } from "@/components/ui/supabase-image";
-import React from "react";
+import { Mail, Github, Linkedin, ExternalLink } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { SupabaseImage } from '@/components/ui/supabase-image';
+import React from 'react';
 
 function AboutUsPage() {
   return (
@@ -14,7 +14,7 @@ function AboutUsPage() {
         <div className="absolute top-1/3 -right-24 w-96 h-96 rounded-full bg-sage-600/30 blur-3xl" />
         <div className="absolute -bottom-24 left-1/3 w-96 h-96 rounded-full bg-earth-700/20 blur-3xl" />
       </div>
-      
+
       {/* Hero Section */}
       <section className="mb-16 text-center relative">
         <h1 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-moss-700 to-sage-500 bg-clip-text text-transparent">
@@ -22,20 +22,24 @@ function AboutUsPage() {
         </h1>
         <div className="max-w-3xl mx-auto">
           <p className="text-lg leading-relaxed mb-6">
-            PetroCore is a student-driven geoscience initiative founded by aspiring geologists from the
-            University of Southeastern Philippines. Our platform is dedicated to delivering accessible, high-quality 
-            educational content, tools, and insights in the fields of petrology, mineralogy, mineral
-            exploration, geohazards, and environmental geoscience.
+            PetroCore is a student-driven geoscience initiative founded by
+            aspiring geologists from the University of Southeastern Philippines.
+            Our platform is dedicated to delivering accessible, high-quality
+            educational content, tools, and insights in the fields of petrology,
+            mineralogy, mineral exploration, geohazards, and environmental
+            geoscience.
           </p>
           <p className="text-lg leading-relaxed mb-6">
-            Rooted in academic excellence and real-world field experience, PetroCore bridges the gap
-            between classroom learning and industry practice. We aim to empower geology students, early-career 
-            professionals, and enthusiasts with resources that support learning, critical thinking, and
-            professional growth.
+            Rooted in academic excellence and real-world field experience,
+            PetroCore bridges the gap between classroom learning and industry
+            practice. We aim to empower geology students, early-career
+            professionals, and enthusiasts with resources that support learning,
+            critical thinking, and professional growth.
           </p>
           <p className="text-lg font-medium">
-            We believe that the future of geology lies in collaboration, innovation, and accessibility, and
-            PetroCore is here to be part of that future.
+            We believe that the future of geology lies in collaboration,
+            innovation, and accessibility, and PetroCore is here to be part of
+            that future.
           </p>
         </div>
       </section>
@@ -51,8 +55,9 @@ function AboutUsPage() {
         </div>
         <h2 className="text-3xl font-bold mb-6 text-center">Our Vision</h2>
         <p className="text-xl text-center max-w-3xl mx-auto italic">
-          "To become a leading student-led geoscience platform in the Philippines—where innovation,
-          collaboration, and education converge to shape the future of geology."
+          "To become a leading student-led geoscience platform in the
+          Philippines—where innovation, collaboration, and education converge to
+          shape the future of geology."
         </p>
       </section>
 
@@ -60,22 +65,24 @@ function AboutUsPage() {
       <section className="relative py-12">
         <div className="absolute -left-4 top-10 h-40 w-1 bg-gradient-to-b from-transparent via-sage-600 to-transparent rounded-full" />
         <h2 className="text-3xl font-bold mb-12 text-center">Meet the Team</h2>
-        
+
         {/* Team Photo */}
         <div className="mb-12 text-center">
           <div className="relative max-w-5xl mx-auto overflow-hidden rounded-lg shadow-xl">
-            <SupabaseImage 
-              src="/images/team/DEI_0676.jpg" 
+            <SupabaseImage
+              src="/images/team/DEI_0676.jpg"
               alt="PetroCore Team Photo"
               className="w-full h-auto object-cover"
               fallbackClassName="w-full h-[300px] bg-moss-100 flex items-center justify-center text-moss-700"
             />
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-              <p className="text-white text-sm font-medium">The PetroCore Development Team</p>
+              <p className="text-white text-sm font-medium">
+                The PetroCore Development Team
+              </p>
             </div>
           </div>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
           {/* Team Member 1 */}
           <TeamMember
@@ -123,9 +130,15 @@ function AboutUsPage() {
         <h2 className="text-3xl font-bold mb-6">Join Us</h2>
         <div className="max-w-3xl mx-auto mb-8">
           <p className="text-lg mb-6">
-            PetroCore welcomes partnerships, collaborations, and contributions from students, professionals,
-            and institutions who share our passion for geoscience. Together, let's uncover the Earth's story.
+            PetroCore welcomes partnerships, collaborations, and contributions
+            from students, professionals, and institutions who share our passion
+            for geoscience. Together, let's uncover the Earth's story.
           </p>
+          <img
+            src="../../../../public/petro-static/asdfghjkl.jpg"
+            alt="PetroCore Logo"
+            className="w-full h-auto object-cover"
+          />
           <p className="text-xl font-semibold">
             PetroCore — Geoscience in Motion.
           </p>
@@ -133,22 +146,7 @@ function AboutUsPage() {
             Empowering the next generation of geologists.
           </p>
         </div>
-        <div className="flex justify-center gap-4">
-          <a href="mailto:petrocore.usep@gmail.com">
-            <Button className="gap-2 bg-moss-700 hover:bg-moss-800">
-              <Mail className="h-4 w-4" />
-              <span>Contact Us</span>
-            </Button>
-          </a>
-          <a href="https://github.com/Petro-Core-USEP" target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" className="gap-2 border-moss-600 text-moss-700 hover:bg-moss-50 hover:text-moss-800">
-              <Github className="h-4 w-4" />
-              <span>GitHub</span>
-            </Button>
-          </a>
-        </div>
       </section>
-
     </div>
   );
 }
@@ -163,11 +161,19 @@ interface TeamMemberProps {
   avatarSrc?: string;
 }
 
-function TeamMember({ name, title, description, email, github, linkedin, avatarSrc }: TeamMemberProps) {
+function TeamMember({
+  name,
+  title,
+  description,
+  email,
+  github,
+  linkedin,
+  avatarSrc,
+}: TeamMemberProps) {
   // Get initials for avatar fallback
   const initials = name
     .split(' ')
-    .map(n => n[0])
+    .map((n) => n[0])
     .join('')
     .toUpperCase()
     .substring(0, 2);
@@ -181,10 +187,10 @@ function TeamMember({ name, title, description, email, github, linkedin, avatarS
           <div className="md:w-1/3 bg-gradient-to-b from-moss-700 to-sage-500 p-6 flex justify-center items-center">
             <Avatar className="w-24 h-24 border-4 border-white">
               {avatarSrc && !imageError ? (
-                <AvatarImage 
-                  src={avatarSrc} 
+                <AvatarImage
+                  src={avatarSrc}
                   alt={name}
-                  onError={() => setImageError(true)} 
+                  onError={() => setImageError(true)}
                 />
               ) : null}
               <AvatarFallback className="text-lg font-bold bg-slate-200 text-moss-700">
@@ -194,12 +200,14 @@ function TeamMember({ name, title, description, email, github, linkedin, avatarS
           </div>
           <div className="md:w-2/3 p-6">
             <h3 className="text-xl font-bold mb-1">{name}</h3>
-            <p className="text-moss-600 dark:text-sage-400 font-medium mb-3">{title}</p>
+            <p className="text-moss-600 dark:text-sage-400 font-medium mb-3">
+              {title}
+            </p>
             <p className="text-sm text-muted-foreground mb-4">{description}</p>
             <div className="flex gap-3">
               {email && (
-                <a 
-                  href={`mailto:${email}`} 
+                <a
+                  href={`mailto:${email}`}
                   className="text-sm text-muted-foreground hover:text-moss-600 flex items-center gap-1"
                   title={email}
                 >
@@ -208,10 +216,10 @@ function TeamMember({ name, title, description, email, github, linkedin, avatarS
                 </a>
               )}
               {github && (
-                <a 
+                <a
                   href={github}
                   target="_blank"
-                  rel="noopener noreferrer" 
+                  rel="noopener noreferrer"
                   className="text-sm text-muted-foreground hover:text-moss-600 flex items-center gap-1"
                 >
                   <Github className="h-4 w-4" />
@@ -219,10 +227,10 @@ function TeamMember({ name, title, description, email, github, linkedin, avatarS
                 </a>
               )}
               {linkedin && (
-                <a 
+                <a
                   href={linkedin}
                   target="_blank"
-                  rel="noopener noreferrer" 
+                  rel="noopener noreferrer"
                   className="text-sm text-muted-foreground hover:text-moss-600 flex items-center gap-1"
                 >
                   <Linkedin className="h-4 w-4" />
