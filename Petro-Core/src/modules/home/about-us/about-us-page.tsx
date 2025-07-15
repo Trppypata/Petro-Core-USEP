@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { SupabaseImage } from '@/components/ui/supabase-image';
+import petroCoreLogo from '../../../../public/petro-static/asdfghjkl.jpg';
 import React from 'react';
 
 function AboutUsPage() {
@@ -135,11 +136,11 @@ function AboutUsPage() {
             for geoscience. Together, let's uncover the Earth's story.
           </p>
           <img
-            src="../../../../public/petro-static/asdfghjkl.jpg"
+            src={petroCoreLogo}
             alt="PetroCore Logo"
             className="w-full h-auto object-cover"
           />
-          <p className="text-xl font-semibold">
+          <p className="t-xl font-semibold">
             PetroCore — Geoscience in Motion.
           </p>
           <p className="text-lg italic mt-2">
