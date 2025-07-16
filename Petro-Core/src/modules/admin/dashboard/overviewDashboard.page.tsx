@@ -84,20 +84,29 @@ const medicineChartConfig = {
 export default function OverviewDashboard() {
   const [timeRange, setTimeRange] = useState('6m');
   const [totalUsers, setTotalUsers] = useState<number | null>(null);
-
+  const cookie = JSON.parse(localStorage.getItem('sb-tobjghstopxuntbewrxu-auth-token') || '{}')
+  const fetchTotalUsers = async () => {
+    try {
+      console.log("Cookie : ", cookie.access_token)
+      const response = await fetch('https://petro-core-usep.onrender.com/api/users/countUsers', {
+        method: "GET",
+        credentials: 'include'
+      })
+     
+      
+      const data = await response.json()
+      console.log("Data : ", data)
+      setTotalUsers(data.totalUsers);
+    } catch (error) {
+      console.error('Error fetching total users:', error);
+    }
+  };
   useEffect(() => {
-    const fetchTotalUsers = async () => {
-      try {
-        const response = await axios.get(
-          'http://localhost:8001/api/users/countUsers'
-        );
-        setTotalUsers(response.data.totalUsers);
-      } catch (error) {
-        console.error('Error fetching total users:', error);
-      }
-    };
-
     fetchTotalUsers();
+
+    return () => {
+      setTotalUsers(null)
+    }
   }, []);
 
   return (

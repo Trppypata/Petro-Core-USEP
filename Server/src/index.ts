@@ -26,7 +26,6 @@ const PORT = process.env.PORT || 8001;
 app.use(cors({
   origin: [
      'https://petro-core.vercel.app',
-    'http://localhost:5173',
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
   credentials: true

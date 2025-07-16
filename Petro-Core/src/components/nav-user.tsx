@@ -21,6 +21,7 @@ import axios from 'axios';
 import Cookies from 'js-cookie';
 
 const localhost_url = import.meta.env.VITE_local_url;
+console.log("url : ", localhost_url)
 
 export function NavUser({
   user,
