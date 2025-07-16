@@ -1,5 +1,6 @@
 import axios, { AxiosError } from "axios";
 import type { UserFormValues } from "../user.types";
+import { supabase } from "@/lib/supabase";
 
 const localhost_url = import.meta.env.VITE_local_url;
 
@@ -31,20 +32,31 @@ const addUser = async (userData: UserFormValues) => {
 
 const getAllUser = async () => {
   try {
-    console.log('🔍 Fetching users from:', `${localhost_url}/api/users/fetchUserDetails`);
-    const response = await axios.get(`${localhost_url}/api/users/fetchUserDetails`);
-    console.log('✅ Raw API Response:', response);
-    console.log('✅ Response data:', response.data);
-    console.log('✅ Response data type:', typeof response.data);
-    console.log('✅ Is array?', Array.isArray(response.data));
+    // console.log('🔍 Fetching users from:', `${localhost_url}/api/users/fetchUserDetails`);
+    // const response = await axios.get(`${localhost_url}/api/users/fetchUserDetails`);
+    // console.log('✅ Raw API Response:', response);
+    // console.log('✅ Response data:', response.data);
+    // console.log('✅ Response data type:', typeof response.data);
+    // console.log('✅ Is array?', Array.isArray(response.data));
     
-    if (!response.data) {
-      console.warn('⚠️ No data received from API');
-      return [];
-    }
+    // if (!response.data) {
+    //   console.warn('⚠️ No data received from API');
+    //   return [];
+    // }
 
     // If data is wrapped in a data property, extract it
-    const users = response.data.data || response.data;
+    // const users = response.data.data || response.data;
+
+    const { users, error } = await supabase
+      .from('students')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching users:', error);
+      throw new Error('Failed to fetch users');
+    }
+
     console.log('✅ Processed users:', users);
     return users;
   } catch (err) {

@@ -1,6 +1,7 @@
 import axios, { AxiosError } from "axios";
 import type { UserFormValues } from "../user.types";
 import { apiClient } from "@/services/api.service";
+import { supabase } from "@/lib/supabase";
 
 // Updated fallback URL to use port 8000 instead of 3000
 const localhost_url = import.meta.env.VITE_local_url || "http://localhost:8001";
@@ -47,21 +48,32 @@ const addStudent = async (studentData: UserFormValues) => {
 
 const getAllStudents = async () => {
   try {
-    console.log('🔍 Fetching students from endpoint: users/fetchUserDetails');
-    // Use the apiClient which already has the base URL configured
-    const response = await apiClient.get('/users/fetchUserDetails');
-    console.log('✅ Raw API Response:', response);
-    console.log('✅ Response data:', response.data);
-    console.log('✅ Response data type:', typeof response.data);
-    console.log('✅ Is array?', Array.isArray(response.data));
+    // console.log('🔍 Fetching students from endpoint: users/fetchUserDetails');
+    // // Use the apiClient which already has the base URL configured
+    // const response = await apiClient.get('/users/fetchUserDetails');
+    // console.log('✅ Raw API Response:', response);
+    // console.log('✅ Response data:', response.data);
+    // console.log('✅ Response data type:', typeof response.data);
+    // console.log('✅ Is array?', Array.isArray(response.data));
     
-    if (!response.data) {
-      console.warn('⚠️ No data received from API');
-      return [];
+    // if (!response.data) {
+    //   console.warn('⚠️ No data received from API');
+    //   return [];
+    // }
+
+    // // If data is wrapped in a data property, extract it
+    // const students = response.data.data || response.data;
+
+    const { students, error } = await supabase
+      .from('students')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.log('Error fetching students:', error);
+      throw new Error('Failed to fetch students');
     }
 
-    // If data is wrapped in a data property, extract it
-    const students = response.data.data || response.data;
     console.log('✅ Processed students:', students);
     return students;
   } catch (err) {
