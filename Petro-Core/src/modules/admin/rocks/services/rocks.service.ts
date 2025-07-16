@@ -1,7 +1,7 @@
 import axios from "axios";
 import type { IRock } from "../rock.interface";
 
-const API_URL = "http://localhost:8001/api";
+const API_URL = "https://petro-core-usep-iw23.onrender.com/api";
 
 // Get all rocks by category
 export const getRocks = async (category: string): Promise<IRock[]> => {

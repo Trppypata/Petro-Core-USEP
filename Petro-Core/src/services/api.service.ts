@@ -2,7 +2,7 @@ import axios from "axios";
 import { toast } from "sonner";
 
 // API base URL
-const API_URL = "http://localhost:8001/api";
+const API_URL = "https://petro-core-usep-iw23.onrender.com/api";
 
 // Create a custom axios instance
 const apiClient = axios.create({
