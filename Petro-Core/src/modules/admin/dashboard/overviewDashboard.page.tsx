@@ -88,7 +88,7 @@ export default function OverviewDashboard() {
   const cookie = JSON.parse(localStorage.getItem('sb-tobjghstopxuntbewrxu-auth-token') || '{}')
   const fetchTotalUsers = async () => {
     try {
-      const token =  getAuthToken()
+      const token =  cookie.access_token
       console.log('Token : ', token)
       const response = await axios.get('https://petro-core-usep.onrender.com/api/users/countUsers', {
         headers: {
