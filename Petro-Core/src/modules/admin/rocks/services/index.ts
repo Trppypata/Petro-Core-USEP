@@ -51,7 +51,7 @@ const getAuthAxios = () => {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     },
-    withCredentials: true,
+    withCredentials: false,
     // Add a timeout to avoid hanging requests
     timeout: 10000
   });
@@ -82,7 +82,7 @@ export const fetchRocks = async (category?: string, page: number = 1, pageSize: 
     const url = `${API_URL}/rocks?${params.toString()}`;
     console.log('🔗 Full URL:', url);
     
-    const response = await axios.get(url, { withCredentials: true });
+    const response = await axios.get(url, { withCredentials: false });
     console.log('✅ Raw API Response status:', response.status);
     
     if (!response.data || !response.data.data) {

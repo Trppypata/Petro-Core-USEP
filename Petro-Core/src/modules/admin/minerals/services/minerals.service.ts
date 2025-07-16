@@ -185,7 +185,7 @@ export const addMineral = async (
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      withCredentials: true,
+      withCredentials: false,
       // Add a timeout to avoid hanging requests
       timeout: 10000
     });
@@ -284,7 +284,7 @@ export const updateMineral = async (
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      withCredentials: true,
+      withCredentials: false,
       timeout: 10000
     });
     
@@ -345,7 +345,7 @@ export const deleteMineral = async (id: string): Promise<void> => {
 
     await axios.delete(`${API_URL}/minerals/${id}`, { 
       headers,
-      withCredentials: true 
+      withCredentials: false 
     });
   } catch (error) {
     console.error('Error deleting mineral:', error);

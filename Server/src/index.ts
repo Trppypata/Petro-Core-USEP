@@ -8,7 +8,7 @@ console.log('Environment loaded: NODE_ENV =', process.env.NODE_ENV);
 console.log('API running at port:', process.env.PORT || 8001);
 
 import express from 'express';
-// Remove cors import - we'll use manual headers instead
+import cors from 'cors';
 import authRoutes from './routes/auth.routes';
 import adminRoutes from './routes/admin.routes';
 import studentRoutes from './routes/student.routes';
@@ -22,13 +22,21 @@ import { setupStorageBuckets } from './config/setup-storage';
 const app = express();
 const PORT = process.env.PORT || 8001;
 
-// Manual CORS headers - more reliable than cors package
+// FUCK CORS - ALLOW EVERYTHING
+app.use(cors());
+app.use(cors({
+  origin: "*",
+  methods: "*",
+  allowedHeaders: "*",
+  credentials: false
+}));
+
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-  
-  if (req.method === 'OPTIONS') {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "*");
+  res.header("Access-Control-Allow-Headers", "*");
+  res.header("Access-Control-Allow-Credentials", "false");
+  if (req.method === "OPTIONS") {
     res.sendStatus(200);
   } else {
     next();
@@ -40,7 +48,7 @@ app.use(express.json());
 
 // for logging
 app.use((req, res, next) => {
-  console.log(`[${req.method}] ${req.originalUrl}`);  
+  console.log(`[${req.method}] ${req.originalUrl}`);
   next();
 });
 
@@ -80,7 +88,7 @@ app.use('*', (req, res) => {
       '/api/health'
     ]
   });
-});
+}); 
 
 // Initialize Supabase storage buckets
 setupStorageBuckets().catch(err => {
@@ -89,5 +97,5 @@ setupStorageBuckets().catch(err => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`  );
+  console.log(`Server running on port ${PORT}`);
 });

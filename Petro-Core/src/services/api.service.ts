@@ -7,7 +7,7 @@ const API_URL = 'https://petro-core-usep.onrender.com/api';
 
 // Create a custom axios instance
 const apiClient = axios.create({
-  withCredentials: true,
+  withCredentials: false,
   baseURL: API_URL,
   timeout: 10000,
   headers: {
@@ -96,7 +96,7 @@ export const createAuthApi = (token?: string) => {
   return axios.create({
     baseURL: API_URL,
     timeout: 10000,
-    withCredentials: true,
+    withCredentials: false,
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${authToken}`

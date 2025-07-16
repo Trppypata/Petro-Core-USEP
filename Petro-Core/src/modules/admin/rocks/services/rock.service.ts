@@ -128,7 +128,7 @@ export const addRock = async (rockData: Omit<IRock, 'id'>): Promise<IRock> => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      withCredentials: true,
+      withCredentials: false,
       // Add a timeout to avoid hanging requests
       timeout: 10000
     });
@@ -215,7 +215,7 @@ export const updateRock = async (
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      withCredentials: true,
+      withCredentials: false,
       timeout: 10000
     });
     
@@ -277,7 +277,7 @@ export const deleteRock = async (id: string): Promise<void> => {
 
     await axios.delete(`${API_URL}/rocks/${id}`, { 
       headers,
-      withCredentials: true 
+      withCredentials: false 
     });
   } catch (error) {
     console.error('Error deleting rock:', error);
@@ -297,7 +297,7 @@ export const importRocksFromExcel = async (
       headers: {
         'Content-Type': 'multipart/form-data',
       },
-      withCredentials: true,
+      withCredentials: false,
     });
 
     return response.data;
@@ -378,7 +378,7 @@ export const cleanRockData = (rockData: any): Partial<IRock> => {
   // Add each valid field if it exists in the input data
   for (const key of validKeys) {
     if (rockData[key] !== undefined) {
-      cleanedData[key] = rockData[key];
+      (cleanedData as any) [key] = rockData[key];
     }
   }
   
