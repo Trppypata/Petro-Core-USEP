@@ -22,7 +22,6 @@ import { setupStorageBuckets } from './config/setup-storage';
 const app = express();
 const PORT = process.env.PORT || 8001;
 
-// try daw ipush pre, try nato
 const corsOptions = {
   origin: '*',
   optionsSuccessStatus: 200,
