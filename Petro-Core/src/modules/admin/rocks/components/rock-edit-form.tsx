@@ -234,8 +234,7 @@ const RockEditForm = ({ rock, onClose, category }: RockEditFormProps) => {
               console.log("🛠️ Attempting direct API call as fallback");
               const token = localStorage.getItem("access_token");
               const apiUrl =
-                import.meta.env.VITE_local_url ||
-                "https://petro-core-usep.onrender.com/api";
+                import.meta.env.VITE_local_url || "http://localhost:8001/api";
 
               const response = await fetch(`${apiUrl}/rock-images`, {
                 method: "POST",
@@ -436,8 +435,7 @@ const RockEditForm = ({ rock, onClose, category }: RockEditFormProps) => {
               console.log("🛠️ Attempting direct API call as fallback");
               const token = localStorage.getItem("access_token");
               const apiUrl =
-                import.meta.env.VITE_local_url ||
-                "https://petro-core-usep.onrender.com/api";
+                import.meta.env.VITE_local_url || "http://localhost:8001/api";
 
               const response = await fetch(`${apiUrl}/rock-images`, {
                 method: "POST",

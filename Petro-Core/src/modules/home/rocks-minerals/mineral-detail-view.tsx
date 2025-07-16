@@ -9,7 +9,7 @@ import { SupabaseImage } from "@/components/ui/supabase-image";
 // Function to fetch a single mineral by ID
 const fetchMineralById = async (id: string): Promise<IMineral | null> => {
   try {
-    const API_URL = "https://petro-core-usep.onrender.com/api";
+    const API_URL = "http://localhost:8001/api";
     const response = await fetch(`${API_URL}/minerals/${id}`);
     const data = await response.json();
 
