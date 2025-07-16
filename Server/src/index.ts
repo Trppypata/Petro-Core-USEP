@@ -5,10 +5,10 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 // Debug environment variables
 console.log('Environment loaded: NODE_ENV =', process.env.NODE_ENV);
-console.log('API running at port:',  process.env.PORT || 8001);
+console.log('API running at port:', process.env.PORT || 8001);
 
 import express from 'express';
-import cors from 'cors';
+// Remove cors import - we'll use manual headers instead
 import authRoutes from './routes/auth.routes';
 import adminRoutes from './routes/admin.routes';
 import studentRoutes from './routes/student.routes';
@@ -22,6 +22,7 @@ import { setupStorageBuckets } from './config/setup-storage';
 const app = express();
 const PORT = process.env.PORT || 8001;
 
+// Manual CORS headers - more reliable than cors package
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -32,18 +33,16 @@ app.use((req, res, next) => {
   } else {
     next();
   }
-})
+});
 
 // Middleware
-
 app.use(express.json());
 
 // for logging
 app.use((req, res, next) => {
-  console.log(`[${req.method}] ${req.originalUrl}`);
+  console.log(`[${req.method}] ${req.originalUrl}`);  
   next();
 });
-
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -90,5 +89,5 @@ setupStorageBuckets().catch(err => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-}); 
+  console.log(`Server running on port ${PORT}`  );
+});
