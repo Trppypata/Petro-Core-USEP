@@ -25,10 +25,8 @@ const PORT = process.env.PORT || 8001;
 // Middleware
 app.use(cors({
   origin: [
- 
-    'https://petro-core-usep.onrender.com',
+     'https://petro-core.vercel.app',
     'http://localhost:5173',
-    'http://localhost:8001'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
   credentials: true
