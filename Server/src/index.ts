@@ -24,7 +24,7 @@ const PORT = process.env.PORT || 8001;
 
 // try daw ipush pre, try nato
 const corsOptions = {
-  origin: 'https://petro-core.vercel.app',
+  origin: '*',
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
   allowedHeaders: ['Content-Type', 'Authorization'],
