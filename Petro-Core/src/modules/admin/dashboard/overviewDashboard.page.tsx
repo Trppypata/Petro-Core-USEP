@@ -5,28 +5,28 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
+} from "@/components/ui/card";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-} from '@/components/ui/chart';
-import { Progress } from '@/components/ui/progress';
+} from "@/components/ui/chart";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 import {
   DollarSign,
   MessageSquareWarningIcon,
   Timer,
   TrendingDown,
   TrendingUp,
-} from 'lucide-react';
-import { useEffect, useState } from 'react';
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -37,61 +37,63 @@ import {
   ResponsiveContainer,
   XAxis,
   YAxis,
-} from 'recharts';
-import type { StatCardProps, ChartConfig } from './types';
-import { PersonIcon } from '@radix-ui/react-icons';
-import axios from 'axios';
-import { getAuthToken } from '../rocks/services';
-import { supabase } from '@/lib/supabase';
+} from "recharts";
+import type { StatCardProps, ChartConfig } from "./types";
+import { PersonIcon } from "@radix-ui/react-icons";
+import axios from "axios";
+import { getAuthToken } from "../rocks/services";
+import { supabase } from "@/lib/supabase";
 
 const medicineAvailabilityData = [
-  { month: 'Jan', pharmacy1: 12, pharmacy2: 90, pharmacy3: 75 },
-  { month: 'Feb', pharmacy1: 85, pharmacy2: 88, pharmacy3: 78 },
-  { month: 'Mar', pharmacy1: 3, pharmacy2: 92, pharmacy3: 80 },
-  { month: 'Apr', pharmacy1: 88, pharmacy2: 95, pharmacy3: 82 },
-  { month: 'May', pharmacy1: 90, pharmacy2: 91, pharmacy3: 85 },
-  { month: 'Jun', pharmacy1: 92, pharmacy2: 93, pharmacy3: 88 },
-  { month: 'Jul', pharmacy1: 89, pharmacy2: 94, pharmacy3: 86 },
-  { month: 'Aug', pharmacy1: 91, pharmacy2: 96, pharmacy3: 87 },
-  { month: 'Sep', pharmacy1: 93, pharmacy2: 97, pharmacy3: 89 },
-  { month: 'Oct', pharmacy1: 95, pharmacy2: 98, pharmacy3: 90 },
-  { month: 'Nov', pharmacy1: 94, pharmacy2: 97, pharmacy3: 91 },
-  { month: 'Dec', pharmacy1: 96, pharmacy2: 99, pharmacy3: 92 },
+  { month: "Jan", pharmacy1: 12, pharmacy2: 90, pharmacy3: 75 },
+  { month: "Feb", pharmacy1: 85, pharmacy2: 88, pharmacy3: 78 },
+  { month: "Mar", pharmacy1: 3, pharmacy2: 92, pharmacy3: 80 },
+  { month: "Apr", pharmacy1: 88, pharmacy2: 95, pharmacy3: 82 },
+  { month: "May", pharmacy1: 90, pharmacy2: 91, pharmacy3: 85 },
+  { month: "Jun", pharmacy1: 92, pharmacy2: 93, pharmacy3: 88 },
+  { month: "Jul", pharmacy1: 89, pharmacy2: 94, pharmacy3: 86 },
+  { month: "Aug", pharmacy1: 91, pharmacy2: 96, pharmacy3: 87 },
+  { month: "Sep", pharmacy1: 93, pharmacy2: 97, pharmacy3: 89 },
+  { month: "Oct", pharmacy1: 95, pharmacy2: 98, pharmacy3: 90 },
+  { month: "Nov", pharmacy1: 94, pharmacy2: 97, pharmacy3: 91 },
+  { month: "Dec", pharmacy1: 96, pharmacy2: 99, pharmacy3: 92 },
 ];
 
 const pharmacyPopularityData = [
-  { name: 'PharmaCare', value: 35 },
-  { name: 'MediLife', value: 10 },
-  { name: 'HealthRx', value: 25 },
-  { name: 'WellPharm', value: 10 },
+  { name: "PharmaCare", value: 35 },
+  { name: "MediLife", value: 10 },
+  { name: "HealthRx", value: 25 },
+  { name: "WellPharm", value: 10 },
 ];
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
 
 const medicineChartConfig = {
   pharmacy1: {
-    label: 'New Users',
-    color: 'hsl(var(--chart-1))',
+    label: "New Users",
+    color: "hsl(var(--chart-1))",
   },
   pharmacy2: {
-    label: 'Active Users',
-    color: 'hsl(var(--chart-2))',
+    label: "Active Users",
+    color: "hsl(var(--chart-2))",
   },
   pharmacy3: {
-    label: 'Total Logins',
-    color: 'hsl(var(--chart-3))',
+    label: "Total Logins",
+    color: "hsl(var(--chart-3))",
   },
 } as ChartConfig;
 
 export default function OverviewDashboard() {
-  const [timeRange, setTimeRange] = useState('6m');
+  const [timeRange, setTimeRange] = useState("6m");
   const [totalUsers, setTotalUsers] = useState<number | null>(null);
-  const cookie = JSON.parse(localStorage.getItem('sb-tobjghstopxuntbewrxu-auth-token') || '{}')
+  const cookie = JSON.parse(
+    localStorage.getItem("sb-tobjghstopxuntbewrxu-auth-token") || "{}"
+  );
   const fetchTotalUsers = async () => {
     try {
       // const token =  cookie.access_token
       // console.log('Token : ', token)
-      // const response = await axios.get('https://petro-core-usep.onrender.com/api/users/countUsers', {
+      // const response = await axios.get('https://localhost:8001/api/users/countUsers', {
       //   headers: {
       //      'Content-type' : 'application/json',
       //     Authorization: `Bearer ${token}`
@@ -99,31 +101,31 @@ export default function OverviewDashboard() {
       //   withCredentials: true
       // })
 
-    const { count, error } = await supabase
-      .from('students')
-      .select('*', { count: 'exact', head: true });
+      const { count, error } = await supabase
+        .from("students")
+        .select("*", { count: "exact", head: true });
 
-    if (error) {
-      console.error('Error fetching total users:', error);
-    }
-    
-    console.log('Total users:', count);
-    setTotalUsers(count);
-     
+      if (error) {
+        console.error("Error fetching total users:", error);
+      }
+
+      console.log("Total users:", count);
+      setTotalUsers(count);
+
       // console.log(" response : ", response)
-   
+
       // console.log("Data : ", data)
       // setTotalUsers(data.totalUsers);
     } catch (error) {
-      console.error('Error fetching total users:', error);
+      console.error("Error fetching total users:", error);
     }
   };
   useEffect(() => {
     fetchTotalUsers();
 
     return () => {
-      setTotalUsers(null)
-    }
+      setTotalUsers(null);
+    };
   }, []);
 
   return (
@@ -147,7 +149,7 @@ export default function OverviewDashboard() {
         <StatCard
           icon={<PersonIcon className="h-4 w-4" />}
           title="Total Students"
-          value={totalUsers?.toString() ?? 'Loading...'}
+          value={totalUsers?.toString() ?? "Loading..."}
         />
 
         <StatCard
@@ -291,7 +293,7 @@ function StatCard({ icon, title, value, trend = 0 }: StatCardProps) {
         <div className="text-2xl font-bold">{value}</div>
         <p
           className={`text-xs ${
-            trend >= 0 ? 'text-green-500' : 'text-red-500'
+            trend >= 0 ? "text-green-500" : "text-red-500"
           } flex items-center`}
         >
           {trend >= 0 ? (
