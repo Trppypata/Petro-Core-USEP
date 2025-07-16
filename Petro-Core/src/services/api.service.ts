@@ -7,6 +7,7 @@ const API_URL = 'https://petro-core-usep.onrender.com';
 
 // Create a custom axios instance
 const apiClient = axios.create({
+  withCredentials: true,
   baseURL: API_URL,
   timeout: 10000,
   headers: {
