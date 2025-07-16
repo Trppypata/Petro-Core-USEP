@@ -22,20 +22,12 @@ import { setupStorageBuckets } from './config/setup-storage';
 const app = express();
 const PORT = process.env.PORT || 8001;
 
-const corsOptions = {
-  origin: [
-    'https://petro-core-trppypatas-projects.vercel.app',
-    'https://petro-core-usep.onrender.com'
-  ],
-  optionsSuccessStatus: 200,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
-};
+app.use(cors({
+  origin: 'https://petro-core-trppypatas-projects.vercel.app'
+}));
 
 // Middleware
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+
 app.use(express.json());
 
 // for logging
