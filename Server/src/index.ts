@@ -23,7 +23,7 @@ const app = express();
 const PORT = process.env.PORT || 8001;
 
 const corsOptions = {
-  origin: 'https://petro-core.vercel.app',
+  origin: 'https://petro-core-trppypatas-projects.vercel.app/',
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
