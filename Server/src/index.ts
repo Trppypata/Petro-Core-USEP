@@ -23,11 +23,11 @@ const app = express();
 const PORT = process.env.PORT || 8001;
 
 const corsOptions = {
-  origin: '*',
+  origin: ['*'],
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  // credentials: true
+  credentials: true
 };
 
 // Middleware
