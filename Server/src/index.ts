@@ -23,7 +23,7 @@ const app = express();
 const PORT = process.env.PORT || 8001;
 
 app.use(cors({
-  origin: 'https://petro-core-trppypatas-projects.vercel.app'
+  origin: '*',
 }));
 
 // Middleware
