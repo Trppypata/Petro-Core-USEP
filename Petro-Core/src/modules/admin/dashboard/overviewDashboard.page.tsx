@@ -41,6 +41,7 @@ import {
 import type { StatCardProps, ChartConfig } from './types';
 import { PersonIcon } from '@radix-ui/react-icons';
 import axios from 'axios';
+import { getAuthToken } from '../rocks/services';
 
 const medicineAvailabilityData = [
   { month: 'Jan', pharmacy1: 12, pharmacy2: 90, pharmacy3: 75 },
@@ -87,16 +88,20 @@ export default function OverviewDashboard() {
   const cookie = JSON.parse(localStorage.getItem('sb-tobjghstopxuntbewrxu-auth-token') || '{}')
   const fetchTotalUsers = async () => {
     try {
-      console.log("Cookie : ", cookie.access_token)
-      const response = await fetch('https://petro-core-usep.onrender.com/api/users/countUsers', {
-        method: "GET",
-        credentials: 'include'
+      const token =  getAuthToken()
+      console.log('Token : ', token)
+      const response = await axios.get('https://petro-core-usep.onrender.com/api/users/countUsers', {
+        headers: {
+           'Content-type' : 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        withCredentials: true
       })
      
-      
-      const data = await response.json()
-      console.log("Data : ", data)
-      setTotalUsers(data.totalUsers);
+      console.log(" response : ", response)
+   
+      // console.log("Data : ", data)
+      // setTotalUsers(data.totalUsers);
     } catch (error) {
       console.error('Error fetching total users:', error);
     }

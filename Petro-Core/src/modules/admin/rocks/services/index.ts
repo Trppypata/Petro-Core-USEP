@@ -11,7 +11,7 @@ console.log('API URL for rocks service:', API_URL);
 /**
  * Helper to get auth token
  */
-const getAuthToken = () => {
+export const getAuthToken = () => {
   // Try multiple storage locations for the token
   const token = localStorage.getItem('access_token') || 
          localStorage.getItem('auth_token') || 
