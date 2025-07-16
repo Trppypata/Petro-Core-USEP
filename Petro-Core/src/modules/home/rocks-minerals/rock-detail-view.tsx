@@ -12,8 +12,10 @@ import { Badge } from "@/components/ui/badge";
 // Function to fetch a single rock by ID
 const fetchRockById = async (id: string): Promise<IRock | null> => {
   try {
-    const API_URL = import.meta.env.VITE_local_url || 'http://localhost:8001/api';
-    const response = await fetch(`${API_URL}/rocks/${id}`);
+    const API_URL = 'https://petro-core-usep.onrender.com/api';
+    const response = await fetch(`${API_URL}/rocks/${id}`, {
+      credentials: 'include'
+    });
     const data = await response.json();
     
     if (!data.success || !data.data) {

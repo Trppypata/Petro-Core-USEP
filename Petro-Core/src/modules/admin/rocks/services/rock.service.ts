@@ -128,6 +128,7 @@ export const addRock = async (rockData: Omit<IRock, 'id'>): Promise<IRock> => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
+      withCredentials: true,
       // Add a timeout to avoid hanging requests
       timeout: 10000
     });
@@ -214,6 +215,7 @@ export const updateRock = async (
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
+      withCredentials: true,
       timeout: 10000
     });
     
@@ -273,7 +275,10 @@ export const deleteRock = async (id: string): Promise<void> => {
     console.log('Delete rock headers:', headers);
     console.log('Deleting rock ID:', id);
 
-    await axios.delete(`${API_URL}/rocks/${id}`, { headers });
+    await axios.delete(`${API_URL}/rocks/${id}`, { 
+      headers,
+      withCredentials: true 
+    });
   } catch (error) {
     console.error('Error deleting rock:', error);
     throw new Error('Failed to delete rock. Please try again.');
@@ -292,6 +297,7 @@ export const importRocksFromExcel = async (
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      withCredentials: true,
     });
 
     return response.data;
