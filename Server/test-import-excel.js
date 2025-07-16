@@ -21,7 +21,7 @@ async function testExcelImport() {
     console.log('Sending Excel file to API...');
     
     // Make API request
-    const response = await axios.post('https://petro-core-usep.onrender.com/api/rocks/import', formData, {
+    const response = await axios.post('https://petro-core-usep-iw23.onrender.com/api/rocks/import', formData, {
       headers: {
         ...formData.getHeaders()
       }

@@ -326,7 +326,7 @@ const RockForm = ({
                         const token = localStorage.getItem("access_token");
                         const apiUrl =
                           import.meta.env.VITE_local_url ||
-                          "https://petro-core-usep.onrender.com/api";
+                          "https://petro-core-usep-iw23.onrender.com/api";
 
                         fetch(`${apiUrl}/rock-images`, {
                           method: "POST",
@@ -664,7 +664,7 @@ const RockForm = ({
       const token = localStorage.getItem("access_token");
       const apiUrl =
         import.meta.env.VITE_local_url ||
-        "https://petro-core-usep.onrender.com/api";
+        "https://petro-core-usep-iw23.onrender.com/api";
 
       const response = await fetch(`${apiUrl}/rock-images`, {
         method: "POST",

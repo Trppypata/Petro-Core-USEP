@@ -28,7 +28,8 @@ import axios from "axios";
 import * as XLSX from "xlsx";
 
 const API_URL =
-  import.meta.env.VITE_local_url || "https://petro-core-usep.onrender.com/api";
+  import.meta.env.VITE_local_url ||
+  "https://petro-core-usep-iw23.onrender.com/api";
 
 interface MineralExcelImporterProps {
   onImportComplete?: () => void;

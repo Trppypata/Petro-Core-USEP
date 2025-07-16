@@ -45,7 +45,7 @@ Create a file named `.env` in the `Petro-Core` directory with the following cont
 
 ```
 VITE_local_url=http://localhost:8001
-VITE_API_URL=https://petro-core-usep.onrender.com/api
+VITE_API_URL=https://petro-core-usep-iw23.onrender.com/api
 ```
 
 ### Production Environment
@@ -77,7 +77,8 @@ In your frontend code, access variables using `import.meta.env`:
 
 ```typescript
 const apiUrl =
-  import.meta.env.VITE_API_URL || "https://petro-core-usep.onrender.com/api";
+  import.meta.env.VITE_API_URL ||
+  "https://petro-core-usep-iw23.onrender.com/api";
 const baseUrl = import.meta.env.VITE_local_url || "http://localhost:8001";
 ```
 

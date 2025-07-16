@@ -15,7 +15,8 @@ interface IRockImage {
 }
 
 const API_URL =
-  import.meta.env.VITE_local_url || "https://petro-core-usep.onrender.com/api";
+  import.meta.env.VITE_local_url ||
+  "https://petro-core-usep-iw23.onrender.com/api";
 
 // Helper function to get the authentication token
 const getAuthToken = (): string | null => {

@@ -10,7 +10,8 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
 const API_URL =
-  import.meta.env.VITE_local_url || "https://petro-core-usep.onrender.com/api";
+  import.meta.env.VITE_local_url ||
+  "https://petro-core-usep-iw23.onrender.com/api";
 
 // Default image placeholder - updated paths to use static assets from petro-static folder
 const DEFAULT_ROCK_IMAGE = "/petro-static/default-rock.jpg";
