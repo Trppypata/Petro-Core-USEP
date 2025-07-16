@@ -42,6 +42,7 @@ import type { StatCardProps, ChartConfig } from './types';
 import { PersonIcon } from '@radix-ui/react-icons';
 import axios from 'axios';
 import { getAuthToken } from '../rocks/services';
+import { supabase } from '@/lib/supabase';
 
 const medicineAvailabilityData = [
   { month: 'Jan', pharmacy1: 12, pharmacy2: 90, pharmacy3: 75 },
@@ -88,17 +89,28 @@ export default function OverviewDashboard() {
   const cookie = JSON.parse(localStorage.getItem('sb-tobjghstopxuntbewrxu-auth-token') || '{}')
   const fetchTotalUsers = async () => {
     try {
-      const token =  cookie.access_token
-      console.log('Token : ', token)
-      const response = await axios.get('https://petro-core-usep.onrender.com/api/users/countUsers', {
-        headers: {
-           'Content-type' : 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        withCredentials: true
-      })
+      // const token =  cookie.access_token
+      // console.log('Token : ', token)
+      // const response = await axios.get('https://petro-core-usep.onrender.com/api/users/countUsers', {
+      //   headers: {
+      //      'Content-type' : 'application/json',
+      //     Authorization: `Bearer ${token}`
+      //   },
+      //   withCredentials: true
+      // })
+
+    const { count, error } = await supabase
+      .from('students')
+      .select('*', { count: 'exact', head: true });
+
+    if (error) {
+      console.error('Error fetching total users:', error);
+    }
+    
+    console.log('Total users:', count);
+    setTotalUsers(count);
      
-      console.log(" response : ", response)
+      // console.log(" response : ", response)
    
       // console.log("Data : ", data)
       // setTotalUsers(data.totalUsers);
