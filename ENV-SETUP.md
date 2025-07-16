@@ -45,7 +45,7 @@ Create a file named `.env` in the `Petro-Core` directory with the following cont
 
 ```
 VITE_local_url=http://localhost:8001
-VITE_API_URL=http://localhost:8001/api
+VITE_API_URL=https://petro-core-usep.onrender.com/api
 ```
 
 ### Production Environment
@@ -76,8 +76,9 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 In your frontend code, access variables using `import.meta.env`:
 
 ```typescript
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8001/api';
-const baseUrl = import.meta.env.VITE_local_url || 'http://localhost:8001';
+const apiUrl =
+  import.meta.env.VITE_API_URL || "https://petro-core-usep.onrender.com/api";
+const baseUrl = import.meta.env.VITE_local_url || "http://localhost:8001";
 ```
 
 ## Cross-System Consistency
@@ -92,4 +93,4 @@ To ensure your entire system (frontend and backend) works together:
 
 - If you update environment variables while the applications are running, you'll need to restart them for changes to take effect
 - Make sure environment files are not committed to version control (they should be in your `.gitignore`)
-- For Vite, only variables prefixed with `VITE_` are exposed to your frontend code 
+- For Vite, only variables prefixed with `VITE_` are exposed to your frontend code

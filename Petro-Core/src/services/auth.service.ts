@@ -1,13 +1,13 @@
-import axios from 'axios';
-import { supabase } from '@/lib/supabase';
+import axios from "axios";
+import { supabase } from "@/lib/supabase";
 
 // API base URL
-const API_URL = 'https://petro-core-usep.onrender.com';
+const API_URL = "http://localhost:8001";
 
 // Configure axios to use the token for all requests
 axios.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem("access_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -24,7 +24,7 @@ export interface AuthCredentials {
 export interface RegisterCredentials extends AuthCredentials {
   firstName: string;
   lastName: string;
-  role?: 'student' | 'admin';
+  role?: "student" | "admin";
 }
 
 export const authService = {
@@ -37,7 +37,7 @@ export const authService = {
       password,
     });
     if (error) {
-      throw new Error(error.message || 'Login failed');
+      throw new Error(error.message || "Login failed");
     }
     // Supabase automatically persists session if configured
     if (data.user) {
@@ -49,17 +49,23 @@ export const authService = {
   /**
    * Register a new user
    */
-  async register({ email, password, firstName, lastName, role = 'student' }: RegisterCredentials) {
+  async register({
+    email,
+    password,
+    firstName,
+    lastName,
+    role = "student",
+  }: RegisterCredentials) {
     try {
-      console.log('Sending registration data:', { 
-        email, 
-        password: '***', 
-        firstName, 
-        lastName, 
+      console.log("Sending registration data:", {
+        email,
+        password: "***",
+        firstName,
+        lastName,
         role,
-        endpoint: `${API_URL}/api/auth/register`
+        endpoint: `${API_URL}/api/auth/register`,
       });
-      
+
       const response = await axios.post(`${API_URL}/api/auth/register`, {
         email,
         password,
@@ -67,20 +73,21 @@ export const authService = {
         lastName,
         role,
       });
-      
-      console.log('Registration successful:', response.data);
+
+      console.log("Registration successful:", response.data);
       return response.data.data;
     } catch (error) {
-      console.error('Registration error details:', error);
+      console.error("Registration error details:", error);
       if (axios.isAxiosError(error)) {
-        console.error('Server response status:', error.response?.status);
-        console.error('Server response data:', error.response?.data);
-        
+        console.error("Server response status:", error.response?.status);
+        console.error("Server response data:", error.response?.data);
+
         // Provide a more specific error message
-        const errorMessage = error.response?.data?.message || 
-                            error.message || 
-                            'Registration failed';
-                            
+        const errorMessage =
+          error.response?.data?.message ||
+          error.message ||
+          "Registration failed";
+
         throw new Error(errorMessage);
       }
       throw error;
@@ -93,13 +100,13 @@ export const authService = {
   async resetPassword(email: string) {
     try {
       const response = await axios.post(`${API_URL}/api/auth/reset-password`, {
-        email
+        email,
       });
-      
+
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
-        throw new Error(error.response.data.message || 'Password reset failed');
+        throw new Error(error.response.data.message || "Password reset failed");
       }
       throw error;
     }
@@ -111,13 +118,15 @@ export const authService = {
   async updatePassword(password: string) {
     try {
       const response = await axios.post(`${API_URL}/auth/update-password`, {
-        password
+        password,
       });
-      
+
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
-        throw new Error(error.response.data.message || 'Password update failed');
+        throw new Error(
+          error.response.data.message || "Password update failed"
+        );
       }
       throw error;
     }
@@ -127,7 +136,7 @@ export const authService = {
    * Check if the user is authenticated
    */
   isAuthenticated() {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem("access_token");
     return !!token;
   },
 
@@ -135,7 +144,7 @@ export const authService = {
    * Get the current auth token
    */
   getToken() {
-    return localStorage.getItem('access_token');
+    return localStorage.getItem("access_token");
   },
 
   getCurrentUser: async function () {
@@ -143,4 +152,4 @@ export const authService = {
     if (error || !data.user) return null;
     return data.user;
   },
-}; 
+};
