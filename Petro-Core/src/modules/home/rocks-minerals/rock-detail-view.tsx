@@ -15,14 +15,17 @@ const fetchRockById = async (id: string): Promise<IRock | null> => {
   try {
     console.log(`Feching abouit the rocks ${id}`);
 
-    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
-    const response = await axios.get(`${API_URL}/rocks/${id}`);
+    // Use direct Supabase instead of backend API
+    const { RocksSupabaseService } = await import(
+      "@/modules/admin/rocks/services/rocks-supabase.service"
+    );
+    const data = await RocksSupabaseService.getRockById(id);
 
-    if (!response.data.success || !response.data.data) {
+    if (!data) {
       return null;
     }
 
-    return response.data.data;
+    return data;
   } catch (error) {
     console.error("Error fetching rock details:", error);
     return null;

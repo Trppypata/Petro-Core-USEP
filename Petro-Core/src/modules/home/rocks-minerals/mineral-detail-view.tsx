@@ -9,15 +9,13 @@ import { SupabaseImage } from "@/components/ui/supabase-image";
 // Function to fetch a single mineral by ID
 const fetchMineralById = async (id: string): Promise<IMineral | null> => {
   try {
-    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
-    const response = await fetch(`${API_URL}/minerals/${id}`);
-    const data = await response.json();
+    // Use direct Supabase instead of backend API
+    const { MineralsSupabaseService } = await import(
+      "@/modules/admin/minerals/services/minerals-supabase.service"
+    );
+    const data = await MineralsSupabaseService.getMineralById(id);
 
-    if (!data.success || !data.data) {
-      return null;
-    }
-
-    return data.data;
+    return data;
   } catch (error) {
     console.error("Error fetching mineral details:", error);
     return null;

@@ -1,5 +1,4 @@
-import { fetchRocks } from "@/modules/admin/rocks/services";
-import { fetchMinerals } from "../../../admin/minerals/services/minerals.service";
+// Removed old backend service imports - now using direct Supabase
 import type { IRock } from "../../../admin/rocks/rock.interface";
 import type { IMineral } from "../../../admin/minerals/mineral.interface";
 import type { RocksMineralsItem } from "../types";
@@ -9,7 +8,8 @@ import axios from "axios";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
-import { API_URL } from "@/config/api.config";
+import { MineralsSupabaseService } from "@/modules/admin/minerals/services/minerals-supabase.service";
+import { RocksSupabaseService } from "@/modules/admin/rocks/services/rocks-supabase.service";
 
 // Default image placeholder - updated paths to use static assets from petro-static folder
 const DEFAULT_ROCK_IMAGE = "/petro-static/default-rock.jpg";
