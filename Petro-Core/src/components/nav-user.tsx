@@ -20,7 +20,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Cookies from 'js-cookie';
 
-const localhost_url = import.meta.env.VITE_local_url;
+const localhost_url = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
 console.log("url : ", localhost_url)
 
 export function NavUser({

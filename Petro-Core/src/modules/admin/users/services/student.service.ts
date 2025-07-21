@@ -4,7 +4,9 @@ import { apiClient } from "@/services/api.service";
 import { supabase } from "@/lib/supabase";
 
 // Updated fallback URL to use port 8000 instead of 3000
-const localhost_url = import.meta.env.VITE_local_url || "http://localhost:8001";
+const localhost_url = (
+  import.meta.env.VITE_API_URL || "http://localhost:8001/api"
+).replace("/api", "");
 
 interface ErrorResponse {
   message: string;

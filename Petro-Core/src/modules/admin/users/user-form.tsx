@@ -66,11 +66,11 @@ export const UserForm = ({ form }: UserFormProps) => {
 
       console.log(
         '🔄 About to send request to:',
-        `${import.meta.env.VITE_local_url}/api/upload/uploadSingle`
+        `${import.meta.env.VITE_API_URL || "http://localhost:8001/api"}/api/upload/uploadSingle`
       );
 
       const response = await fetch(
-        `${import.meta.env.VITE_local_url}/api/upload/uploadSingle`,
+        `${import.meta.env.VITE_API_URL || "http://localhost:8001/api"}/api/upload/uploadSingle`,
         {
           method: 'POST',
           body: formData,

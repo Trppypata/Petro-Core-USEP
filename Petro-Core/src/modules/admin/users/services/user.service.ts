@@ -2,7 +2,7 @@ import axios, { AxiosError } from "axios";
 import type { UserFormValues } from "../user.types";
 import { supabase } from "@/lib/supabase";
 
-const localhost_url = import.meta.env.VITE_local_url;
+const localhost_url = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
 
 interface ErrorResponse {
   message: string;
