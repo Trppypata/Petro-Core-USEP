@@ -30,8 +30,12 @@ const allowedOrigins = [
   "https://petro-core-usep-frontend.onrender.com", // Your frontend Render URL
   "https://petro-core-usep.vercel.app", // Vercel deployment
   "https://petro-core-usep.netlify.app", // Netlify deployment
-  // Add your actual Vercel URL here when you get it
-  "https://your-actual-vercel-url.vercel.app",
+  // Your backend URL (for self-requests)
+  "https://petro-core-usep-4vp7.onrender.com", // Your backend URL
+  // Common Vercel URL patterns
+  "https://petro-core-mahhimcl7-trppypatas-projects.vercel.app", // Your current Vercel URL
+  "https://petro-core-usep-git-main-trppypatas-projects.vercel.app", // Git branch URL
+  "https://petro-core-usep-trppypatas-projects.vercel.app", // Project URL
 ];
 
 // Add environment-based origins
@@ -47,7 +51,23 @@ app.use(
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
 
+      // Check exact matches first
       if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      }
+      // Allow any Vercel deployment for this project
+      else if (origin && origin.includes("trppypatas-projects.vercel.app")) {
+        console.log("✅ CORS allowed Vercel origin:", origin);
+        callback(null, true);
+      }
+      // Allow any localhost for development
+      else if (origin && origin.startsWith("http://localhost:")) {
+        console.log("✅ CORS allowed localhost origin:", origin);
+        callback(null, true);
+      }
+      // Allow your backend URL
+      else if (origin && origin.includes("petro-core-usep-4vp7.onrender.com")) {
+        console.log("✅ CORS allowed backend origin:", origin);
         callback(null, true);
       } else {
         console.warn("🚫 CORS blocked origin:", origin);
