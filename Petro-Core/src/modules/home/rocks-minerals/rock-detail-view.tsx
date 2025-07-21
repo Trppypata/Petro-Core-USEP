@@ -15,7 +15,7 @@ const fetchRockById = async (id: string): Promise<IRock | null> => {
   try {
     console.log(`Feching abouit the rocks ${id}`);
 
-    const API_URL = "https://petro-core-usep-iw23.onrender.com/api";
+    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
     const response = await axios.get(`${API_URL}/rocks/${id}`);
 
     if (!response.data.success || !response.data.data) {

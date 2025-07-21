@@ -14,7 +14,7 @@ interface IRockImage {
   updated_at?: string;
 }
 
-const API_URL = "https://petro-core-usep-iw23.onrender.com/api";
+import { API_URL } from "@/config/api.config";
 const STORAGE_BUCKET = "rocks-minerals";
 
 // Helper function to get the authentication token

@@ -28,9 +28,10 @@ const allowedOrigins = [
   "http://localhost:3000", // React dev server
   "http://localhost:8080", // Alternative dev server
   "https://petro-core-usep-frontend.onrender.com", // Your frontend Render URL
-  "https://petro-core-usep.vercel.app", // If you deploy on Vercel
-  "https://petro-core-usep.netlify.app", // If you deploy on Netlify
-  // Add your actual frontend production URLs here
+  "https://petro-core-usep.vercel.app", // Vercel deployment
+  "https://petro-core-usep.netlify.app", // Netlify deployment
+  // Add your actual Vercel URL here when you get it
+  "https://your-actual-vercel-url.vercel.app",
 ];
 
 // Add environment-based origins

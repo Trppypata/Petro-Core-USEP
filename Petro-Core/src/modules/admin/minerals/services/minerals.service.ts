@@ -3,7 +3,7 @@ import type { IMineral } from "../mineral.interface";
 import Cookies from "js-cookie";
 import { toast } from "sonner";
 
-const API_URL = "https://petro-core-usep-iw23.onrender.com/api";
+import { API_URL } from "@/config/api.config";
 
 // Helper function to get the authentication token
 const getAuthToken = (): string | null => {

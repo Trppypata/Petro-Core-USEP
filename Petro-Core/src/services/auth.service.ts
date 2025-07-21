@@ -1,8 +1,9 @@
 import axios from "axios";
 import { supabase } from "@/lib/supabase";
+import { API_BASE_URL } from "@/config/api.config";
 
 // API base URL
-const API_URL = "http://localhost:8001";
+const API_URL = API_BASE_URL;
 
 // Configure axios to use the token for all requests
 axios.interceptors.request.use(
