@@ -27,9 +27,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import axios from "axios";
 
-const API_URL =
-  import.meta.env.VITE_local_url ||
-  "https://petro-core-usep-iw23.onrender.com/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8001/api";
 
 interface RockExcelImporterProps {
   onImportComplete?: () => void;
