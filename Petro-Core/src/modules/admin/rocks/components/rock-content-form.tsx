@@ -133,10 +133,7 @@ const RockContentForm = ({
             <h3 className="text-sm font-medium">Color</h3>
             <p>{rock.color || "N/A"}</p>
           </div>
-          <div>
-            <h3 className="text-sm font-medium">Hardness</h3>
-            <p>{rock.hardness || "N/A"}</p>
-          </div>
+
           <div>
             <h3 className="text-sm font-medium">Texture</h3>
             <p>{rock.texture || "N/A"}</p>

@@ -150,7 +150,7 @@ const RockDetailView = () => {
         // Extract image URLs from the image objects
         const imageUrls = additionalImages
           .map((img) => img.image_url)
-          .filter(url => url && url.trim().length > 0); // Filter out empty URLs
+          .filter((url) => url && url.trim().length > 0); // Filter out empty URLs
         console.log("🖼️ Additional image URLs:", imageUrls);
 
         // Add them to our images array without duplicating the main image
@@ -336,15 +336,6 @@ const RockDetailView = () => {
                     Mineral Composition
                   </h3>
                   <p className="text-lg">{rock.mineral_composition}</p>
-                </div>
-              )}
-
-              {rock.hardness && (
-                <div className="mb-6">
-                  <h3 className="text-base font-bold text-gray-700">
-                    Hardness
-                  </h3>
-                  <p className="text-lg">{rock.hardness}</p>
                 </div>
               )}
 
