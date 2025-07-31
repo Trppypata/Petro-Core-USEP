@@ -15,31 +15,15 @@ interface IRockImage {
 }
 
 import { API_URL } from "@/config/api.config";
+import { getRealAuthToken } from "@/modules/admin/minerals/services/minerals.service";
 const STORAGE_BUCKET = "rocks-minerals";
-
-// Helper function to get the authentication token
-const getAuthToken = (): string | null => {
-  const token =
-    localStorage.getItem("access_token") ||
-    Cookies.get("access_token") ||
-    localStorage.getItem("token") ||
-    localStorage.getItem("auth_token");
-
-  if (!token) {
-    console.warn("⚠️ No auth token found in storage");
-  } else {
-    console.log(`🔑 Auth token found: ${token.substring(0, 10)}...`);
-  }
-
-  return token;
-};
 
 /**
  * Set the auth token for Supabase client
  */
 const setAuthTokenManually = async () => {
   try {
-    const token = getAuthToken();
+    const token = getRealAuthToken();
     if (!token) {
       console.error("❌ No auth token available to set Supabase session");
       return false;
@@ -105,6 +89,44 @@ const setAuthTokenManually = async () => {
 };
 
 /**
+ * Validate if an image URL is accessible
+ * @param url Image URL to validate
+ * @returns Promise<boolean> indicating if the image is accessible
+ */
+const validateImageUrl = async (url: string): Promise<boolean> => {
+  try {
+    // Basic URL validation
+    if (!url || typeof url !== "string" || url.trim().length === 0) {
+      return false;
+    }
+
+    // Check if it's a valid URL format
+    try {
+      new URL(url);
+    } catch {
+      // If it's not a valid URL, it might be a relative path
+      if (!url.startsWith("/") && !url.startsWith("http")) {
+        return false;
+      }
+    }
+
+    // Try to fetch the image with a HEAD request to check if it exists
+    const response = await fetch(url, {
+      method: "HEAD",
+      mode: "cors",
+      cache: "no-cache",
+    });
+
+    return (
+      response.ok && response.headers.get("content-type")?.startsWith("image/")
+    );
+  } catch (error) {
+    console.warn(`🖼️ Image validation failed for URL: ${url}`, error);
+    return false;
+  }
+};
+
+/**
  * Fetch all images for a specific rock
  * @param rockId ID of the rock
  * @returns Array of rock image data
@@ -112,33 +134,134 @@ const setAuthTokenManually = async () => {
 export const getRockImages = async (rockId: string): Promise<IRockImage[]> => {
   try {
     console.log(`🖼️ Fetching images for rock ID: ${rockId}`);
-    console.log(`🖼️ API URL: ${API_URL}/rock-images/${rockId}`);
 
-    // Try to authenticate with Supabase first for storage access
-    await setAuthTokenManually();
-
-    // Proceed with fetching images from the API
-    const response = await axios.get(`${API_URL}/rock-images/${rockId}`);
-
-    console.log(`🖼️ Images fetch response status: ${response.status}`);
-    console.log(`🖼️ Data received: ${JSON.stringify(response.data)}`);
-
-    if (response.data && response.data.data) {
-      console.log(`🖼️ Found ${response.data.data.length} images`);
-      return response.data.data || [];
-    } else {
-      console.log("🖼️ No images found in response data");
+    // Validate input
+    if (!rockId || typeof rockId !== "string" || rockId.trim().length === 0) {
+      console.warn("🖼️ Invalid rock ID provided");
       return [];
     }
+
+    const apiUrl = `${API_URL}/rock-images/${rockId}`;
+    console.log(`🖼️ API URL: ${apiUrl}`);
+
+    // Fetch images from the API (no authentication required for GET)
+    const response = await axios.get(apiUrl, {
+      timeout: 10000, // 10 second timeout
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+    });
+
+    console.log(`🖼️ Images fetch response status: ${response.status}`);
+    console.log(`🖼️ Response data structure:`, {
+      success: response.data?.success,
+      dataLength: response.data?.data?.length || 0,
+      hasData: !!response.data?.data,
+    });
+
+    // Check if response is successful and has data
+    if (!response.data?.success) {
+      console.warn(
+        "🖼️ API response indicates failure:",
+        response.data?.message
+      );
+      return [];
+    }
+
+    const images = response.data.data || [];
+    console.log(`🖼️ Found ${images.length} images`);
+
+    if (images.length === 0) {
+      console.log("🖼️ No images found for this rock");
+      return [];
+    }
+
+    // Validate and filter images
+    const validatedImages: IRockImage[] = [];
+
+    for (const image of images) {
+      if (!image || typeof image !== "object") {
+        console.warn("🖼️ Invalid image object:", image);
+        continue;
+      }
+
+      // Ensure required fields exist
+      if (!image.image_url || !image.rock_id) {
+        console.warn("🖼️ Image missing required fields:", {
+          hasUrl: !!image.image_url,
+          hasRockId: !!image.rock_id,
+          image,
+        });
+        continue;
+      }
+
+      // Validate image URL format
+      const isValidUrl = await validateImageUrl(image.image_url);
+      if (!isValidUrl) {
+        console.warn("🖼️ Invalid or inaccessible image URL:", image.image_url);
+        // Still include the image but mark it for fallback handling
+      }
+
+      validatedImages.push({
+        id: image.id,
+        rock_id: image.rock_id,
+        image_url: image.image_url,
+        caption: image.caption || "",
+        display_order: image.display_order || 0,
+        created_at: image.created_at,
+        updated_at: image.updated_at,
+      });
+    }
+
+    console.log(
+      `🖼️ Validated ${validatedImages.length} images out of ${images.length}`
+    );
+    return validatedImages;
   } catch (error) {
     console.error("❌ Error fetching rock images:", error);
+
     if (axios.isAxiosError(error)) {
       console.error("❌ Axios error details:", {
         status: error.response?.status,
         statusText: error.response?.statusText,
         data: error.response?.data,
+        url: error.config?.url,
+        timeout: error.code === "ECONNABORTED",
       });
+
+      // Handle specific error cases
+      if (error.response?.status === 404) {
+        console.log("🖼️ No images found for this rock (404)");
+        return [];
+      }
+
+      if (error.response?.status === 500) {
+        console.error("🖼️ Server error when fetching images");
+        toast.error(
+          "Server error while loading images. Please try again later."
+        );
+        return [];
+      }
+
+      if (error.code === "ECONNABORTED") {
+        console.error("🖼️ Request timeout when fetching images");
+        toast.error(
+          "Request timeout while loading images. Please check your connection."
+        );
+        return [];
+      }
+
+      if (error.response?.status === 403) {
+        console.error("🖼️ Access forbidden when fetching images");
+        toast.error("Access denied while loading images.");
+        return [];
+      }
+    } else {
+      console.error("🖼️ Non-axios error:", error);
+      toast.error("Unexpected error while loading images.");
     }
+
     return [];
   }
 };
@@ -167,7 +290,7 @@ export const uploadRockImages = async (
     await setAuthTokenManually();
 
     // Get token for API calls
-    const token = getAuthToken();
+    const token = getRealAuthToken();
     if (!token) {
       console.error("📸 Authentication token missing");
       toast.error("Authentication required. Please log in again.");
@@ -191,7 +314,7 @@ export const uploadRockImages = async (
         const { supabase } = await import("@/lib/supabase");
 
         // Get authentication token
-        const token = getAuthToken();
+        const token = getRealAuthToken();
         if (!token) {
           console.error("📸 No auth token available for direct upload");
           return [];
@@ -410,7 +533,7 @@ export const updateRockImage = async (
 ): Promise<IRockImage> => {
   try {
     // Get token
-    const token = getAuthToken();
+    const token = getRealAuthToken();
     if (!token) {
       throw new Error("Authentication required");
     }
@@ -440,7 +563,7 @@ export const deleteRockImage = async (
 ): Promise<boolean> => {
   try {
     // Get token
-    const token = getAuthToken();
+    const token = getRealAuthToken();
     if (!token) {
       throw new Error("Authentication required");
     }
@@ -483,7 +606,7 @@ export const deleteRockImages = async (
 ): Promise<boolean> => {
   try {
     // Get token
-    const token = getAuthToken();
+    const token = getRealAuthToken();
     if (!token) {
       throw new Error("Authentication required");
     }

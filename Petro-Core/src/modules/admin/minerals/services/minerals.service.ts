@@ -1,19 +1,42 @@
 import axios from "axios";
 import type { IMineral } from "../mineral.interface";
-import Cookies from "js-cookie";
 import { toast } from "sonner";
 
 import { API_URL } from "@/config/api.config";
 
-// Helper function to get the authentication token
-const getAuthToken = (): string | null => {
-  // Try to get token from multiple possible sources
-  return (
-    localStorage.getItem("access_token") ||
-    Cookies.get("access_token") ||
-    localStorage.getItem("token") ||
-    localStorage.getItem("auth_token")
+export const getRealAuthToken = (): string | null => {
+  // Find the Supabase auth key (sb-*-auth-token pattern)
+  const supabaseKey = Object.keys(localStorage).find(
+    (key) => key.startsWith("sb-") && key.endsWith("-auth-token")
   );
+
+  if (supabaseKey) {
+    try {
+      const authData = JSON.parse(localStorage.getItem(supabaseKey) || "");
+      return authData.access_token;
+    } catch (error) {
+      console.error("Failed to parse auth data:", error);
+    }
+  }
+
+  return null;
+};
+
+export const getAccountDetails = async (): Promise<IUser> => {
+  const supabaseKey = Object.keys(localStorage).find(
+    (key) => key.startsWith("sb-") && key.endsWith("-auth-token")
+  );
+
+  if (supabaseKey) {
+    try {
+      const authData = JSON.parse(localStorage.getItem(supabaseKey) || "");
+      return authData;
+    } catch (error) {
+      console.error("Failed to parse auth data:", error);
+    }
+  }
+
+  return null;
 };
 
 // Get all minerals by category
@@ -187,8 +210,7 @@ export const addMineral = async (
   mineralData: Omit<IMineral, "id">
 ): Promise<IMineral> => {
   try {
-    // Get token using the helper function
-    const token = getAuthToken();
+    const token = getRealAuthToken();
 
     if (!token) {
       throw new Error("Authentication token not found. Please log in again.");
@@ -228,6 +250,7 @@ export const addMineral = async (
 
     return response.data.data;
   } catch (error) {
+    console.log("Error:", error);
     console.error("Error adding mineral:", error);
 
     // Enhanced error handling to provide more details
@@ -321,7 +344,7 @@ export const updateMineral = async (
     );
 
     // Get token using the helper function
-    const token = getAuthToken();
+    const token = getRealAuthToken();
 
     if (!token) {
       throw new Error("Authentication token not found. Please log in again.");
@@ -379,7 +402,7 @@ export const updateMineral = async (
 export const deleteMineral = async (id: string): Promise<void> => {
   try {
     // Get token using the helper function
-    const token = getAuthToken();
+    const token = getRealAuthToken();
 
     if (!token) {
       throw new Error("Authentication token not found. Please log in again.");

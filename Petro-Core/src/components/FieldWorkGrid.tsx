@@ -26,16 +26,18 @@ export function FieldWorkGrid({ works }: FieldWorkGridProps) {
         works.map((work) => {
           // Ensure we have a valid path - use the ID if path is missing
           const workPath = work.path || `/field-works/${work.id}`;
-          
+
+          console.log("workPath", work);
+
           return (
-            <Link 
+            <Link
               key={work.id || work.title}
               to={workPath}
               className="transition-transform hover:scale-105 h-full"
             >
               <WorkCard
                 title={work.title}
-                description={work.description || 'No description available'}
+                description={work.description || "No description available"}
               />
             </Link>
           );

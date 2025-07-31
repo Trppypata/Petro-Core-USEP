@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight, ImageIcon } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ImageIcon, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from './button';
 import { SupabaseImage } from './supabase-image';
@@ -10,6 +10,7 @@ interface RockImagesGalleryProps {
   aspectRatio?: 'square' | 'video' | 'wide';
   height?: number;
   width?: number;
+  onRetryAll?: () => void;
 }
 
 export function RockImagesGallery({
@@ -17,7 +18,8 @@ export function RockImagesGallery({
   className,
   aspectRatio = 'square',
   height = 300,
-  width
+  width,
+  onRetryAll
 }: RockImagesGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [showFullscreen, setShowFullscreen] = useState(false);
@@ -45,7 +47,7 @@ export function RockImagesGallery({
     return (
       <div 
         className={cn(
-          "w-full bg-white flex items-center justify-center rounded-md border border-gray-200",
+          "w-full bg-white flex flex-col items-center justify-center rounded-md border border-gray-200",
           className
         )}
         style={{ 
@@ -55,7 +57,18 @@ export function RockImagesGallery({
       >
         <div className="text-center p-4">
           <ImageIcon className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-          <p className="text-sm text-gray-500">No images available</p>
+          <p className="text-sm text-gray-500 mb-3">No images available</p>
+          {onRetryAll && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRetryAll}
+              className="h-8 px-3 text-sm"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry Loading Images
+            </Button>
+          )}
         </div>
       </div>
     );

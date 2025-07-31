@@ -9,6 +9,7 @@ import { Spinner } from '../spinner';
 import { supabase } from '@/lib/supabase';
 import { Alert, AlertDescription, AlertTitle } from './alert';
 import { InfoIcon, RefreshCcw } from 'lucide-react';
+import { getRealAuthToken } from '@/modules/admin/minerals/services/minerals.service';
 
 // Define the interface directly in this file
 interface IRockImage {
@@ -60,8 +61,7 @@ export const RockImageUploader = ({ rockId, onSuccess }: RockImageUploaderProps)
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) {
         // Try to authenticate with token from localStorage
-        const token = localStorage.getItem('access_token') || localStorage.getItem('token');
-        if (token) {
+        const token =  getRealAuthToken()
           addDebugMessage('Setting session with token from localStorage');
           try {
             await supabase.auth.setSession({
@@ -144,7 +144,7 @@ export const RockImageUploader = ({ rockId, onSuccess }: RockImageUploaderProps)
   
   const handleFilesChange = (newFiles: File[]) => {
     setFiles(newFiles);
-    setError(null);
+    setErrorMap(null);
   };
   
   const handleUpload = async () => {
@@ -171,9 +171,7 @@ export const RockImageUploader = ({ rockId, onSuccess }: RockImageUploaderProps)
         addDebugMessage('No active session, attempting to authenticate');
         
         // Try to get token from storage
-        const token = localStorage.getItem('access_token') || 
-                     localStorage.getItem('token') || 
-                     localStorage.getItem('auth_token');
+        const token = getRealAuthToken()
                      
         if (token) {
           addDebugMessage(`Found token, attempting to set session manually`);
