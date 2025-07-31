@@ -59,7 +59,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
         const userDetails = accountDetails.user?.user_metadata;
 
-        // Fallback to localStorage if API fails
         const firstName = capitalizeWords(userDetails.first_name || "User");
         const email = userDetails.email || "example@gmail.com";
         const avatar = "../assets/logos.png";
