@@ -1,21 +1,22 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
   SheetFooter,
   SheetTrigger,
-} from '@/components/ui/sheet';
-import { PlusCircleIcon } from 'lucide-react';
-import { useState, useRef } from 'react';
-import { useAddRock } from '../hooks/useAddRock';
-import RockForm from '../rock-form';
-import type { RockCategory, IRock } from '../rock.interface';
-import { SupabaseImage } from '@/components/ui/supabase-image';
-import { Spinner } from '@/components/spinner';
-import { toast } from 'sonner';
-import { useQueryClient } from '@tanstack/react-query';
-import { Q_KEYS } from '@/shared/qkeys';
+} from "@/components/ui/sheet";
+import { PlusCircleIcon } from "lucide-react";
+import { useState, useRef } from "react";
+import { useAddRock } from "../hooks/useAddRock";
+import RockForm from "../rock-form";
+import type { RockCategory, IRock } from "../rock.interface";
+import { SupabaseImage } from "@/components/ui/supabase-image";
+import { Spinner } from "@/components/spinner";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import { Q_KEYS } from "@/shared/qkeys";
+import { getRealAuthToken } from "../../minerals/services/minerals.service";
 
 interface RockContentFormProps {
   category?: RockCategory;
@@ -26,13 +27,13 @@ interface RockContentFormProps {
   onClose?: () => void;
 }
 
-const RockContentForm = ({ 
-  category, 
-  rock, 
-  readOnly = false, 
-  inDialog = false, 
+const RockContentForm = ({
+  category,
+  rock,
+  readOnly = false,
+  inDialog = false,
   inSheet = false,
-  onClose 
+  onClose,
 }: RockContentFormProps) => {
   const { addRock, isAdding } = useAddRock();
   const [isOpen, setIsOpen] = useState<boolean>(false);
@@ -51,35 +52,35 @@ const RockContentForm = ({
   const handleSubmit = async (data: Partial<IRock>) => {
     setIsSubmitting(true);
     try {
-      console.log('Submitting rock data:', data);
-      
+      console.log("Submitting rock data:", data);
+
       // Ensure the category is set
       const rockData = {
         ...data,
-        category: category || data.category || 'Igneous',
-      } as Omit<IRock, 'id'>;
-      
-      console.log('Processed rock data:', rockData);
-      
+        category: category || data.category || "Igneous",
+      } as Omit<IRock, "id">;
+
+      console.log("Processed rock data:", rockData);
+
       // Check authentication token
-      const token = localStorage.getItem('access_token');
-      console.log('Authentication token exists:', !!token);
+      const token = getRealAuthToken();
+      console.log("Authentication token exists:", !!token);
       if (!token) {
-        console.error('No authentication token found');
-        toast.error('Authentication required. Please log in and try again.');
+        console.error("No authentication token found");
+        toast.error("Authentication required. Please log in and try again.");
         return;
       }
-      
+
       await addRock(rockData);
-      
+
       // Force a refetch of the rock data
       queryClient.invalidateQueries({ queryKey: [Q_KEYS.ROCKS] });
-      
-      toast.success('Rock added successfully!');
+
+      toast.success("Rock added successfully!");
       handleClose();
     } catch (error: any) {
-      console.error('Error adding rock:', error);
-      toast.error(`Failed to add rock: ${error.message || 'Unknown error'}`);
+      console.error("Error adding rock:", error);
+      toast.error(`Failed to add rock: ${error.message || "Unknown error"}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -87,7 +88,9 @@ const RockContentForm = ({
 
   const handleManualSubmit = () => {
     if (formRef.current) {
-      formRef.current.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+      formRef.current.dispatchEvent(
+        new Event("submit", { cancelable: true, bubbles: true })
+      );
     }
   };
 
@@ -108,164 +111,169 @@ const RockContentForm = ({
             />
           </div>
         )}
-        
+
         <div className="grid grid-cols-2 gap-4">
           <div>
             <h3 className="text-sm font-medium">Rock Code</h3>
-            <p>{rock.rock_code || 'N/A'}</p>
+            <p>{rock.rock_code || "N/A"}</p>
           </div>
           <div>
             <h3 className="text-sm font-medium">Category</h3>
-            <p>{rock.category || 'N/A'}</p>
+            <p>{rock.category || "N/A"}</p>
           </div>
           <div>
             <h3 className="text-sm font-medium">Name</h3>
-            <p>{rock.name || 'N/A'}</p>
+            <p>{rock.name || "N/A"}</p>
           </div>
           <div>
             <h3 className="text-sm font-medium">Type</h3>
-            <p>{rock.type || 'N/A'}</p>
+            <p>{rock.type || "N/A"}</p>
           </div>
           <div>
             <h3 className="text-sm font-medium">Color</h3>
-            <p>{rock.color || 'N/A'}</p>
+            <p>{rock.color || "N/A"}</p>
           </div>
           <div>
             <h3 className="text-sm font-medium">Hardness</h3>
-            <p>{rock.hardness || 'N/A'}</p>
+            <p>{rock.hardness || "N/A"}</p>
           </div>
           <div>
             <h3 className="text-sm font-medium">Texture</h3>
-            <p>{rock.texture || 'N/A'}</p>
+            <p>{rock.texture || "N/A"}</p>
           </div>
           <div>
             <h3 className="text-sm font-medium">Grain Size</h3>
-            <p>{rock.grain_size || 'N/A'}</p>
+            <p>{rock.grain_size || "N/A"}</p>
           </div>
           <div>
             <h3 className="text-sm font-medium">Locality</h3>
-            <p>{rock.locality || 'N/A'}</p>
+            <p>{rock.locality || "N/A"}</p>
           </div>
           <div>
             <h3 className="text-sm font-medium">Coordinates</h3>
-            <p>{rock.coordinates || (rock.latitude && rock.longitude ? `${rock.latitude}, ${rock.longitude}` : 'N/A')}</p>
+            <p>
+              {rock.coordinates ||
+                (rock.latitude && rock.longitude
+                  ? `${rock.latitude}, ${rock.longitude}`
+                  : "N/A")}
+            </p>
           </div>
-          
+
           {/* Category-specific fields */}
-          {rock.category === 'Igneous' && (
+          {rock.category === "Igneous" && (
             <>
               <div>
                 <h3 className="text-sm font-medium">Silica Content</h3>
-                <p>{rock.silica_content || 'N/A'}</p>
+                <p>{rock.silica_content || "N/A"}</p>
               </div>
               <div>
                 <h3 className="text-sm font-medium">Cooling Rate</h3>
-                <p>{rock.cooling_rate || 'N/A'}</p>
+                <p>{rock.cooling_rate || "N/A"}</p>
               </div>
               <div>
                 <h3 className="text-sm font-medium">Mineral Content</h3>
-                <p>{rock.mineral_content || 'N/A'}</p>
+                <p>{rock.mineral_content || "N/A"}</p>
               </div>
             </>
           )}
-          
-          {rock.category === 'Sedimentary' && (
+
+          {rock.category === "Sedimentary" && (
             <>
               <div>
                 <h3 className="text-sm font-medium">Bedding</h3>
-                <p>{rock.bedding || 'N/A'}</p>
+                <p>{rock.bedding || "N/A"}</p>
               </div>
               <div>
                 <h3 className="text-sm font-medium">Sorting</h3>
-                <p>{rock.sorting || 'N/A'}</p>
+                <p>{rock.sorting || "N/A"}</p>
               </div>
               <div>
                 <h3 className="text-sm font-medium">Roundness</h3>
-                <p>{rock.roundness || 'N/A'}</p>
+                <p>{rock.roundness || "N/A"}</p>
               </div>
               <div>
                 <h3 className="text-sm font-medium">Fossil Content</h3>
-                <p>{rock.fossil_content || 'N/A'}</p>
+                <p>{rock.fossil_content || "N/A"}</p>
               </div>
             </>
           )}
-          
-          {rock.category === 'Metamorphic' && (
+
+          {rock.category === "Metamorphic" && (
             <>
               <div>
                 <h3 className="text-sm font-medium">Metamorphism Type</h3>
-                <p>{rock.metamorphism_type || 'N/A'}</p>
+                <p>{rock.metamorphism_type || "N/A"}</p>
               </div>
               <div>
                 <h3 className="text-sm font-medium">Metamorphic Grade</h3>
-                <p>{rock.metamorphic_grade || 'N/A'}</p>
+                <p>{rock.metamorphic_grade || "N/A"}</p>
               </div>
               <div>
                 <h3 className="text-sm font-medium">Parent Rock</h3>
-                <p>{rock.parent_rock || 'N/A'}</p>
+                <p>{rock.parent_rock || "N/A"}</p>
               </div>
               <div>
                 <h3 className="text-sm font-medium">Foliation</h3>
-                <p>{rock.foliation || 'N/A'}</p>
+                <p>{rock.foliation || "N/A"}</p>
               </div>
             </>
           )}
-          
-          {rock.category === 'Ore Samples' && (
+
+          {rock.category === "Ore Samples" && (
             <>
               <div>
                 <h3 className="text-sm font-medium">Commodity Type</h3>
-                <p>{rock.commodity_type || 'N/A'}</p>
+                <p>{rock.commodity_type || "N/A"}</p>
               </div>
               <div>
                 <h3 className="text-sm font-medium">Ore Group</h3>
-                <p>{rock.ore_group || 'N/A'}</p>
+                <p>{rock.ore_group || "N/A"}</p>
               </div>
               <div>
                 <h3 className="text-sm font-medium">Mining Company</h3>
-                <p>{rock.mining_company || 'N/A'}</p>
+                <p>{rock.mining_company || "N/A"}</p>
               </div>
             </>
           )}
-          
+
           <div>
             <h3 className="text-sm font-medium">Chemical Formula</h3>
-            <p>{rock.chemical_formula || 'N/A'}</p>
+            <p>{rock.chemical_formula || "N/A"}</p>
           </div>
-          
+
           <div>
             <h3 className="text-sm font-medium">Associated Minerals</h3>
-            <p>{rock.associated_minerals || 'N/A'}</p>
+            <p>{rock.associated_minerals || "N/A"}</p>
           </div>
-          
-          {rock.category !== 'Ore Samples' ? (
+
+          {rock.category !== "Ore Samples" ? (
             <div>
               <h3 className="text-sm font-medium">Depositional Environment</h3>
-              <p>{rock.depositional_environment || 'N/A'}</p>
+              <p>{rock.depositional_environment || "N/A"}</p>
             </div>
           ) : (
             <div>
               <h3 className="text-sm font-medium">Description</h3>
-              <p>{rock.description || 'N/A'}</p>
+              <p>{rock.description || "N/A"}</p>
             </div>
           )}
-          
-          {rock.category !== 'Ore Samples' && (
+
+          {rock.category !== "Ore Samples" && (
             <>
               <div>
                 <h3 className="text-sm font-medium">Geological Age</h3>
-                <p>{rock.geological_age || 'N/A'}</p>
+                <p>{rock.geological_age || "N/A"}</p>
               </div>
               <div>
                 <h3 className="text-sm font-medium">Formation</h3>
-                <p>{rock.formation || 'N/A'}</p>
+                <p>{rock.formation || "N/A"}</p>
               </div>
             </>
           )}
-          
+
           <div>
             <h3 className="text-sm font-medium">Status</h3>
-            <p>{rock.status || 'inactive'}</p>
+            <p>{rock.status || "inactive"}</p>
           </div>
         </div>
 
@@ -284,11 +292,11 @@ const RockContentForm = ({
   if (inSheet && category) {
     return (
       <div className="p-5">
-        <RockForm 
-          category={category as RockCategory} 
-          onClose={handleClose} 
+        <RockForm
+          category={category as RockCategory}
+          onClose={handleClose}
           onSubmit={handleSubmit}
-          inSheet={true} 
+          inSheet={true}
           hideButtons={true}
           formRef={formRef}
         />
@@ -319,11 +327,11 @@ const RockContentForm = ({
         </header>
 
         <div className="flex-grow overflow-y-auto">
-          <RockForm 
-            category={category as RockCategory} 
-            onClose={handleClose} 
+          <RockForm
+            category={category as RockCategory}
+            onClose={handleClose}
             onSubmit={handleSubmit}
-            inSheet={true} 
+            inSheet={true}
             hideButtons={true}
             formRef={formRef}
           />
@@ -333,9 +341,9 @@ const RockContentForm = ({
           <Button variant="outline" onClick={handleClose} type="button">
             Cancel
           </Button>
-          <Button 
-            type="button" 
-            onClick={handleManualSubmit} 
+          <Button
+            type="button"
+            onClick={handleManualSubmit}
             disabled={isSubmitting || isAdding}
           >
             {(isSubmitting || isAdding) && <Spinner className="mr-2 h-4 w-4" />}
@@ -347,4 +355,4 @@ const RockContentForm = ({
   );
 };
 
-export default RockContentForm; 
+export default RockContentForm;

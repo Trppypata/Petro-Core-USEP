@@ -41,7 +41,6 @@ import {
 import type { StatCardProps, ChartConfig } from "./types";
 import { PersonIcon } from "@radix-ui/react-icons";
 import axios from "axios";
-import { getAuthToken } from "../rocks/services";
 import { supabase } from "@/lib/supabase";
 
 const medicineAvailabilityData = [

@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { ImageIcon } from 'lucide-react';
+import { ImageIcon, AlertCircle, RefreshCw } from 'lucide-react';
 import { Skeleton } from './skeleton';
 import { cn } from '@/lib/utils';
+import { Button } from './button';
 
 // Cache for already loaded/failed images
-const imageCache = new Map<string, boolean>();
+const imageCache = new Map<string, 'loading' | 'success' | 'error'>();
 
 interface SupabaseImageProps {
   src: string | null | undefined;
@@ -14,6 +15,8 @@ interface SupabaseImageProps {
   width?: number | string;
   height?: number | string;
   objectFit?: 'cover' | 'contain' | 'fill' | 'none' | 'scale-down';
+  showRetry?: boolean;
+  onRetry?: () => void;
 }
 
 export function SupabaseImage({
@@ -23,22 +26,31 @@ export function SupabaseImage({
   fallbackClassName,
   width,
   height,
-  objectFit = 'cover'
+  objectFit = 'cover',
+  showRetry = true,
+  onRetry
 }: SupabaseImageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const isMounted = useRef(true);
   const imgSrc = src || '';
+  const maxRetries = 2;
 
   // Check cache on initial render
   useEffect(() => {
     isMounted.current = true;
+    setError(false);
+    setIsLoading(true);
+    setRetryCount(0);
     
-    // If we've already tried this image and it failed, don't try again
+    // Check cache status
     if (imgSrc && imageCache.has(imgSrc)) {
-      const success = imageCache.get(imgSrc);
-      if (success === false) {
+      const cacheStatus = imageCache.get(imgSrc);
+      if (cacheStatus === 'error') {
         setError(true);
+        setIsLoading(false);
+      } else if (cacheStatus === 'success') {
         setIsLoading(false);
       }
     }
@@ -51,13 +63,40 @@ export function SupabaseImage({
   const handleError = () => {
     // Only update state if component is still mounted
     if (isMounted.current) {
-      console.error(`❌ Failed to load image: ${imgSrc}`);
+      console.error(`❌ Failed to load image (attempt ${retryCount + 1}): ${imgSrc}`);
+      
+      // Try to retry if we haven't exceeded max retries
+      if (retryCount < maxRetries) {
+        console.log(`🔄 Retrying image load (${retryCount + 1}/${maxRetries}): ${imgSrc}`);
+        setRetryCount(prev => prev + 1);
+        setIsLoading(true);
+        setError(false);
+        
+        // Clear cache for retry
+        if (imgSrc) {
+          imageCache.delete(imgSrc);
+        }
+        
+        // Retry after a short delay
+        setTimeout(() => {
+          if (isMounted.current) {
+            // Force image reload by adding timestamp
+            const img = new Image();
+            img.onload = handleLoad;
+            img.onerror = handleError;
+            img.src = `${fixImagePath(imgSrc)}?retry=${retryCount + 1}&t=${Date.now()}`;
+          }
+        }, 1000 * (retryCount + 1)); // Exponential backoff
+        
+        return;
+      }
+      
       setError(true);
       setIsLoading(false);
       
-      // Cache this failure
+      // Cache this failure after all retries exhausted
       if (imgSrc) {
-        imageCache.set(imgSrc, false);
+        imageCache.set(imgSrc, 'error');
       }
     }
   };
@@ -85,26 +124,72 @@ export function SupabaseImage({
   const handleLoad = () => {
     // Only update state if component is still mounted
     if (isMounted.current) {
+      console.log(`✅ Successfully loaded image: ${imgSrc}`);
       setIsLoading(false);
+      setError(false);
       
       // Cache this success
       if (imgSrc) {
-        imageCache.set(imgSrc, true);
+        imageCache.set(imgSrc, 'success');
       }
     }
   };
 
-  // If we have no src or it's already known to fail, show fallback immediately
-  if (!imgSrc || (imageCache.has(imgSrc) && imageCache.get(imgSrc) === false)) {
+  const handleRetry = () => {
+    if (onRetry) {
+      onRetry();
+    } else {
+      // Reset state and try again
+      setError(false);
+      setIsLoading(true);
+      setRetryCount(0);
+      
+      // Clear cache
+      if (imgSrc) {
+        imageCache.delete(imgSrc);
+      }
+    }
+  };
+
+  // If we have no src, show fallback immediately
+  if (!imgSrc) {
     return (
       <div 
         className={cn(
-          "bg-muted flex items-center justify-center rounded-md",
+          "bg-muted flex flex-col items-center justify-center rounded-md p-2",
           fallbackClassName
         )}
         style={{ width, height }}
       >
-        <span className="text-muted-foreground text-xs">No image</span>
+        <ImageIcon className="h-8 w-8 text-muted-foreground mb-1" />
+        <span className="text-muted-foreground text-xs text-center">No image</span>
+      </div>
+    );
+  }
+
+  // If it's already known to fail permanently, show fallback with retry option
+  if (imageCache.has(imgSrc) && imageCache.get(imgSrc) === 'error') {
+    return (
+      <div 
+        className={cn(
+          "bg-muted flex flex-col items-center justify-center rounded-md p-2",
+          fallbackClassName
+        )}
+        style={{ width, height }}
+      >
+        <AlertCircle className="h-6 w-6 text-muted-foreground mb-1" />
+        <span className="text-muted-foreground text-xs text-center mb-2">Failed to load</span>
+        {showRetry && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRetry}
+            className="h-6 px-2 text-xs"
+          >
+            <RefreshCw className="h-3 w-3 mr-1" />
+            Retry
+          </Button>
+        )}
       </div>
     );
   }
@@ -113,10 +198,10 @@ export function SupabaseImage({
   const correctedSrc = fixImagePath(imgSrc);
 
   return (
-    <>
+    <div className="relative" style={{ width, height }}>
       {isLoading && (
         <Skeleton 
-          className={cn("rounded-md", fallbackClassName)} 
+          className={cn("rounded-md absolute inset-0", fallbackClassName)} 
           style={{ width, height }}
         />
       )}
@@ -125,8 +210,8 @@ export function SupabaseImage({
         alt={alt}
         className={cn(
           className,
-          isLoading ? "hidden" : "block",
-          "rounded-md transition-all"
+          isLoading ? "opacity-0" : "opacity-100",
+          "rounded-md transition-opacity duration-200"
         )}
         style={{ 
           objectFit, 
@@ -141,14 +226,28 @@ export function SupabaseImage({
       {error && (
         <div 
           className={cn(
-            "bg-muted flex items-center justify-center rounded-md",
+            "bg-muted flex flex-col items-center justify-center rounded-md p-2 absolute inset-0",
             fallbackClassName
           )}
           style={{ width, height }}
         >
-          <span className="text-muted-foreground text-xs">Failed to load</span>
+          <AlertCircle className="h-6 w-6 text-muted-foreground mb-1" />
+          <span className="text-muted-foreground text-xs text-center mb-2">
+            {retryCount >= maxRetries ? 'Failed to load' : 'Loading failed'}
+          </span>
+          {showRetry && retryCount < maxRetries && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRetry}
+              className="h-6 px-2 text-xs"
+            >
+              <RefreshCw className="h-3 w-3 mr-1" />
+              Retry
+            </Button>
+          )}
         </div>
       )}
-    </>
+    </div>
   );
 } 

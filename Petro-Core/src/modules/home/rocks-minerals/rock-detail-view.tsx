@@ -148,7 +148,9 @@ const RockDetailView = () => {
 
       if (additionalImages && additionalImages.length > 0) {
         // Extract image URLs from the image objects
-        const imageUrls = additionalImages.map((img) => img.image_url);
+        const imageUrls = additionalImages
+          .map((img) => img.image_url)
+          .filter(url => url && url.trim().length > 0); // Filter out empty URLs
         console.log("🖼️ Additional image URLs:", imageUrls);
 
         // Add them to our images array without duplicating the main image
@@ -166,8 +168,17 @@ const RockDetailView = () => {
       setRockImages(images);
     } catch (err) {
       console.error("Failed to load rock images:", err);
+      // Set empty array on error so the gallery can show retry option
+      setRockImages([]);
     } finally {
       setLoadingImages(false);
+    }
+  };
+
+  // Function to retry loading images
+  const retryLoadImages = () => {
+    if (rock) {
+      loadRockImages(rock);
     }
   };
 
@@ -262,6 +273,7 @@ const RockDetailView = () => {
                     aspectRatio="square"
                     height={400}
                     className="w-full max-w-md"
+                    onRetryAll={retryLoadImages}
                   />
                 </div>
               ) : (

@@ -2,6 +2,7 @@ import axios from "axios";
 import { toast } from "sonner";
 
 import { API_URL } from "@/config/api.config";
+import { getRealAuthToken } from "@/modules/admin/minerals/services/minerals.service";
 
 // API base URL from environment
 
@@ -87,7 +88,7 @@ export { apiClient };
 
 // Export a function to create an authenticated axios instance
 export const createAuthApi = (token?: string) => {
-  const authToken = token || localStorage.getItem("access_token");
+  const authToken = getRealAuthToken();
 
   if (!authToken) {
     console.error("No authentication token provided");

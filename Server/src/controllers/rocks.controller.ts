@@ -595,6 +595,8 @@ export const addRock = async (req: Request, res: Response) => {
       rockData.rock_code = `${prefix}-${String(count).padStart(4, "0")}`;
     }
 
+    console.log("rockData", rockData);
+
     const { data, error } = await supabase
       .from("rocks")
       .insert(rockData)

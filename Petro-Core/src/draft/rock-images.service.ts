@@ -2,6 +2,7 @@ import axios from "axios";
 import { uploadMultipleFiles, deleteMultipleFiles } from "./storage.service";
 import Cookies from "js-cookie";
 import { toast } from "sonner";
+import { getRealAuthToken } from "@/modules/admin/minerals/services/minerals.service";
 
 // Define the interface directly in this file
 interface IRockImage {
@@ -15,32 +16,16 @@ interface IRockImage {
 }
 
 const API_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:8001/api" ||
+  import.meta.env.VITE_API_URL ||
+  "http://localhost:8001/api" ||
   "http://localhost:8001/api";
-
-// Helper function to get the authentication token
-const getAuthToken = (): string | null => {
-  const token =
-    localStorage.getItem("access_token") ||
-    Cookies.get("access_token") ||
-    localStorage.getItem("token") ||
-    localStorage.getItem("auth_token");
-
-  if (!token) {
-    console.warn("⚠️ No auth token found in storage");
-  } else {
-    console.log(`🔑 Auth token found: ${token.substring(0, 10)}...`);
-  }
-
-  return token;
-};
 
 /**
  * Set the auth token for Supabase client
  */
 const setAuthTokenManually = async () => {
   try {
-    const token = getAuthToken();
+    const token = getRealAuthToken();
     if (!token) {
       console.error("❌ No auth token available to set Supabase session");
       return false;
@@ -168,7 +153,7 @@ export const uploadRockImages = async (
     await setAuthTokenManually();
 
     // Get token for API calls
-    const token = getAuthToken();
+    const token = getRealAuthToken();
     if (!token) {
       console.error("📸 Authentication token missing");
       toast.error("Authentication required. Please log in again.");
@@ -192,7 +177,7 @@ export const uploadRockImages = async (
         const { supabase } = await import("@/lib/supabase");
 
         // Get authentication token
-        const token = getAuthToken();
+        const token = getRealAuthToken();
         if (!token) {
           console.error("📸 No auth token available for direct upload");
           return [];
@@ -411,7 +396,7 @@ export const updateRockImage = async (
 ): Promise<IRockImage> => {
   try {
     // Get token
-    const token = getAuthToken();
+    const token = getRealAuthToken();
     if (!token) {
       throw new Error("Authentication required");
     }
@@ -441,7 +426,7 @@ export const deleteRockImage = async (
 ): Promise<boolean> => {
   try {
     // Get token
-    const token = getAuthToken();
+    const token = getRealAuthToken();
     if (!token) {
       throw new Error("Authentication required");
     }
@@ -484,7 +469,7 @@ export const deleteRockImages = async (
 ): Promise<boolean> => {
   try {
     // Get token
-    const token = getAuthToken();
+    const token = getRealAuthToken();
     if (!token) {
       throw new Error("Authentication required");
     }

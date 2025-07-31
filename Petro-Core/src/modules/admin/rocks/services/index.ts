@@ -2,44 +2,14 @@ import axios from "axios";
 import type { IRock } from "../rock.interface";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
 import { cleanRockData } from "./rock.service";
 
 import { API_URL } from "@/config/api.config";
+import { getRealAuthToken } from "../../minerals/services/minerals.service";
 console.log("API URL for rocks service:", API_URL);
 
-/**
- * Helper to get auth token
- */
-export const getAuthToken = () => {
-  // Try multiple storage locations for the token
-  const token =
-    localStorage.getItem("access_token") ||
-    localStorage.getItem("auth_token") ||
-    localStorage.getItem("token") ||
-    localStorage.getItem("accessToken") ||
-    Cookies.get("access_token");
-
-  console.log("Auth token exists:", !!token);
-  if (token) {
-    // Log first and last few characters for debugging
-    const firstChars = token.substring(0, 10);
-    const lastChars = token.substring(token.length - 5);
-    console.log(
-      `Token format check: ${firstChars}...${lastChars} (${token.length} chars)`
-    );
-  } else {
-    console.error("No authentication token found in any storage location");
-  }
-
-  return token;
-};
-
-/**
- * Get axios instance with auth headers
- */
 const getAuthAxios = () => {
-  const token = getAuthToken();
+  const token = getRealAuthToken();
 
   if (!token) {
     console.error("No authentication token found");
