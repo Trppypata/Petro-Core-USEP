@@ -1,10 +1,10 @@
-import { Mail, Github, Linkedin, ExternalLink } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { SupabaseImage } from '@/components/ui/supabase-image';
-import petroCoreLogo from '../../../../public/petro-static/asdfghjkl.jpg';
-import React from 'react';
+import { Mail, Github, Linkedin, ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { SupabaseImage } from "@/components/ui/supabase-image";
+import petroCoreLogo from "../../../../public/petro-static/asdfghjkl.jpg";
+import React from "react";
 
 function AboutUsPage() {
   return (
@@ -90,8 +90,6 @@ function AboutUsPage() {
             name="Xenia Gem G. Cubillas"
             title="Developer"
             description="Xenia is a BS Geology student at the University of Southeastern Philippines. She gained valuable field and industry experience during her internship at Apex Mining Company, Inc., focusing on mineral exploration. As a developer, she contributes to building PetroCore's technical foundation and digital interface."
-            email="xeniagem08@gmail.com"
-            github="https://github.com/xeniagc"
             avatarSrc="/images/team/xenia.jpg"
           />
 
@@ -100,8 +98,6 @@ function AboutUsPage() {
             name="Jasper G. Gaviola"
             title="Developer"
             description="Jasper is a BS Geology student with hands-on experience in geohazard assessment and field mapping, gained during his internship at DENR–MGB Region I. Passionate about geological processes and educational outreach, Jasper helps shape PetroCore's academic content and user experience."
-            email="jaspergav9@gmail.com"
-            github="https://github.com/jaspergaviola"
             avatarSrc="/images/team/jasper.jpg"
           />
 
@@ -110,7 +106,6 @@ function AboutUsPage() {
             name="John Andro E. Jarovilla"
             title="Developer"
             description="John Andro is pursuing a BS in Geology at the University of Southeastern Philippines. During his internship at DENR–MGB Region X, he worked on geohazard risk assessments. He plays a key role in PetroCore's back-end development and functionality."
-            github="https://github.com/johnjarovilla"
             avatarSrc="/images/team/john.jpg"
           />
 
@@ -119,8 +114,6 @@ function AboutUsPage() {
             name="Arianne Britney M. Josue"
             title="Developer"
             description="Arianne is a BS Geology student who interned at DENR–MGB Region XI, where she was involved in geological fieldwork and hazard mapping. She supports PetroCore's development and brings a detail-oriented approach to content design and organization."
-            email="ariannejosuee@gmail.com"
-            github="https://github.com/ariannejosue"
             avatarSrc="/images/team/arianne.jpg"
           />
         </div>
@@ -173,9 +166,9 @@ function TeamMember({
 }: TeamMemberProps) {
   // Get initials for avatar fallback
   const initials = name
-    .split(' ')
+    .split(" ")
     .map((n) => n[0])
-    .join('')
+    .join("")
     .toUpperCase()
     .substring(0, 2);
 

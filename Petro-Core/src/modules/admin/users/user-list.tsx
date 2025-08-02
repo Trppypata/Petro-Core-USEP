@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, ImageOff } from "lucide-react";
+import { Search, ImageOff, Edit2, Edit } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -30,7 +30,7 @@ import type { IStudent } from "./user.interface";
 
 import { Spinner } from "@/components/spinner";
 import { Badge } from "@/components/ui/badge";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useReadStudents from "./hooks/useReadStudents";
 import UserContentForm from "./user-content-form";
 import {
@@ -40,6 +40,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { getAccountDetails } from "../minerals/services/minerals.service";
+import UpdateUserContentForm from "./update-user-content-form";
 
 // Assume these functions make API calls to your backend
 
@@ -217,11 +220,10 @@ const ProfileImage = ({
 };
 
 const StudentsList = () => {
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const { data: userDetails, isLoading, error } = useReadStudents();
-
-  console.log("🔍 UsersList received data:", userDetails);
 
   // Update search term and reset pagination
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -424,9 +426,25 @@ const StudentsList = () => {
             {user.status}
           </Badge>
         </TableCell>
+        {currentUser.role === "admin" && (
+          <TableCell className="text-center">
+            <UpdateUserContentForm />
+          </TableCell>
+        )}
       </TableRow>
     ));
   };
+
+  useEffect(() => {
+    const fetchAccountDetails = async () => {
+      const data = await getAccountDetails();
+      if (data) {
+        setCurrentUser(data?.user?.user_metadata);
+      }
+    };
+
+    fetchAccountDetails();
+  }, []);
 
   return (
     <>
@@ -469,6 +487,9 @@ const StudentsList = () => {
                 <TableHead className="text-center">Address</TableHead>
                 <TableHead className="text-center">Position</TableHead>
                 <TableHead className="text-center">Status</TableHead>
+                {currentUser?.role === "admin" && (
+                  <TableHead className="text-center">Actions</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>{renderTableContent()}</TableBody>
