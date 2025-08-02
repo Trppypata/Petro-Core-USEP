@@ -22,7 +22,7 @@ export const getRealAuthToken = (): string | null => {
   return null;
 };
 
-export const getAccountDetails = async (): Promise<IUser> => {
+export const getAccountDetails = async () => {
   const supabaseKey = Object.keys(localStorage).find(
     (key) => key.startsWith("sb-") && key.endsWith("-auth-token")
   );
