@@ -1,5 +1,6 @@
 export interface IStudent {
-  user_id?: string;
+  id?: string; // Primary key from database
+  user_id?: string; // Legacy field
   first_name: string;
   last_name: string;
   middle_name?: string;

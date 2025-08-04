@@ -38,6 +38,12 @@ const UserContentForm = () => {
         throw new Error('Received undefined data in onSubmit!');
       }
 
+      // Validate password for creation (required for new users)
+      if (!data.password || data.password.trim().length < 6) {
+        alert('Password is required and must be at least 6 characters long.');
+        return;
+      }
+
       // Create the request body
       const requestBody = {
         ...data,

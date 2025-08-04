@@ -16,9 +16,7 @@ const DashboardPage = () => {
             <TabsTrigger value="overview">Overview</TabsTrigger>
           </Link>
             
-          <Link to={"detailed"}>
-            <TabsTrigger value="detailed">Details</TabsTrigger>
-          </Link>
+         
         </TabsList>
       </div>
 

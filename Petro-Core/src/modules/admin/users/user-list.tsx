@@ -382,7 +382,7 @@ const StudentsList = () => {
     }
 
     return paginatedUsers.map((user: IStudent) => (
-      <TableRow key={user.user_id}>
+      <TableRow key={user.id || user.user_id}>
         <TableCell className="sm:table-cell">
           <div className="flex justify-center items-center">
             <ProfileImage profileUrl={user.profile_url} />
@@ -428,7 +428,7 @@ const StudentsList = () => {
         </TableCell>
         {currentUser.role === "admin" && (
           <TableCell className="text-center">
-            <UpdateUserContentForm />
+            <UpdateUserContentForm userID={user.id || user.user_id} />
           </TableCell>
         )}
       </TableRow>

@@ -179,6 +179,7 @@ const getAllStudents = async () => {
       students?.[0]
         ? {
             id: students[0].id,
+            user_id: students[0].user_id,
             first_name: students[0].first_name,
             last_name: students[0].last_name,
             email: students[0].email,
@@ -211,4 +212,52 @@ const getAllStudents = async () => {
   }
 };
 
-export { addStudent, getAllStudents };
+const updateStudent = async (studentId: string, studentData: Partial<any>) => {
+  try {
+    console.log("📤 Updating student data:", { studentId, studentData });
+
+    // Update in Supabase
+    const { data, error } = await supabase
+      .from("students")
+      .update(studentData)
+      .eq("id", studentId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("❌ Supabase update error:", error);
+      throw new Error(`Failed to update student: ${error.message}`);
+    }
+
+    console.log("✅ Student updated successfully:", data);
+    return data;
+  } catch (error) {
+    console.error("❌ Update student error:", error);
+    throw error instanceof Error ? error : new Error("Failed to update student");
+  }
+};
+
+const getStudent = async (studentId: string) => {
+  try {
+    console.log("🔍 Fetching student data for ID:", studentId);
+
+    const { data, error } = await supabase
+      .from("students")
+      .select("*")
+      .eq("id", studentId)
+      .single();
+
+    if (error) {
+      console.error("❌ Supabase get student error:", error);
+      throw new Error(`Failed to fetch student: ${error.message}`);
+    }
+
+    console.log("✅ Student fetched successfully:", data);
+    return data;
+  } catch (error) {
+    console.error("❌ Get student error:", error);
+    throw error instanceof Error ? error : new Error("Failed to fetch student");
+  }
+};
+
+export { addStudent, getAllStudents, updateStudent, getStudent };

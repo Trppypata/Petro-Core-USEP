@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// Schema definition for validation (this is a value, not a type)
+// Unified schema with optional password (validation handled at form level)
 export const userSchema = z.object({
   first_name: z
     .string()
@@ -14,18 +14,19 @@ export const userSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
   password: z
     .string()
-    .min(6, { message: 'Password must be at least 6 characters.' }),
-  position: z.string().default('student'),
-  team: z.string().default('BSIT'),
-  salary: z.coerce.number().default(0),
-  allowance: z.coerce.number().default(0),
+    .optional()
+    .or(z.literal('')), // Allow empty for updates, validate at form level for creates
+  position: z.string().min(1, { message: 'Position is required' }),
+  team: z.string().min(1, { message: 'Team is required' }),
+  salary: z.coerce.number().min(0),
+  allowance: z.coerce.number().min(0),
   contact: z.string().min(11, { message: 'Invalid contact number' }).max(11),
   profile_url: z.string().optional(),
   address: z.string().optional(),
-  status: z.string().optional().default('active'),
+  status: z.string().min(1, { message: 'Status is required' }),
 });
 
-// Type definition (type only)
+// Type definition
 export type UserFormValues = z.infer<typeof userSchema>;
 
 // Default values (this is a value, not a type)
