@@ -318,10 +318,8 @@ export const getRocks = async (
     // Fetch all rocks first, then apply filters in-memory for better performance
     let query = supabase.from("rocks").select("*");
 
-    // Add a limit if there's no search term to avoid fetching too many records
-    if (!searchTerm) {
-      query = query.limit(100);
-    }
+    // Remove the limit to ensure we get all rocks for proper filtering
+    // The limit was causing issues with filtering - we need all rocks to apply filters correctly
 
     const { data: rocks, error } = await query;
 

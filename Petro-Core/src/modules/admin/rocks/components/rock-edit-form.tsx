@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { authService } from "@/services/auth.service";
 import { uploadFile } from "@/services/storage.service";
 import { useRockImages } from "../hooks/useRockImages";
+import { RockImagesManager } from "./rock-images-manager";
 
 interface RockEditFormProps {
   rock: IRock;
@@ -571,35 +572,13 @@ const RockEditForm = ({ rock, onClose, category }: RockEditFormProps) => {
             onImageFileChange={setImageFile}
           />
 
-          {/* Additional Images Upload Section */}
-          <div className="px-6 py-4">
-            <h3 className="font-medium mb-2">Additional Images</h3>
-            <p className="text-sm text-muted-foreground mb-2">
-              Upload more images for this rock
-            </p>
-
-            {/* File input for additional images */}
-            <input
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={(e) => {
-                const files = Array.from(e.target.files || []);
-                setAdditionalImages(files);
-              }}
-              className="block w-full text-sm text-slate-500
-                file:mr-4 file:py-2 file:px-4
-                file:rounded-md file:border-0
-                file:text-sm file:font-semibold
-                file:bg-primary file:text-primary-foreground
-                hover:file:bg-primary/90"
-            />
-
-            {additionalImages.length > 0 && (
-              <p className="text-sm mt-2">
-                {additionalImages.length}{" "}
-                {additionalImages.length === 1 ? "file" : "files"} selected
-              </p>
+          {/* Rock Images Manager */}
+          <div className="px-6 py-4 border-t border-overlay-border">
+            {rock.id && (
+              <RockImagesManager 
+                rockId={rock.id} 
+                rockName={rock.name}
+              />
             )}
           </div>
         </div>

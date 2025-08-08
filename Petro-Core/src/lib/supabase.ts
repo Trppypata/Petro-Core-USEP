@@ -38,9 +38,11 @@ const createSupabaseClient = () => {
       },
       auth: {
         signIn: async () => ({ error: new Error('Supabase not configured') }),
+        signInWithPassword: async () => ({ error: new Error('Supabase not configured') }),
         signOut: async () => ({ error: new Error('Supabase not configured') }),
         getSession: async () => ({ data: { session: null }, error: new Error('Supabase not configured') }),
-        setSession: async () => ({ data: { session: null }, error: new Error('Supabase not configured') })
+        setSession: async () => ({ data: { session: null }, error: new Error('Supabase not configured') }),
+        getUser: async () => ({ data: { user: null }, error: new Error('Supabase not configured') })
       }
     } as any;
   }

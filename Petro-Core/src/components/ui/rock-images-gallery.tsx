@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight, ImageIcon, RefreshCw } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ImageIcon, RefreshCw, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from './button';
 import { SupabaseImage } from './supabase-image';
@@ -11,6 +11,8 @@ interface RockImagesGalleryProps {
   height?: number;
   width?: number;
   onRetryAll?: () => void;
+  onDeleteImage?: (imageIndex: number) => void;
+  showDeleteButtons?: boolean;
 }
 
 export function RockImagesGallery({
@@ -19,7 +21,9 @@ export function RockImagesGallery({
   aspectRatio = 'square',
   height = 300,
   width,
-  onRetryAll
+  onRetryAll,
+  onDeleteImage,
+  showDeleteButtons = false
 }: RockImagesGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [showFullscreen, setShowFullscreen] = useState(false);
@@ -94,6 +98,13 @@ export function RockImagesGallery({
   
   const handleCloseFullscreen = () => {
     setShowFullscreen(false);
+  };
+  
+  const handleDeleteImage = (index: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onDeleteImage) {
+      onDeleteImage(index);
+    }
   };
   
   // Handle keyboard navigation in fullscreen mode
@@ -179,7 +190,7 @@ export function RockImagesGallery({
             <div 
               key={index} 
               className={cn(
-                "h-20 w-20 flex-shrink-0 rounded-md overflow-hidden cursor-pointer border-2 transition-all duration-200 flex items-center justify-center bg-white",
+                "relative h-20 w-20 flex-shrink-0 rounded-md overflow-hidden cursor-pointer border-2 transition-all duration-200 flex items-center justify-center bg-white group",
                 index === activeIndex ? "border-primary ring-1 ring-primary" : "border-muted hover:border-muted-foreground/50"
               )}
               onClick={() => handleThumbnailClick(index)}
@@ -192,6 +203,18 @@ export function RockImagesGallery({
                 width={80}
                 height={80}
               />
+              
+              {/* Delete button */}
+              {showDeleteButtons && onDeleteImage && (
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-red-500 hover:bg-red-600"
+                  onClick={(e) => handleDeleteImage(index, e)}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              )}
             </div>
           ))}
         </div>
@@ -254,7 +277,7 @@ export function RockImagesGallery({
                   <div 
                     key={index} 
                     className={cn(
-                      "h-20 w-20 flex-shrink-0 rounded-md overflow-hidden cursor-pointer border-2 transition-all duration-200 flex items-center justify-center bg-white",
+                      "relative h-20 w-20 flex-shrink-0 rounded-md overflow-hidden cursor-pointer border-2 transition-all duration-200 flex items-center justify-center bg-white group",
                       index === activeIndex ? "border-primary ring-1 ring-primary" : "border-transparent hover:border-muted-foreground/50"
                     )}
                     onClick={() => handleThumbnailClick(index)}
@@ -267,6 +290,18 @@ export function RockImagesGallery({
                       width={80}
                       height={80}
                     />
+                    
+                    {/* Delete button in fullscreen */}
+                    {showDeleteButtons && onDeleteImage && (
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-red-500 hover:bg-red-600"
+                        onClick={(e) => handleDeleteImage(index, e)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>

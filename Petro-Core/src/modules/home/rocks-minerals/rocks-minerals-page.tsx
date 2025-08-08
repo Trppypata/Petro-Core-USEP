@@ -134,49 +134,24 @@ const RockMinerals = () => {
   
   // Function to remove duplicates from items array
   const removeDuplicates = (data: RocksMineralsItem[]): RocksMineralsItem[] => {
-    const uniqueMap = new Map<string, RocksMineralsItem>();
-    const processedIdentifiers = new Set<string>();
+    const seen = new Set<string>();
+    const uniqueItems: RocksMineralsItem[] = [];
     
-    // First pass: group by ID
-    data.forEach(item => {
-      if (item.id && !uniqueMap.has(item.id)) {
-        uniqueMap.set(item.id, item);
+    for (const item of data) {
+      // Create a unique key based on title and category (case-insensitive)
+      // This will catch duplicates even if they have different IDs or rock codes
+      const key = `${item.title.toLowerCase().trim()}-${item.category.toLowerCase().trim()}`;
+      
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueItems.push(item);
+      } else {
+        console.log(`Duplicate found and removed: ${item.title} (${item.category}) - ID: ${item.id}`);
       }
-    });
+    }
     
-    // Second pass: check for duplicates by title and category
-    data.forEach(item => {
-      // Create a composite key that combines title and category
-      const titleCategoryKey = `${item.title.toLowerCase()}-${item.category.toLowerCase()}`;
-      
-      // Skip if we've already processed this exact item (by id or titleCategory)
-      if ((item.id && processedIdentifiers.has(item.id)) || 
-          processedIdentifiers.has(titleCategoryKey)) {
-        return;
-      }
-      
-      // If the item has no ID, or its ID wasn't handled in first pass
-      if (!item.id || !uniqueMap.has(item.id)) {
-        // Check if we have a similar item by title and category
-        const duplicateItem = Array.from(uniqueMap.values()).find(
-          existing => 
-            existing.title.toLowerCase() === item.title.toLowerCase() && 
-            existing.category.toLowerCase() === item.category.toLowerCase()
-        );
-        
-        if (!duplicateItem) {
-          // Generate a temporary unique ID if needed
-          const tempId = item.id || `temp-${Math.random().toString(36).substr(2, 9)}`;
-          uniqueMap.set(tempId, item);
-        }
-      }
-      
-      // Mark as processed
-      if (item.id) processedIdentifiers.add(item.id);
-      processedIdentifiers.add(titleCategoryKey);
-    });
-    
-    return Array.from(uniqueMap.values());
+    console.log(`Removed ${data.length - uniqueItems.length} duplicates`);
+    return uniqueItems;
   };
 
   const handleSearch = (term: string) => {
