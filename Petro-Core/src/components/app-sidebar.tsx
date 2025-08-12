@@ -7,6 +7,7 @@ import {
   LayoutDashboardIcon,
   PersonStanding,
   Lock,
+  Home,
 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -84,6 +85,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         title: "Dashboard",
         url: "/dashboard-app",
         icon: LayoutDashboardIcon,
+      },
+      {
+        title: "Go to Home",
+        url: "/home",
+        icon: Home,
       },
       {
         title: "Users",

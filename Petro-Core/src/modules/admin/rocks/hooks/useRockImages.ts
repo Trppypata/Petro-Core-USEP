@@ -47,6 +47,15 @@ export const useRockImages = (rockId?: string) => {
         throw new Error('Rock ID is required');
       }
       
+      // Check authentication status
+      const { data: { session }, error: authError } = await supabase.auth.getSession();
+      if (authError || !session) {
+        console.error('❌ Authentication error:', authError);
+        throw new Error('User not authenticated');
+      }
+      
+      console.log('✅ User authenticated:', session.user.email);
+      
       try {
         // 1. Upload files to storage
         console.log('📤 Uploading files to Supabase storage...');
@@ -60,14 +69,30 @@ export const useRockImages = (rockId?: string) => {
         
         // 2. Create image records in the database using direct Supabase client
         console.log('📝 Creating database records...');
-        const imageData = imageUrls.map((url, index) => ({
-          rock_id: rockId,
-          image_url: url,
-          caption: captions?.[index] || `Rock image ${index + 1}`,
-          display_order: index
-        }));
         
-        // Insert directly using Supabase client
+        // Filter out duplicates by checking existing images first
+        const { data: existingImages } = await supabase
+          .from('rock_images')
+          .select('image_url')
+          .eq('rock_id', rockId);
+        
+        const existingUrls = new Set(existingImages?.map(img => img.image_url) || []);
+        
+        const imageData = imageUrls
+          .filter(url => !existingUrls.has(url)) // Skip duplicates
+          .map((url, index) => ({
+            rock_id: rockId,
+            image_url: url,
+            caption: captions?.[index] || `Rock image ${index + 1}`,
+            display_order: (existingImages?.length || 0) + index
+          }));
+        
+        if (imageData.length === 0) {
+          console.log('📝 All images already exist, skipping insert');
+          return [];
+        }
+        
+        // Insert only new images
         const { data, error } = await supabase
           .from('rock_images')
           .insert(imageData)

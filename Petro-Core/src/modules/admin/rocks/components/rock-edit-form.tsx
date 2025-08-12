@@ -572,15 +572,7 @@ const RockEditForm = ({ rock, onClose, category }: RockEditFormProps) => {
             onImageFileChange={setImageFile}
           />
 
-          {/* Rock Images Manager */}
-          <div className="px-6 py-4 border-t border-overlay-border">
-            {rock.id && (
-              <RockImagesManager 
-                rockId={rock.id} 
-                rockName={rock.name}
-              />
-            )}
-          </div>
+          {/* Rock Images Manager moved inside RockForm Additional Images tab to avoid duplication */}
         </div>
 
         <SheetFooter className="px-6 py-4 border-t border-overlay-border flex-shrink-0">

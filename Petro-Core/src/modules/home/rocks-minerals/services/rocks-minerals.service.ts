@@ -147,13 +147,8 @@ const transformRockData = async (rock: IRock): Promise<RocksMineralsItem> => {
  * @returns
  */
 const transformMineralData = (mineral: IMineral): RocksMineralsItem => {
-  // Set default image for minerals
-  let defaultImageUrl = "/petro-static/default-mineral.jpg";
-
-  // Use the mineral's image if valid
-  const imageUrl = isValidImageUrl(mineral.image_url)
-    ? mineral.image_url
-    : defaultImageUrl;
+  // Only use the mineral's image if it's valid, otherwise don't show any image
+  const imageUrl = isValidImageUrl(mineral.image_url) ? mineral.image_url : undefined;
 
   // Create a description from mineral properties
   let description = "";

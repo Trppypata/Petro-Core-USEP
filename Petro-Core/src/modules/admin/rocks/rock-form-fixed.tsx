@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import type { RefObject, Dispatch, SetStateAction } from "react";
+import type { RefObject } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -30,12 +30,11 @@ import { Spinner } from "@/components/spinner";
 import { FileUpload, MultiFileUpload } from "@/components/ui/file-upload";
 import { uploadFile } from "@/services/storage.service";
 import { toast } from "sonner";
-import { SupabaseImage } from "@/components/ui/supabase-image";
 import { RockImagesGallery } from "@/components/ui/rock-images-gallery";
+import { RockImagesManager } from "@/components/ui/rock-images-manager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRockImages } from "./hooks/useRockImages";
 import { Separator } from "@/components/ui/separator";
-import { RockImagesManager } from "./components/rock-images-manager";
 
 interface RockFormProps {
   category: RockCategory;
@@ -44,7 +43,7 @@ interface RockFormProps {
   inSheet?: boolean;
   hideButtons?: boolean;
   defaultValues?: Partial<IRock>;
-  onSubmit?: (data: Partial<IRock>) => Promise<void>;
+  onSubmit?: (data: Partial<IRock>) => Promise<any>;
   isLoading?: boolean;
   mode?: "add" | "edit";
   formRef?: RefObject<HTMLFormElement>;
@@ -95,13 +94,11 @@ const formSchema = z.object({
   mining_company: z.string().optional(),
   // Additional fields
   protolith: z.string().optional(),
+  image_url: z.string().optional(),
 });
 
 // Type definition for form values
-export type FormValues = z.infer<typeof formSchema> & {
-  // Add any additional fields that might be in the IRock interface but not in the schema
-  image_url?: string;
-};
+export type FormValues = z.infer<typeof formSchema>;
 
 const RockForm = ({
   category,
@@ -119,11 +116,9 @@ const RockForm = ({
   onImageFileChange,
 }: RockFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState<string | undefined>(
     defaultValues?.image_url
   );
-  const [multipleImageFiles, setMultipleImageFiles] = useState<File[]>([]);
   const [isImageUploading, setIsImageUploading] = useState(false);
   const [imageUploadError, setImageUploadError] = useState(false);
   const { addRock, isAdding } = useAddRock();
@@ -197,7 +192,7 @@ const RockForm = ({
             : ("active" as const),
       };
 
-      form.reset(formattedValues as unknown as FormValues);
+      form.reset(formattedValues as FormValues);
     }
   }, [defaultValues, form]);
 
@@ -240,7 +235,6 @@ const RockForm = ({
             onImageFileChange(file);
           }
 
-          // Note: Main image URL is saved in the rocks table, no need to duplicate in rock_images table
           console.log("✅ Main image URL saved to rocks table:", url);
         })
         .catch((error) => {
@@ -269,191 +263,7 @@ const RockForm = ({
     }
   };
 
-  const handleMultipleFilesChange = (files: File[]) => {
-    setMultipleImageFiles(files);
-    console.log(`🖼️ ${files.length} files selected for upload`);
-  };
 
-  // Helper function to upload a single additional image
-  const uploadAdditionalImage = async (
-    file: File,
-    rockId: string,
-    index: number
-  ): Promise<string | null> => {
-    try {
-      console.log(`📸 Uploading additional image ${index + 1}`);
-
-      // Try to use the storage service first
-      try {
-        const imageUrl = await uploadFile(file, "rocks");
-        console.log(
-          `✅ Successfully uploaded image ${index + 1} via storage service`
-        );
-        return imageUrl;
-      } catch (storageError) {
-        console.error(
-          `Storage service upload failed for image ${index + 1}:`,
-          storageError
-        );
-
-        // Direct upload to Supabase as fallback
-        const { supabase } = await import("@/lib/supabase");
-
-        // Ensure authentication with multiple methods
-        let isAuthenticated = false;
-
-        // 1. Check for existing session
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (sessionData?.session) {
-          console.log("✅ Using existing Supabase session");
-          isAuthenticated = true;
-        } else {
-          console.log(
-            "⚠️ No active session found, trying authentication methods..."
-          );
-
-          // 2. Try to set session with token from localStorage
-          const token = localStorage.getItem("access_token");
-          if (token) {
-            try {
-              const { data, error } = await supabase.auth.setSession({
-                access_token: token,
-                refresh_token: "",
-              });
-
-              if (data.session) {
-                console.log("✅ Session set successfully with access_token");
-                isAuthenticated = true;
-              } else if (error) {
-                console.error("❌ Error setting session:", error.message);
-              }
-            } catch (authError) {
-              console.error("❌ Failed to set auth token:", authError);
-            }
-          } else {
-            console.warn("⚠️ No access_token found in localStorage");
-          }
-        }
-
-        if (!isAuthenticated) {
-          console.warn(
-            "⚠️ Failed to authenticate with Supabase, attempting anonymous upload"
-          );
-        }
-
-        // Upload to Supabase storage with explicit storage bucket
-        const fileExt = file.name.split(".").pop();
-        const fileName = `rock-${rockId}-${Date.now()}-${index}.${fileExt}`;
-        const filePath = `rocks/${fileName}`;
-
-        console.log(
-          `📤 Uploading to bucket: rocks-minerals, path: ${filePath}`
-        );
-
-        // Add custom headers if we have a token
-        const token = localStorage.getItem("access_token");
-        const options = {
-          cacheControl: "3600",
-          upsert: true,
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        };
-
-        // Use let instead of const for data since we might reassign it
-        let uploadData;
-        let uploadError;
-
-        // First upload attempt
-        const uploadResult = await supabase.storage
-          .from("rocks-minerals") // Explicitly use the correct bucket
-          .upload(filePath, file, options);
-
-        if (uploadResult.error) {
-          console.error(
-            `❌ Supabase upload error for image ${index + 1}:`,
-            uploadResult.error
-          );
-          // Try one more time with a simplified path if it might be a path issue
-          const simpleFileName = `rock-${Date.now()}-${index}.${fileExt}`;
-          console.log(`📤 Retrying with simplified path: ${simpleFileName}`);
-
-          const retryResult = await supabase.storage
-            .from("rocks-minerals")
-            .upload(simpleFileName, file, options);
-
-          if (retryResult.error) {
-            console.error(`❌ Retry upload also failed:`, retryResult.error);
-            return null;
-          }
-
-          console.log(`✅ Retry upload succeeded:`, retryResult.data?.path);
-          uploadData = retryResult.data;
-        } else {
-          console.log(`✅ Upload succeeded:`, uploadResult.data?.path);
-          uploadData = uploadResult.data;
-        }
-
-        // Get public URL
-        const { data: urlData } = supabase.storage
-          .from("rocks-minerals")
-          .getPublicUrl(uploadData.path);
-
-        console.log(`🔗 Public URL generated:`, urlData.publicUrl);
-        return urlData.publicUrl;
-      }
-    } catch (error) {
-      console.error(`Failed to upload image ${index + 1}:`, error);
-      return null;
-    }
-  };
-
-  // Helper function to save image URL to database
-  const saveImageToDatabase = async (
-    rockId: string,
-    imageUrl: string,
-    caption: string,
-    order: number
-  ): Promise<boolean> => {
-    try {
-      console.log(`💾 Saving image to database for rock ID: ${rockId}`);
-      console.log(`💾 Image URL: ${imageUrl}`);
-
-      // Check if image already exists to prevent duplicates
-      const { data: existingImages } = await supabase
-        .from("rock_images")
-        .select("id")
-        .eq("rock_id", rockId)
-        .eq("image_url", imageUrl);
-
-      if (existingImages && existingImages.length > 0) {
-        console.log("🔄 Image already exists in database, skipping insert");
-          return true;
-      }
-
-      // Single insert attempt - use Supabase directly (no fallbacks to prevent duplicates)
-        console.log("💾 Inserting record into rock_images table...");
-      await setAuthTokenManually(); // Ensure auth
-
-        const { error } = await supabase.from("rock_images").insert([
-          {
-            rock_id: rockId,
-            image_url: imageUrl,
-            caption,
-            display_order: order,
-          },
-        ]);
-
-        if (error) {
-          console.error("❌ Error saving to rock_images table:", error);
-        return false;
-        }
-
-      console.log("✅ Image saved to database successfully");
-        return true;
-    } catch (error) {
-      console.error("❌ Failed to save image to database:", error);
-      return false;
-    }
-  };
 
   const onSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
@@ -490,7 +300,7 @@ const RockForm = ({
           typeof submissionResult === "object" &&
           "id" in submissionResult
         ) {
-          rockId = submissionResult.id || rockId;
+          rockId = (submissionResult as any).id || rockId;
         }
       } else if (mode === "edit" && defaultValues?.id) {
         console.log("Using internal updateRock handler (edit mode)");
@@ -502,77 +312,11 @@ const RockForm = ({
         rockId = result?.id;
       }
 
-      // Process upload of images if any (FIXED: Single consolidated upload)
-      if (rockId) {
-        console.log(`Rock saved with ID ${rockId}. Processing images...`);
-
-        const allImagesToUpload = [];
-        
-        // Add main image if present
-        const mainImageUrl = rockData.image_url;
-        if (mainImageUrl) {
-          console.log(`📸 Queuing main image for upload: ${mainImageUrl}`);
-          allImagesToUpload.push({
-            file: null, // Already uploaded
-            url: mainImageUrl,
-            caption: "Main rock image",
-            order: 0
-          });
-        }
-
-        // Add additional images
-        if (multipleImageFiles.length > 0) {
-          console.log(`📸 Queuing ${multipleImageFiles.length} additional images`);
-          multipleImageFiles.forEach((file, index) => {
-            allImagesToUpload.push({
-              file: file,
-              url: null, // To be uploaded
-              caption: `Additional image ${index + 1}`,
-              order: mainImageUrl ? index + 1 : index
-            });
-          });
-        }
-
-        // Upload all images in one consolidated operation
-        if (allImagesToUpload.length > 0) {
-          try {
-            toast.loading(`Processing ${allImagesToUpload.length} images...`);
-            
-            // Separate already uploaded images (main image) from files to upload
-            const filesToUpload = allImagesToUpload
-              .filter(img => img.file !== null)
-              .map(img => img.file!);
-            
-            const additionalCaptions = allImagesToUpload
-              .filter(img => img.file !== null)
-              .map(img => img.caption);
-            
-            // Upload additional files if any
-            if (filesToUpload.length > 0) {
-              await uploadImages(filesToUpload, additionalCaptions);
-            }
-            
-            // Note: Main image is already saved in the rocks table as image_url, no need to duplicate in rock_images
-            
-            toast.success(`Successfully processed ${allImagesToUpload.length} images`);
-
-              // Refresh images if in edit mode
-              if (isEditMode) {
-                refetchImages();
-            }
-          } catch (error) {
-            console.error("Error processing images:", error);
-            toast.error("Failed to process some images");
-          }
-        }
-      } else {
-        console.error("❌ Failed to get rock ID after saving. Cannot upload images.");
-      }
+      // Note: Additional images are now handled by the RockImagesManager component
+      // which uploads them directly when the user clicks the upload button
 
       form.reset();
-      setImageFile(null);
       setImageUrl(undefined);
-      setMultipleImageFiles([]);
 
       // Close the form after successful submission if onClose is provided
       if (onClose) onClose();
@@ -698,20 +442,17 @@ const RockForm = ({
 
               <TabsContent value="multiple">
                 {isEditMode ? (
-                  <div className="space-y-4">
-                    {defaultValues?.id ? (
-                      <RockImagesManager
-                        rockId={defaultValues.id}
-                        rockName={form.watch("name")}
-                      />
-                    ) : (
-                      <div className="py-8 text-center">
-                        <p className="text-muted-foreground">
-                          Save the rock first to manage additional images.
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                  <RockImagesManager
+                    rockId={defaultValues?.id || ""}
+                    existingImages={existingImages}
+                    onImagesChange={(newImages) => {
+                      // This will be handled by the hook's refetch
+                      refetchImages();
+                    }}
+                    onDeleteImage={deleteImage}
+                    onUploadImages={uploadImages}
+                    maxImages={10}
+                  />
                 ) : (
                   <div className="py-8 text-center">
                     <p className="text-muted-foreground">
@@ -722,10 +463,6 @@ const RockForm = ({
               </TabsContent>
             </Tabs>
           </div>
-
-          {/* Rest of the form fields - continue with existing fields */}
-
-          {/* Rest of your form fields go here */}
 
           {/* Type */}
           <FormField

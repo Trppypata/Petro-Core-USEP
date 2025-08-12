@@ -1,6 +1,6 @@
-import { ReactNode } from "react";
-// import ModeToggle from "./mode-toggle";
-// import UserNav from "./user-nav";
+import type { ReactNode } from "react";
+import { Home } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuShortcut, DropdownMenuTrigger } from "./ui/dropdown-menu";
@@ -15,6 +15,32 @@ const UserHeader = ({ headerName }: { headerName?: ReactNode | string }) => {
 
       <p className="font-bold text-sm md:text-1xl">{headerName}</p>
       <div className="ml-auto flex items-center space-x-2 ">
+        {/* Go to Home Button */}
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="hidden md:flex items-center gap-2 hover:bg-primary hover:text-primary-foreground transition-colors"
+        >
+          <Link to="/home">
+            <Home className="h-4 w-4" />
+            <span>Go to Home</span>
+          </Link>
+        </Button>
+        
+        {/* Mobile version - just icon */}
+        <Button
+          asChild
+          variant="outline"
+          size="icon"
+          className="md:hidden"
+        >
+          <Link to="/home">
+            <Home className="h-4 w-4" />
+            <span className="sr-only">Go to Home</span>
+          </Link>
+        </Button>
+        
         {/* <div className="relative ml-auto flex-1 md:grow-0">
           <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input

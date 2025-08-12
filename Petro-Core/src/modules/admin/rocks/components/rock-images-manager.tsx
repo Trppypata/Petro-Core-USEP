@@ -147,6 +147,7 @@ export function RockImagesManager({ rockId, rockName, maxImages = 10 }: RockImag
           <Button 
             variant="outline" 
             size="sm" 
+            type="button"
             onClick={handleDeleteAll}
           >
             Delete All Images
@@ -191,6 +192,8 @@ export function RockImagesManager({ rockId, rockName, maxImages = 10 }: RockImag
           <>
             <MultiFileUpload 
               onFilesChange={handleFilesChange}
+              accept="image/*"
+              multiple={true}
               maxSizeMB={50}
             />
             
@@ -199,6 +202,7 @@ export function RockImagesManager({ rockId, rockName, maxImages = 10 }: RockImag
                 {remainingSlots} slot{remainingSlots === 1 ? '' : 's'} remaining
               </p>
               <Button 
+                type="button"
                 onClick={handleUpload} 
                 disabled={!files.length || isUploading}
               >
@@ -220,10 +224,10 @@ export function RockImagesManager({ rockId, rockName, maxImages = 10 }: RockImag
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={confirmDelete}>
+            <Button type="button" variant="destructive" onClick={confirmDelete}>
               Delete
             </Button>
           </DialogFooter>
