@@ -159,20 +159,31 @@ async function importRocksAPI(excelFilePath = null) {
             // Extract rock name with fallbacks
             let rockName = row['Rock Name'] || row['Name'] || row['Sample Name'] || row['Rock'] || '';
             
-            // Special handling for Ore Samples
-            if (category === 'Ore Samples' && !rockName && row['Type of Commodity']) {
-              rockName = `${row['Type of Commodity']} Ore Sample`;
+            // Special handling for Ore Samples - create proper names based on commodity type
+            if (category === 'Ore Samples') {
+              const commodityType = row['Type of Commodity'] || row['Commodity Type'] || row['Metal'] || row['Mineral'] || '';
+              const rockCode = row['Rock Code'] || '';
+              
+              if (commodityType && commodityType.trim() !== '') {
+                // Create a proper name using commodity type and rock code
+                if (rockCode && rockCode.trim() !== '') {
+                  rockName = `${commodityType.trim()} (${rockCode.trim()})`;
+                } else {
+                  rockName = `${commodityType.trim()} Ore Sample`;
+                }
+              } else if (rockCode && rockCode.trim() !== '') {
+                // If no commodity type, use just the rock code
+                rockName = `Ore Sample ${rockCode.trim()}`;
+              } else {
+                // Fallback to generic name
+                rockName = `Ore Sample ${i + batch.indexOf(row) + 1}`;
+              }
             }
             
             // Skip if no name found (unless it's an ore sample)
             if (!rockName && category !== 'Ore Samples') {
               console.log(`Skipping row - no rock name found`);
               continue;
-            }
-            
-            // For Ore Samples without a name, generate one
-            if (!rockName && category === 'Ore Samples') {
-              rockName = `Ore Sample ${i + batch.indexOf(row) + 1}`;
             }
             
             // Format coordinates
@@ -214,13 +225,25 @@ async function importRocksAPI(excelFilePath = null) {
               image_url: row['Image URL'] || '',
             };
             
-            // Ensure rock code is present
+            // Ensure rock code is present and properly formatted
             if (!rock.rock_code || rock.rock_code.trim() === '') {
               // Generate based on category
               const prefix = category === 'Igneous' ? 'I-' : 
                              category === 'Sedimentary' ? 'S-' :
                              category === 'Metamorphic' ? 'M-' : 'O-';
-              rock.rock_code = `${prefix}${String(i + batch.indexOf(row) + 1).padStart(4, '0')}`;
+              rock.rock_code = `${prefix}${String(i + batch.indexOf(row) + 1).padStart(3, '0')}`;
+            } else {
+              // Clean up existing rock code format for ore samples
+              if (category === 'Ore Samples') {
+                let cleanCode = rock.rock_code.trim();
+                // Remove extra spaces and ensure proper format
+                cleanCode = cleanCode.replace(/\s+/g, '');
+                // Ensure it starts with O- and has proper numbering
+                if (!cleanCode.startsWith('O-')) {
+                  cleanCode = `O-${cleanCode.replace(/^O/, '')}`;
+                }
+                rock.rock_code = cleanCode;
+              }
             }
             
             // Add category-specific fields
