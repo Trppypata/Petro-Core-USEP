@@ -36,7 +36,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const loadUser = async () => {
       try {
         setLoading(true);
-        // Use Supabase to get current session/user
+        
+        // First try to get user from localStorage (for custom login sessions)
+        const customUser = localStorage.getItem('custom_user');
+        if (customUser) {
+          try {
+            const userData = JSON.parse(customUser);
+            setUser(userData);
+            console.log("✅ Loaded custom user from localStorage:", userData);
+            return;
+          } catch (error) {
+            console.error("Error parsing custom user:", error);
+            localStorage.removeItem('custom_user');
+          }
+        }
+
+        // Fallback to Supabase session
         const { data, error } = await supabase.auth.getSession();
         if (error) {
           throw error;
@@ -54,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error('Error loading user:', error);
         localStorage.removeItem('access_token');
+        localStorage.removeItem('custom_user');
       } finally {
         setLoading(false);
       }
@@ -73,6 +89,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           name: response.user.user_metadata?.full_name || response.user.email,
           role: response.user.user_metadata?.role || 'student',
         };
+        
+        // Store user data in localStorage for custom sessions
+        if (!response.session) {
+          localStorage.setItem('custom_user', JSON.stringify(userData));
+          console.log("✅ Stored custom user in localStorage");
+        }
+        
         setUser(userData);
         toast.success(`Welcome ${userData.name || userData.email}!`);
         return true;
@@ -93,8 +116,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Use Supabase to sign out
       const { error } = await supabase.auth.signOut();
       if (error) {
-        throw error;
+        console.warn("Supabase logout error:", error);
       }
+      
+      // Clear custom user data
+      localStorage.removeItem('custom_user');
+      
       setUser(null);
       toast.success('Logged out successfully');
     } catch (error) {

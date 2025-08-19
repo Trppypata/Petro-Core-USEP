@@ -69,6 +69,7 @@ const RocksMineralsGrid = ({ items, isLoading = false, onCardClick }: RocksMiner
                   title={item.title}
                   description={item.description}
                   imageUrl={item.imageUrl}
+                  additionalImages={item.additionalImages}
                   category={item.category}
                   type={item.type || 'rock'}
                   texture={item.texture}

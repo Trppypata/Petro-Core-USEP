@@ -17,9 +17,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useState, useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 import type { UserFormValues } from './user.types';
 import type { UseFormReturn } from 'react-hook-form';
+import { Button } from '@/components/ui/button';
 
 const DEFAULT_AVATAR =
   'https://grammedia-vids.s3.ap-southeast-2.amazonaws.com/boy.png';
@@ -32,6 +33,7 @@ export const UserForm = ({ form }: UserFormProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Create preview URL when file is selected
   useEffect(() => {
@@ -96,114 +98,88 @@ export const UserForm = ({ form }: UserFormProps) => {
       console.log('🔗 File URL received:', data.fileUrl);
 
       if (data.fileUrl.includes('fakepath')) {
-        console.error(
-          '❌ Invalid URL received - contains fakepath:',
-          data.fileUrl
+        console.warn('⚠️ Browser security prevents loading local file paths');
+        throw new Error(
+          'Browser security prevents loading local file paths. Please upload the image to a server.'
         );
-        throw new Error('Invalid file URL received from server');
       }
 
-      // Return the URL directly from the server - ensuring it's a full URL
-      return data.fileUrl;
+      // Set the profile URL in the form
+      form.setValue('profile_url', data.fileUrl);
+      console.log('✅ Profile URL set in form:', data.fileUrl);
+
+      // Update preview
+      setPreviewUrl(data.fileUrl);
     } catch (error) {
-      console.error('❌ Error uploading image:', error);
-      return null;
+      console.error('❌ Image upload error:', error);
+      throw error;
     } finally {
       setIsUploading(false);
     }
   };
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      handleImageUpload(file);
+    }
+  };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
   return (
-    <div className="p-5">
+    <div className="space-y-6">
       <Form {...form}>
-        <form className="space-y-8">
-          {/* Profile Image */}
-          <FormField
-            control={form.control}
-            name="profile_url"
-            render={({ field: { value, ...field } }) => (
-              <FormItem>
-                <FormLabel>Profile Image</FormLabel>
-                <FormControl>
-                  <div className="flex flex-col gap-4">
-                    <div className="flex items-center gap-4">
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        className="file:bg-primary file:text-primary-foreground file:border-0 file:mr-4 file:px-4 file:py-2 hover:file:bg-primary/90 file:cursor-pointer"
-                        onInput={(e) => {
-                          const file = (e.target as HTMLInputElement)
-                            .files?.[0];
-                          if (file) {
-                            console.log('Selected file:', file.name);
-                            setSelectedFile(file);
-
-                            // Create a preview URL for immediate display
-                            const localPreviewUrl = URL.createObjectURL(file);
-                            setPreviewUrl(localPreviewUrl);
-
-                            // Upload the file
-                            (async () => {
-                              try {
-                                const fileUrl = await handleImageUpload(file);
-                                if (fileUrl) {
-                                  console.log(
-                                    '✅ Setting form value with URL:',
-                                    fileUrl
-                                  );
-                                  // Update the form with the URL from the server
-                                  form.setValue('profile_url', fileUrl, {
-                                    shouldValidate: true,
-                                    shouldDirty: true,
-                                    shouldTouch: true,
-                                  });
-                                }
-                              } catch (error) {
-                                console.error(
-                                  '❌ Error handling image upload:',
-                                  error
-                                );
-                              }
-                            })();
-                          }
-                        }}
-                        disabled={isUploading}
-                        {...{ ...field, value: undefined }}
+        <form className="space-y-4">
+          {/* Profile Image Upload */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Profile Image</label>
+            <div className="flex items-center space-x-4">
+              <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
+                {previewUrl ? (
+                  <img
+                    src={previewUrl}
+                    alt="Profile preview"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400">
+                    <svg
+                      className="w-8 h-8"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                       />
-                      {isUploading && (
-                        <div className="flex items-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          <span className="text-sm text-muted-foreground">
-                            Uploading...
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Image Preview */}
-                    <div className="mt-2">
-                      <div className="relative w-32 h-32 rounded-lg overflow-hidden border border-border">
-                        <img
-                          src={previewUrl ?? value ?? DEFAULT_AVATAR}
-                          alt="Profile preview"
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            console.error(
-                              '❌ Failed to load image:',
-                              previewUrl ?? value
-                            );
-                            const img = e.target as HTMLImageElement;
-                            img.src = DEFAULT_AVATAR;
-                          }}
-                        />
-                      </div>
-                    </div>
+                    </svg>
                   </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                )}
+              </div>
+              <div className="flex-1">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  disabled={isUploading}
+                />
+                {isUploading && (
+                  <div className="flex items-center space-x-2 mt-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-sm text-gray-500">Uploading...</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
 
           {/* First Name */}
           <FormField
@@ -215,7 +191,7 @@ export const UserForm = ({ form }: UserFormProps) => {
                   First Name <span className="text-red-600">*</span>
                 </FormLabel>
                 <FormControl>
-                  <Input placeholder="John" {...field} />
+                  <Input placeholder="Enter first name" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -230,7 +206,7 @@ export const UserForm = ({ form }: UserFormProps) => {
               <FormItem>
                 <FormLabel>Middle Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="A" {...field} />
+                  <Input placeholder="Enter middle name" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -247,7 +223,7 @@ export const UserForm = ({ form }: UserFormProps) => {
                   Last Name <span className="text-red-600">*</span>
                 </FormLabel>
                 <FormControl>
-                  <Input placeholder="Doe" {...field} />
+                  <Input placeholder="Enter last name" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -264,7 +240,7 @@ export const UserForm = ({ form }: UserFormProps) => {
                   Email <span className="text-red-600">*</span>
                 </FormLabel>
                 <FormControl>
-                  <Input placeholder="example@gmail.com" {...field} />
+                  <Input placeholder="Enter email address" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -281,24 +257,26 @@ export const UserForm = ({ form }: UserFormProps) => {
                   Password <span className="text-red-600">*</span>
                 </FormLabel>
                 <FormControl>
-                  <Input type="password" placeholder="••••••" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Contact */}
-          <FormField
-            control={form.control}
-            name="contact"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Contact <span className="text-red-600">*</span>
-                </FormLabel>
-                <FormControl>
-                  <Input placeholder="09** *** ****" {...field} />
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter password"
+                      {...field}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={togglePasswordVisibility}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-gray-500" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-gray-500" />
+                      )}
+                    </Button>
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>

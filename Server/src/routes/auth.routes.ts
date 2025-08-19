@@ -5,7 +5,9 @@ import {
   getCurrentUser, 
   logout, 
   resetPassword, 
-  updatePassword 
+  updatePassword,
+  updateUserPassword,
+  updateUserRole
 } from '../controllers/auth.controller';
 
 const router = express.Router();
@@ -17,5 +19,7 @@ router.post('/current-user', getCurrentUser);
 router.post('/logout', logout);
 router.post('/reset-password', resetPassword);
 router.post('/update-password', updatePassword);
+router.post('/update-user-password', updateUserPassword);
+router.post('/update-user-role', updateUserRole);
 
 export default router; 

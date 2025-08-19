@@ -10,7 +10,6 @@ CREATE TABLE IF NOT EXISTS public.students (
   team TEXT NOT NULL, -- department/course
   salary NUMERIC(10, 2) NOT NULL, -- tuition
   allowance NUMERIC(10, 2) NOT NULL,
-  contact TEXT NOT NULL,
   profile_url TEXT,
   address TEXT,
   status TEXT DEFAULT 'active',

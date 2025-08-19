@@ -268,9 +268,9 @@ const RocksList = ({
   const renderTableContent = () => {
     // Calculate colspan based on category
     const getColspan = () => {
-      if (category === "Igneous") return 14; // 4 base + 10 igneous specific
+      if (category === "Igneous") return 16; // 4 base + 12 igneous specific (added Texture and Hardness)
       if (category === "Sedimentary") return 15; // 4 base + 11 sedimentary specific
-      if (category === "Metamorphic") return 13; // 4 base + 7 metamorphic specific + 2 actions/status
+      if (category === "Metamorphic") return 18; // 4 base + 12 metamorphic specific (added Foliation, Foliation Type, Grain Size, Color, Associated Minerals) + 2 actions/status
       if (category === "Ore Samples") return 13; // 4 base + 7 ore samples specific + 2 actions/status
       return 11; // Default: 4 base + 5 general + 2 actions/status
     };
@@ -456,6 +456,16 @@ const RocksList = ({
               {/* Color */}
               <TableCell className="break-words">{rock.color || "-"}</TableCell>
 
+              {/* Texture */}
+              <TableCell className="break-words">
+                {rock.texture || "-"}
+              </TableCell>
+
+              {/* Hardness */}
+              <TableCell className="break-words">
+                {rock.hardness || "-"}
+              </TableCell>
+
               {/* Luster */}
               <TableCell className="break-words">
                 {rock.luster || "-"}
@@ -537,6 +547,31 @@ const RocksList = ({
             </>
           ) : category === "Metamorphic" ? (
             <>
+              {/* Foliation */}
+              <TableCell className="break-words">
+                {rock.foliation || "-"}
+              </TableCell>
+
+              {/* Foliation Type */}
+              <TableCell className="break-words">
+                {rock.foliation_type || "-"}
+              </TableCell>
+
+              {/* Grain Size */}
+              <TableCell className="break-words">
+                {rock.grain_size || "-"}
+              </TableCell>
+
+              {/* Color */}
+              <TableCell className="break-words">
+                {rock.color || "-"}
+              </TableCell>
+
+              {/* Associated Minerals */}
+              <TableCell className="break-words">
+                {rock.associated_minerals || rock.mineral_composition || "-"}
+              </TableCell>
+
               {/* Metamorphism */}
               <TableCell className="break-words">
                 {rock.metamorphism_type || "-"}
@@ -547,7 +582,7 @@ const RocksList = ({
                 {rock.metamorphic_grade || "-"}
               </TableCell>
 
-              {/* Reaction to HCL */}
+              {/* Reaction to HCl */}
               <TableCell className="break-words">
                 {rock.reaction_to_hcl || "-"}
               </TableCell>
@@ -777,6 +812,8 @@ const RocksList = ({
                   <TableHead>Coordinates</TableHead>
                   <TableHead>Associated Minerals</TableHead>
                   <TableHead>Color</TableHead>
+                  <TableHead>Texture</TableHead>
+                  <TableHead>Hardness</TableHead>
                   <TableHead>Luster</TableHead>
                   <TableHead>Streak</TableHead>
                   <TableHead>Type</TableHead>
@@ -799,9 +836,14 @@ const RocksList = ({
                 </>
               ) : category === "Metamorphic" ? (
                 <>
+                  <TableHead>Foliation</TableHead>
+                  <TableHead>Foliation Type</TableHead>
+                  <TableHead>Grain Size</TableHead>
+                  <TableHead>Color</TableHead>
+                  <TableHead>Associated Minerals</TableHead>
                   <TableHead>Metamorphism</TableHead>
                   <TableHead>Metamorphic Grade</TableHead>
-                  <TableHead>Reaction to HCL</TableHead>
+                  <TableHead>Reaction to HCl</TableHead>
                   <TableHead>Magnetism</TableHead>
                   <TableHead>Protolith</TableHead>
                   <TableHead>Coordinates</TableHead>

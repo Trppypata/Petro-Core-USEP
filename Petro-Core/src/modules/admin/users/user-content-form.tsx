@@ -80,24 +80,28 @@ const UserContentForm = () => {
       <SheetContent className="p-0 flex flex-col h-full md:max-w-[40rem]">
         <header className="py-4 bg-overlay-bg border-b border-overlay-border px-6 flex-shrink-0">
           <div>
-                          <h3 className="text-lg font-medium">Adding Student</h3>
+            <h3 className="text-lg font-medium">Adding Student</h3>
             <p className="text-xs text-muted-foreground">
               Fill in the details.
             </p>
           </div>
         </header>
 
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="flex-grow overflow-y-auto"
-        >
-          <UserForm form={form} />
-          <SheetFooter className="flex-shrink-0 px-6 py-4 bg-overlay-bg border-t border-overlay-border">
-            <Button type="submit" disabled={isAddingUser}>
-              {isAddingUser ? 'Creating Student...' : 'Create Student'}
-            </Button>
-          </SheetFooter>
-        </form>
+        <div className="flex-grow overflow-y-auto">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="h-full"
+          >
+            <div className="p-6">
+              <UserForm form={form} />
+            </div>
+            <SheetFooter className="flex-shrink-0 px-6 py-4 bg-overlay-bg border-t border-overlay-border">
+              <Button type="submit" disabled={isAddingUser}>
+                {isAddingUser ? 'Creating Student...' : 'Create Student'}
+              </Button>
+            </SheetFooter>
+          </form>
+        </div>
       </SheetContent>
     </Sheet>
   );

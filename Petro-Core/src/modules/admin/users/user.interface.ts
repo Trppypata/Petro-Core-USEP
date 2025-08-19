@@ -10,7 +10,6 @@ export interface IStudent {
   team: string;
   salary: number;
   allowance: number;
-  contact: string;
   profile_url?: string;
   address?: string;
   status?: string;

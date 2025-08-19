@@ -6,9 +6,8 @@ import { Card } from "../../../components/ui/card";
 import type { IRock } from "../../admin/rocks/rock.interface";
 import { SupabaseImage } from "@/components/ui/supabase-image";
 import { RockImagesGallery } from "@/components/ui/rock-images-gallery";
-import { getRockImages } from "@/services/rock-images.service";
+import { supabase } from "@/lib/supabase";
 import { Badge } from "@/components/ui/badge";
-import axios from "axios";
 
 // Function to fetch a single rock by ID
 const fetchRockById = async (id: string): Promise<IRock | null> => {
@@ -145,25 +144,35 @@ const RockDetailView = () => {
         images.push(rockData.image_url);
       }
 
-      // Get additional images
-      const additionalImages = await getRockImages(rockData.id);
-      console.log(`🖼️ Fetched ${additionalImages.length} additional images`);
+      // Get additional images using direct Supabase client
+      console.log(`🖼️ Fetching additional images for rock ID: ${rockData.id}`);
+      const { data: additionalImages, error } = await supabase
+        .from("rock_images")
+        .select("image_url")
+        .eq("rock_id", rockData.id)
+        .limit(10);
 
-      if (additionalImages && additionalImages.length > 0) {
-        // Extract image URLs from the image objects
-        const imageUrls = additionalImages
-          .map((img) => img.image_url)
-          .filter((url) => url && url.trim().length > 0); // Filter out empty URLs
-        console.log("🖼️ Additional image URLs:", imageUrls);
+      if (error) {
+        console.error("🖼️ Error fetching additional images:", error);
+      } else {
+        console.log(`🖼️ Fetched ${additionalImages?.length || 0} additional images`);
+        
+        if (additionalImages && additionalImages.length > 0) {
+          // Extract image URLs from the image objects
+          const imageUrls = additionalImages
+            .map((img) => img.image_url)
+            .filter((url) => url && url.trim().length > 0); // Filter out empty URLs
+          console.log("🖼️ Additional image URLs:", imageUrls);
 
-        // Add them to our images array without duplicating the main image
-        if (rockData.image_url) {
-          const filteredUrls = imageUrls.filter(
-            (url) => url !== rockData.image_url
-          );
-          images.push(...filteredUrls);
-        } else {
-          images.push(...imageUrls);
+          // Add them to our images array without duplicating the main image
+          if (rockData.image_url) {
+            const filteredUrls = imageUrls.filter(
+              (url) => url !== rockData.image_url
+            );
+            images.push(...filteredUrls);
+          } else {
+            images.push(...imageUrls);
+          }
         }
       }
 
@@ -322,6 +331,13 @@ const RockDetailView = () => {
                 <div className="mb-6">
                   <h3 className="text-base font-bold text-gray-700">Color</h3>
                   <p className="text-lg">{rock.color}</p>
+                </div>
+              )}
+
+              {rock.hardness && (
+                <div className="mb-6">
+                  <h3 className="text-base font-bold text-gray-700">Hardness</h3>
+                  <p className="text-lg">{rock.hardness}</p>
                 </div>
               )}
 

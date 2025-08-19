@@ -9,7 +9,6 @@ interface IUser {
   team: string; // e.g., "BSIT", "BSCS", etc.
   salary: number; // can be used for tuition
   allowance: number;
-  contact: string;
   profile_url?: string;
   address?: string;
   status?: string;

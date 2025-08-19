@@ -43,8 +43,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { getAccountDetails } from "../minerals/services/minerals.service";
 import UpdateUserContentForm from "./update-user-content-form";
+import { authService } from "@/services/auth.service";
+import { toast } from "sonner";
+import { RefreshCw } from "lucide-react";
 
 // Assume these functions make API calls to your backend
+
+const ITEMS_PER_PAGE = 5;
 
 type RoleColor = {
   [key in "admin" | "student" | "technician"]: string;
@@ -52,165 +57,36 @@ type RoleColor = {
 
 const roleColors: RoleColor = {
   admin: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-  student:
-    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-  technician:
-    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+  student: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  technician: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
 };
 
-type Status = "active" | "inactive" | "suspended";
-
-const statusVariant: Record<Status, string> = {
+const statusVariant = {
   active: "success",
   inactive: "destructive",
-  suspended: "secondary",
+  pending: "secondary",
+  suspended: "destructive",
 };
 
-const RoleBadge = ({ role }: { role: string }) => {
-  const color =
-    role.toLowerCase() in roleColors
-      ? roleColors[role.toLowerCase() as keyof RoleColor]
-      : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
+const ProfileImage = ({ profileUrl }: { profileUrl?: string }) => {
+  const [imageError, setImageError] = useState(false);
 
-  return (
-    <Badge className={`${color} capitalize`} variant="outline">
-      {role}
-    </Badge>
-  );
-};
-
-const ITEMS_PER_PAGE = 5;
-
-const DEFAULT_AVATAR =
-  "https://grammedia-vids.s3.ap-southeast-2.amazonaws.com/boy.png";
-
-// Add a local cache to prevent repeated failures
-const IMAGE_CACHE: Record<string, boolean> = {};
-
-const getImageUrl = (profileUrl: string | undefined | null): string => {
-  if (!profileUrl) return DEFAULT_AVATAR;
-
-  // Check if we have a cached failure for this URL
-  if (IMAGE_CACHE[profileUrl] === false) {
-    return DEFAULT_AVATAR;
+  if (!profileUrl || imageError) {
+    return (
+      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+        <ImageOff className="w-5 h-5 text-gray-400" />
+      </div>
+    );
   }
 
-  try {
-    // Detect and handle C:\fakepath\ issues (browser security for file inputs)
-    if (profileUrl.includes("fakepath")) {
-      console.warn(
-        "Browser security prevents loading local file paths:",
-        profileUrl
-      );
-      return DEFAULT_AVATAR;
-    }
-
-    // If profileUrl is already a full URL (starts with http or https)
-    if (profileUrl.startsWith("http://") || profileUrl.startsWith("https://")) {
-      // Add image optimization parameters
-      const url = new URL(profileUrl);
-      if (
-        url.hostname.includes("supabase.co") &&
-        !url.searchParams.has("width")
-      ) {
-        url.searchParams.set("width", "150");
-        url.searchParams.set("height", "150");
-        url.searchParams.set("quality", "80");
-        return url.toString();
-      }
-      return profileUrl;
-    }
-
-    // If it includes supabase.co but doesn't start with http
-    if (profileUrl.includes("supabase.co")) {
-      const fullUrl = profileUrl.startsWith("http")
-        ? profileUrl
-        : `https://${profileUrl}`;
-      // Add optimization parameters
-      const url = new URL(fullUrl);
-      if (!url.searchParams.has("width")) {
-        url.searchParams.set("width", "150");
-        url.searchParams.set("height", "150");
-        url.searchParams.set("quality", "80");
-      }
-      return url.toString();
-    }
-
-    // Check if it's a path from our own upload API
-    if (
-      profileUrl.startsWith("/uploads/") ||
-      profileUrl.startsWith("uploads/")
-    ) {
-      const cleanPath = profileUrl.startsWith("/")
-        ? profileUrl.substring(1)
-        : profileUrl;
-      return `${
-        import.meta.env.VITE_API_URL || "http://localhost:8001/api"
-      }/${cleanPath}`;
-    }
-
-    // If it's just a filename or path, assume it's in Supabase storage
-    return `https://bqceruupeeortjtbmnmf.supabase.co/storage/v1/object/public/uploads/${profileUrl}?width=150&height=150&quality=80`;
-  } catch (error) {
-    console.error("Error parsing image URL:", error);
-    return DEFAULT_AVATAR;
-  }
-};
-
-// Add a component for profile image with loading state
-const ProfileImage = ({
-  profileUrl,
-}: {
-  profileUrl: string | undefined | null;
-}) => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-  const imageUrl = getImageUrl(profileUrl);
-
   return (
-    <div className="relative w-16 h-16 rounded-md overflow-hidden">
-      {isLoading && !hasError && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800">
-          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      )}
-
-      {hasError && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-800">
-          <ImageOff className="w-6 h-6 text-gray-400" />
-          <span className="text-xs text-gray-500 mt-1">No image</span>
-        </div>
-      )}
-
+    <div className="w-10 h-10 rounded-full overflow-hidden">
       <img
-        alt="Student avatar"
-        className={`aspect-square object-cover w-full h-full transition-opacity duration-300 ${
-          isLoading || hasError ? "opacity-0" : "opacity-100"
-        }`}
-        src={imageUrl}
-        onLoad={() => {
-          setIsLoading(false);
-          setHasError(false);
-          if (profileUrl) IMAGE_CACHE[profileUrl] = true;
-        }}
+        src={profileUrl}
+        alt="Profile"
+        className="w-full h-full object-cover"
         onError={(e) => {
-          console.warn(
-            "⚠️ Failed to load image:",
-            profileUrl,
-            "Using default avatar instead"
-          );
-          setIsLoading(false);
-          setHasError(true);
-          if (profileUrl) IMAGE_CACHE[profileUrl] = false;
-
-          // If error is due to local file path, log specific message
-          if (profileUrl && profileUrl.includes("fakepath")) {
-            console.warn(
-              "Browser security prevents loading local file paths. Upload the image to a server instead."
-            );
-          }
-
-          // Set a fallback but don't show it (we have our own error UI)
+          setImageError(true);
           const img = e.target as HTMLImageElement;
           img.style.display = "none";
         }}
@@ -223,12 +99,36 @@ const StudentsList = () => {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const { data: userDetails, isLoading, error } = useReadStudents();
 
   // Update search term and reset pagination
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
     setCurrentPage(1); // Reset to first page when searching
+  };
+
+  const handleRefreshSession = async () => {
+    try {
+      setIsRefreshing(true);
+      
+      // First refresh the session
+      await authService.refreshSession();
+      
+      // Then get the updated role from the database
+      const updatedRole = await authService.getUpdatedUserRole();
+      
+      toast.success(`Session refreshed! Your role is now: ${updatedRole}`);
+      
+      // Re-fetch current user details
+      const user = await getAccountDetails();
+      setCurrentUser(user);
+    } catch (error) {
+      console.error("Failed to refresh session:", error);
+      toast.error("Failed to refresh session. Please log out and log back in.");
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const filteredUsers = useMemo(() => {
@@ -274,71 +174,42 @@ const StudentsList = () => {
   const renderPagination = () => {
     if (totalPages <= 1) return null;
 
+    const pages = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(
+        <PaginationItem key={i}>
+          <PaginationLink
+            onClick={() => handlePageChange(i)}
+            isActive={currentPage === i}
+          >
+            {i}
+          </PaginationLink>
+        </PaginationItem>
+      );
+    }
+
     return (
       <Pagination>
         <PaginationContent>
           <PaginationItem>
             <PaginationPrevious
-              onClick={() =>
-                currentPage > 1 && handlePageChange(currentPage - 1)
-              }
-              className={
-                currentPage === 1
-                  ? "pointer-events-none opacity-50"
-                  : "cursor-pointer"
-              }
+              onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+              className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
             />
           </PaginationItem>
-
-          {Array.from({ length: Math.min(totalPages, 3) }).map((_, index) => {
-            let pageNum;
-
-            if (totalPages <= 3) {
-              pageNum = index + 1;
-            } else if (currentPage <= 2) {
-              pageNum = index + 1;
-            } else if (currentPage >= totalPages - 1) {
-              pageNum = totalPages - 2 + index;
-            } else {
-              pageNum = currentPage - 1 + index;
-            }
-
-            return (
-              <PaginationItem key={pageNum}>
-                <PaginationLink
-                  onClick={() => handlePageChange(pageNum)}
-                  isActive={currentPage === pageNum}
-                >
-                  {pageNum}
-                </PaginationLink>
-              </PaginationItem>
-            );
-          })}
-
-          {totalPages > 3 && currentPage < totalPages - 2 && (
-            <PaginationItem>
-              <PaginationEllipsis />
-            </PaginationItem>
-          )}
-
-          {totalPages > 3 && currentPage < totalPages - 1 && (
-            <PaginationItem>
-              <PaginationLink onClick={() => handlePageChange(totalPages)}>
-                {totalPages}
-              </PaginationLink>
-            </PaginationItem>
-          )}
-
+          {pages}
           <PaginationItem>
             <PaginationNext
-              onClick={() =>
-                currentPage < totalPages && handlePageChange(currentPage + 1)
-              }
-              className={
-                currentPage === totalPages
-                  ? "pointer-events-none opacity-50"
-                  : "cursor-pointer"
-              }
+              onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+              className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
             />
           </PaginationItem>
         </PaginationContent>
@@ -350,9 +221,8 @@ const StudentsList = () => {
     if (isLoading) {
       return (
         <TableRow>
-          <TableCell colSpan={9} className="h-[400px] text-center">
-            <Spinner className="mx-auto" />
-            <span className="sr-only">Loading students...</span>
+          <TableCell colSpan={9} className="text-center py-8">
+            <Spinner />
           </TableCell>
         </TableRow>
       );
@@ -361,21 +231,18 @@ const StudentsList = () => {
     if (error) {
       return (
         <TableRow>
-          <TableCell colSpan={9} className="h-[400px] text-center text-red-500">
-            Error loading students. Please try again later.
+          <TableCell colSpan={9} className="text-center py-8 text-red-500">
+            Error loading students: {error.message}
           </TableCell>
         </TableRow>
       );
     }
 
-    if (filteredUsers.length === 0) {
+    if (paginatedUsers.length === 0) {
       return (
         <TableRow>
-          <TableCell
-            colSpan={9}
-            className="h-[400px] text-center text-md text-red"
-          >
-            No students found.
+          <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+            No students found
           </TableCell>
         </TableRow>
       );
@@ -402,9 +269,6 @@ const StudentsList = () => {
           <span className="font-bold text-md">{user.email}</span>
         </TableCell>
         <TableCell className="font-light text-center">
-          <span className="text-md">{user.contact}</span>
-        </TableCell>
-        <TableCell className="font-light text-center">
           <span className="font-bold text-md">{user.address || "-"}</span>
         </TableCell>
         <TableCell className="font-light text-center">
@@ -426,55 +290,66 @@ const StudentsList = () => {
             {user.status}
           </Badge>
         </TableCell>
-        {currentUser.role === "admin" && (
-          <TableCell className="text-center">
-            <UpdateUserContentForm userID={user.id || user.user_id} />
-          </TableCell>
-        )}
+        <TableCell className="text-center">
+          <UpdateUserContentForm userID={user.id} />
+        </TableCell>
       </TableRow>
     ));
   };
 
   useEffect(() => {
-    const fetchAccountDetails = async () => {
-      const data = await getAccountDetails();
-      if (data) {
-        setCurrentUser(data?.user?.user_metadata);
+    const fetchCurrentUser = async () => {
+      try {
+        const user = await getAccountDetails();
+        setCurrentUser(user);
+      } catch (error) {
+        console.error("Error fetching current user:", error);
       }
     };
 
-    fetchAccountDetails();
+    fetchCurrentUser();
   }, []);
 
   return (
-    <>
-      <div className="flex items-center p-4">
-        <div className="ml-auto flex items-center gap-2">
+    <Card>
+      <CardHeader>
+        <CardTitle>Students</CardTitle>
+        <CardDescription>
+          Manage your Students and view their profile. 
+          <span className="text-amber-600 font-medium">
+            {" "}💡 Tip: After changing a user's role, they need to log out and log back in, or use the "Refresh Session" button.
+          </span>
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-2">
-            <Search className="w-5 h-5 text-muted-foreground" />
+            <Search className="w-4 h-4 text-gray-400" />
             <Input
-              placeholder="Search students ..."
+              placeholder="Search students..."
               value={searchTerm}
               onChange={handleSearchChange}
               className="w-64"
             />
           </div>
-
-          <UserContentForm />
-        </div>
-      </div>
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-start gap-4">
-            <div className="flex flex-col">
-              <CardTitle className="text-[#492309]">Students</CardTitle>
-              <CardDescription>
-                Manage your Students and view their profile.
-              </CardDescription>
-            </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefreshSession}
+              disabled={isRefreshing}
+              className="h-8"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap ml-1">
+                Refresh Session
+              </span>
+            </Button>
+            <UserContentForm />
           </div>
-        </CardHeader>
-        <CardContent>
+        </div>
+
+        <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -483,33 +358,27 @@ const StudentsList = () => {
                 <TableHead className="text-center">Middle Name</TableHead>
                 <TableHead className="text-center">Last Name</TableHead>
                 <TableHead className="text-center">Email</TableHead>
-                <TableHead className="text-center">Contact</TableHead>
                 <TableHead className="text-center">Address</TableHead>
                 <TableHead className="text-center">Position</TableHead>
                 <TableHead className="text-center">Status</TableHead>
-                {currentUser?.role === "admin" && (
-                  <TableHead className="text-center">Actions</TableHead>
-                )}
+                <TableHead className="text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>{renderTableContent()}</TableBody>
           </Table>
-        </CardContent>
-        <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-6">
-          <div className="text-sm text-muted-foreground w-1/4">
-            Showing{" "}
-            <strong>
-              {filteredUsers.length > 0
-                ? (currentPage - 1) * ITEMS_PER_PAGE + 1
-                : 0}
-              -{Math.min(currentPage * ITEMS_PER_PAGE, filteredUsers.length)}
-            </strong>{" "}
-            of <strong>{filteredUsers.length}</strong> Students
+        </div>
+      </CardContent>
+      <CardFooter>
+        <div className="flex items-center justify-between w-full">
+          <div className="text-sm text-gray-500">
+            Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to{" "}
+            {Math.min(currentPage * ITEMS_PER_PAGE, filteredUsers.length)} of{" "}
+            {filteredUsers.length} Students
           </div>
           {renderPagination()}
-        </CardFooter>
-      </Card>
-    </>
+        </div>
+      </CardFooter>
+    </Card>
   );
 };
 

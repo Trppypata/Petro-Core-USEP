@@ -1,12 +1,6 @@
-import axios, { AxiosError } from "axios";
-import type { UserFormValues } from "../user.types";
-import { apiClient } from "@/services/api.service";
 import { supabase } from "@/lib/supabase";
-
-// Updated fallback URL to use port 8000 instead of 3000
-const localhost_url = (
-  import.meta.env.VITE_API_URL || "http://localhost:8001/api"
-).replace("/api", "");
+import { apiClient } from "@/services/api.service";
+import type { UserFormValues } from "../user.types";
 
 interface ErrorResponse {
   message: string;
@@ -14,55 +8,31 @@ interface ErrorResponse {
 
 const addStudent = async (studentData: UserFormValues) => {
   try {
-    console.log("📤 Sending student data to API:", studentData);
-    console.log("🔗 API URL: users/registerStudent");
+    console.log("📤 Adding student data to Supabase:", studentData);
 
     // Log the profile_url before sending
     console.log(
-      "📸 Profile URL being sent to backend:",
+      "📸 Profile URL being sent to Supabase:",
       studentData.profile_url || "No profile URL set"
     );
 
-    // Check if server is available with a timeout
-    try {
-      // Try a quick health check first (with a 3-second timeout)
-      console.log("🏥 Testing API health at:", `${localhost_url}/health`);
-      await axios.get(`${localhost_url}/health`, { timeout: 3000 });
-      console.log("✅ API health check passed");
-    } catch (healthError) {
-      console.error(
-        "❌ API health check failed - server may be down:",
-        healthError
-      );
-      throw new Error(
-        "Backend server is not available. Please make sure the server is running on port 8001."
-      );
+    // Add student directly to Supabase
+    const { data, error } = await supabase
+      .from("students")
+      .insert(studentData)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("❌ Supabase add student error:", error);
+      throw new Error(`Failed to add student: ${error.message}`);
     }
 
-    // Use apiClient which already has the base URL configured
-    const response = await apiClient.post(
-      "/users/registerStudent",
-      studentData
-    );
-
-    console.log("✅ API Response:", response.data);
-    return response.data;
+    console.log("✅ Student added successfully:", data);
+    return data;
   } catch (error) {
-    const axiosError = error as AxiosError<ErrorResponse>;
-    console.error(
-      "❌ API Error:",
-      axiosError.response?.data || axiosError.message
-    );
-
-    if (axiosError.code === "ERR_NETWORK") {
-      throw new Error(
-        "Network error: Cannot connect to the server. Please check if the server is running and accessible."
-      );
-    }
-
-    throw new Error(
-      axiosError.response?.data?.message || "Failed to create student"
-    );
+    console.error("❌ Add student error:", error);
+    throw error instanceof Error ? error : new Error("Failed to create student");
   }
 };
 
@@ -216,10 +186,13 @@ const updateStudent = async (studentId: string, studentData: Partial<any>) => {
   try {
     console.log("📤 Updating student data:", { studentId, studentData });
 
-    // Update in Supabase
+    // Separate password and position from other student data
+    const { password, position, ...studentDataWithoutPassword } = studentData;
+
+    // Update student data in students table (excluding password and position)
     const { data, error } = await supabase
       .from("students")
-      .update(studentData)
+      .update(studentDataWithoutPassword)
       .eq("id", studentId)
       .select()
       .single();
@@ -230,7 +203,76 @@ const updateStudent = async (studentId: string, studentData: Partial<any>) => {
     }
 
     console.log("✅ Student updated successfully:", data);
-    return data;
+    
+    // Get the user_id from the student record for auth updates
+    const { data: studentRecord, error: studentError } = await supabase
+      .from("students")
+      .select("user_id, email")
+      .eq("id", studentId)
+      .single();
+
+    if (studentError) {
+      console.error("❌ Error fetching student record:", studentError);
+      throw new Error("Failed to fetch student record for auth updates");
+    }
+
+    let authUpdates = [];
+
+    // If password is provided, update it in both systems
+    if (password && password.trim() !== "") {
+      console.log("🔐 Updating password in both systems...");
+      
+      // Update password in students table
+      const { error: passwordError } = await supabase
+        .from("students")
+        .update({ password: password })
+        .eq("id", studentId);
+
+      if (passwordError) {
+        console.error("❌ Error updating password in students table:", passwordError);
+        throw new Error("Failed to update password in database");
+      }
+
+      console.log("✅ Password updated in students table");
+      authUpdates.push("password");
+      
+      // Note: Supabase Auth password update requires backend with admin privileges
+      // For now, password is updated in database only
+    }
+
+    // If position/role is provided, update it in database
+    if (position && position.trim() !== "") {
+      console.log("👤 Updating role in database...");
+      
+      // Update position in students table
+      const { error: positionError } = await supabase
+        .from("students")
+        .update({ position: position })
+        .eq("id", studentId);
+
+      if (positionError) {
+        console.error("❌ Error updating position in students table:", positionError);
+        throw new Error("Failed to update position in database");
+      }
+
+      console.log("✅ Role updated in students table");
+      authUpdates.push("role");
+      
+      // Note: Supabase Auth role update requires backend with admin privileges
+      // For now, role is updated in database only
+    }
+    
+    // Return success message with details about what was updated
+    const updateMessages = [];
+    if (authUpdates.length > 0) {
+      updateMessages.push(`${authUpdates.join(" and ")} updated in database`);
+    }
+    updateMessages.push("Student data updated successfully");
+
+    return {
+      ...data,
+      message: updateMessages.join(". ") + "!"
+    };
   } catch (error) {
     console.error("❌ Update student error:", error);
     throw error instanceof Error ? error : new Error("Failed to update student");

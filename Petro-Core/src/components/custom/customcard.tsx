@@ -6,6 +6,7 @@ interface WorkCardProps {
   title: string;
   description: string;
   imageUrl?: string; // Optional image URL
+  additionalImages?: string[]; // Additional image URLs
   category?: string; // We'll keep the category prop but won't display it as a badge
   type?: 'rock' | 'mineral'; // Add type to distinguish between rocks and minerals
   texture?: string; // For igneous rocks
@@ -13,7 +14,11 @@ interface WorkCardProps {
   rockType?: string; // For sedimentary rocks
 }
 
-export function RockMineralsCard({ title, description, imageUrl, category, type = 'rock', texture, foliation, rockType }: WorkCardProps) {
+export function RockMineralsCard({ title, description, imageUrl, additionalImages, category, type = 'rock', texture, foliation, rockType }: WorkCardProps) {
+  // Debug logging for additional images
+  if (additionalImages && additionalImages.length > 0) {
+    console.log(`🖼️ Card "${title}" has ${additionalImages.length} additional images:`, additionalImages);
+  }
   // Generate category badge color based on category name
   const getCategoryColor = (category?: string) => {
     if (!category) return "bg-muted/90 text-muted-foreground border-muted";
@@ -65,6 +70,13 @@ export function RockMineralsCard({ title, description, imageUrl, category, type 
           <div className="absolute top-3 left-3 z-10">
             <Badge className={`${getCategoryColor(category)} font-semibold text-xs py-1 px-3 shadow-lg border`}>
               {category.toUpperCase()}
+            </Badge>
+          </div>
+        )}
+        {additionalImages && additionalImages.length > 0 && (
+          <div className="absolute top-3 right-3 z-10">
+            <Badge className="bg-primary text-white font-semibold text-xs py-1 px-2 shadow-lg border">
+              +{additionalImages.length} more
             </Badge>
           </div>
         )}

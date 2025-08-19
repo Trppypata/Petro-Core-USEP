@@ -2,23 +2,23 @@ import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import IUser from '../models/user.model';
 
-// Count total users
-export const countUsers = async (_req: Request, res: Response) => {
+// Count users
+export const countUsers = async (req: Request, res: Response) => {
   try {
     const { count, error } = await supabase
       .from('students')
       .select('*', { count: 'exact', head: true });
 
     if (error) {
-      return res.status(400).json({
+      return res.status(500).json({
         success: false,
-        message: error.message,
+        message: 'Failed to count users',
       });
     }
 
     return res.status(200).json({
       success: true,
-      totalUsers: count,
+      data: { count },
     });
   } catch (error) {
     console.error('Count users error:', error);
@@ -74,7 +74,6 @@ export const registerStudent = async (req: Request, res: Response) => {
         team: userData.team,
         salary: userData.salary,
         allowance: userData.allowance,
-        contact: userData.contact,
         profile_url: userData.profile_url || '',
         address: userData.address || '',
         status: 'active',
@@ -95,7 +94,10 @@ export const registerStudent = async (req: Request, res: Response) => {
 
     return res.status(201).json({
       success: true,
-      data: studentData,
+      data: {
+        user: authData.user,
+        student: studentData,
+      },
     });
   } catch (error) {
     console.error('Register student error:', error);

@@ -1,4 +1,4 @@
--- Fix RLS policies for rock_images table
+-- Fix RLS policies for rock_images table to allow anonymous users to read
 -- Run this in your Supabase SQL Editor
 
 -- First, let's check if the table exists and has RLS enabled
@@ -14,18 +14,27 @@ DROP POLICY IF EXISTS "Anyone can view rock images" ON rock_images;
 DROP POLICY IF EXISTS "Authenticated users can insert rock images" ON rock_images;
 DROP POLICY IF EXISTS "Authenticated users can update their own rock images" ON rock_images;
 DROP POLICY IF EXISTS "Authenticated users can delete their own rock images" ON rock_images;
+DROP POLICY IF EXISTS "Anonymous users can view rock images" ON rock_images;
 
 -- Enable RLS if not already enabled
 ALTER TABLE rock_images ENABLE ROW LEVEL SECURITY;
 
--- Create new, more permissive policies for authenticated users
--- Anyone can view rock images (public read access)
-CREATE POLICY "Anyone can view rock images" 
+-- Create new, more permissive policies
+-- Anonymous users can view rock images (public read access)
+CREATE POLICY "Anonymous users can view rock images" 
   ON rock_images 
   FOR SELECT 
+  TO anon
   USING (true);
 
--- Authenticated users can insert rock images (no additional checks)
+-- Authenticated users can view rock images
+CREATE POLICY "Authenticated users can view rock images" 
+  ON rock_images 
+  FOR SELECT 
+  TO authenticated
+  USING (true);
+
+-- Authenticated users can insert rock images
 CREATE POLICY "Authenticated users can insert rock images" 
   ON rock_images 
   FOR INSERT 
@@ -49,7 +58,8 @@ CREATE POLICY "Authenticated users can delete rock images"
 
 -- Grant necessary permissions
 GRANT ALL ON rock_images TO authenticated;
-GRANT USAGE ON SCHEMA public TO authenticated;
+GRANT SELECT ON rock_images TO anon;
+GRANT USAGE ON SCHEMA public TO anon;
 
 -- Verify the policies were created
 SELECT 
@@ -63,3 +73,6 @@ SELECT
   with_check
 FROM pg_policies 
 WHERE tablename = 'rock_images';
+
+-- Test the policies by checking if we can read from the table
+SELECT COUNT(*) as total_images FROM rock_images;

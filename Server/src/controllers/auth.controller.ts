@@ -55,26 +55,17 @@ export const login = async (req: Request, res: Response) => {
 // Register user
 export const register = async (req: Request, res: Response) => {
   try {
-    console.log('Register request received:', {
-      body: req.body,
-      headers: req.headers['content-type']
-    });
-    
+    console.log('Register request received:', req.body);
     const { email, password, firstName, lastName, role = 'student' } = req.body;
 
-    console.log('Parsed values:', { email, password: '***', firstName, lastName, role });
-
-    if (!email || !password) {
-      console.log('Registration failed: Missing email or password');
+    if (!email || !password || !firstName || !lastName) {
       return res.status(400).json({
         success: false,
-        message: 'Email and password are required',
+        message: 'Email, password, first name, and last name are required',
       });
     }
 
-    // Validate role
-    if (role !== 'student' && role !== 'admin') {
-      console.log('Registration failed: Invalid role', role);
+    if (role && !['student', 'admin'].includes(role)) {
       return res.status(400).json({
         success: false,
         message: 'Role must be either "student" or "admin"',
@@ -130,72 +121,72 @@ export const register = async (req: Request, res: Response) => {
       }
 
       // 2. If authentication successful, create a student record
-      if (authData.user && role === 'student') {
-        try {
-          // Create full student name
-          const studentName = `${firstName} ${lastName}`;
-          
-          // Initial default values for a new student
-          const { error: studentError } = await supabase
-            .from('students')
-            .insert({
-              user_id: authData.user.id,
-              first_name: firstName,
-              last_name: lastName,
-              middle_name: '', // Default empty
-              email: email,
-              position: 'student',
-              team: 'BSIT', // Default team/course
-              salary: 0, // Default tuition amount
-              allowance: 0, // Default allowance
-              contact: '', // Will be updated later
-              profile_url: '', // Will be updated later
-              address: '', // Will be updated later
-              status: 'active',
-              student_name: studentName
-            });
+      if (role === 'student') {
+        const studentData = {
+          user_id: authData.user.id,
+          first_name: firstName,
+          last_name: lastName,
+          email: email,
+          position: role,
+          team: "BSIT",
+          salary: 0,
+          allowance: 0,
+          profile_url: "",
+          address: "",
+          status: "active",
+        };
 
-          if (studentError) {
-            console.error('Error creating student record:', studentError);
-            // But still return success since auth was created
-            console.log('Auth user created but student record failed:', studentError.message);
-            
-            return res.status(201).json({
-              success: true,
-              data: authData,
-              warning: 'User created but student profile could not be initialized: ' + studentError.message,
-            });
-          } else {
-            console.log('Student record created successfully');
+        const { data: studentResult, error: studentError } = await supabase
+          .from('students')
+          .insert([studentData])
+          .select()
+          .single();
+
+        if (studentError) {
+          console.error('Student creation error:', studentError);
+          // Try to clean up auth user if student creation fails
+          try {
+            await supabase.auth.admin.deleteUser(authData.user.id);
+          } catch (cleanupError) {
+            console.error('Failed to cleanup auth user:', cleanupError);
           }
-        } catch (studentError) {
-          console.error('Exception creating student record:', studentError);
-          // Return success with warning
-          return res.status(201).json({
-            success: true,
-            data: authData,
-            warning: 'User created but student profile could not be initialized due to an error',
+          return res.status(400).json({
+            success: false,
+            message: 'Failed to create student record',
           });
         }
+
+        return res.status(201).json({
+          success: true,
+          data: {
+            user: authData.user,
+            session: authData.session,
+            student: studentResult,
+          },
+        });
       }
 
+      // For admin users, just return the auth data
       return res.status(201).json({
         success: true,
-        data: authData,
+        data: {
+          user: authData.user,
+          session: authData.session,
+        },
       });
-    } catch (authError: any) {
-      console.error('Authentication error details:', authError);
-      return res.status(400).json({
+
+    } catch (error) {
+      console.error('Registration error:', error);
+      return res.status(500).json({
         success: false,
-        message: authError.message || 'Authentication failed',
-        details: authError.details || 'Unknown error'
+        message: error instanceof Error ? error.message : 'Internal server error',
       });
     }
-  } catch (error: any) {
-    console.error('Register error:', error);
+  } catch (error) {
+    console.error('Registration error:', error);
     return res.status(500).json({
       success: false,
-      message: error.message || 'Internal server error',
+      message: error instanceof Error ? error.message : 'Internal server error',
     });
   }
 };
@@ -258,7 +249,7 @@ export const getCurrentUser = async (req: Request, res: Response) => {
 export const logout = async (req: Request, res: Response) => {
   try {
     const { error } = await supabase.auth.signOut();
-
+    
     if (error) {
       return res.status(400).json({
         success: false,
@@ -292,7 +283,7 @@ export const resetPassword = async (req: Request, res: Response) => {
     }
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: process.env.PASSWORD_RESET_REDIRECT_URL,
+      redirectTo: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password`,
     });
 
     if (error) {
@@ -304,7 +295,7 @@ export const resetPassword = async (req: Request, res: Response) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Password reset email sent',
+      message: 'Password reset email sent successfully',
     });
   } catch (error) {
     console.error('Reset password error:', error);
@@ -323,12 +314,12 @@ export const updatePassword = async (req: Request, res: Response) => {
     if (!password) {
       return res.status(400).json({
         success: false,
-        message: 'New password is required',
+        message: 'Password is required',
       });
     }
 
     const { error } = await supabase.auth.updateUser({
-      password,
+      password: password,
     });
 
     if (error) {
@@ -347,6 +338,117 @@ export const updatePassword = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: 'Internal server error',
+    });
+  }
+};
+
+// Update specific user password (admin function)
+export const updateUserPassword = async (req: Request, res: Response) => {
+  try {
+    const { userId, password } = req.body;
+
+    if (!userId || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID and password are required',
+      });
+    }
+
+    // Update password in Supabase Auth
+    const { error: authError } = await supabase.auth.admin.updateUserById(userId, {
+      password: password,
+    });
+
+    if (authError) {
+      console.error('Auth password update error:', authError);
+      return res.status(400).json({
+        success: false,
+        message: `Failed to update password in authentication system: ${authError.message}`,
+      });
+    }
+
+    // Update password in students table
+    const { error: dbError } = await supabase
+      .from('students')
+      .update({ password: password })
+      .eq('user_id', userId);
+
+    if (dbError) {
+      console.error('Database password update error:', dbError);
+      return res.status(400).json({
+        success: false,
+        message: `Failed to update password in database: ${dbError.message}`,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Password updated successfully in both authentication system and database',
+    });
+  } catch (error) {
+    console.error('Update user password error:', error);
+    return res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Internal server error',
+    });
+  }
+};
+
+// Update user role (admin function)
+export const updateUserRole = async (req: Request, res: Response) => {
+  try {
+    const { userId, role } = req.body;
+
+    if (!userId || !role) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID and role are required',
+      });
+    }
+
+    if (!['student', 'admin'].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Role must be either "student" or "admin"',
+      });
+    }
+
+    // Update role in Supabase Auth
+    const { error: authError } = await supabase.auth.admin.updateUserById(userId, {
+      user_metadata: { role: role },
+    });
+
+    if (authError) {
+      console.error('Auth role update error:', authError);
+      return res.status(400).json({
+        success: false,
+        message: `Failed to update role in authentication system: ${authError.message}`,
+      });
+    }
+
+    // Update role in students table
+    const { error: dbError } = await supabase
+      .from('students')
+      .update({ position: role })
+      .eq('user_id', userId);
+
+    if (dbError) {
+      console.error('Database role update error:', dbError);
+      return res.status(400).json({
+        success: false,
+        message: `Failed to update role in database: ${dbError.message}`,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Role updated successfully in both authentication system and database',
+    });
+  } catch (error) {
+    console.error('Update user role error:', error);
+    return res.status(500).json({
+      success: false,
+      message: error instanceof Error ? error.message : 'Internal server error',
     });
   }
 }; 

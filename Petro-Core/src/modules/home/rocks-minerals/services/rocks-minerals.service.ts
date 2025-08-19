@@ -76,6 +76,8 @@ const transformRockData = async (rock: IRock): Promise<RocksMineralsItem> => {
   // Only fetch additional images if we have a valid rock ID
   let additionalImages: string[] = [];
   if (rock.id) {
+    console.log(`🖼️ Fetching additional images for rock ID: ${rock.id}`);
+    
     // Use a cached version of the rock images if available
     const cacheKey = `rock_images_${rock.id}`;
     const cachedImages = sessionStorage.getItem(cacheKey);
@@ -83,29 +85,44 @@ const transformRockData = async (rock: IRock): Promise<RocksMineralsItem> => {
     if (cachedImages) {
       try {
         additionalImages = JSON.parse(cachedImages);
+        console.log(`🖼️ Using cached images: ${additionalImages.length} images`);
       } catch (e) {
         console.error("Error parsing cached images:", e);
       }
     } else {
       try {
-        const { data: rockImages } = await supabase
+        console.log(`🖼️ Querying rock_images table for rock_id: ${rock.id}`);
+        const { data: rockImages, error } = await supabase
           .from("rock_images")
           .select("image_url")
           .eq("rock_id", rock.id)
           .limit(5);
 
-        if (rockImages && rockImages.length > 0) {
-          additionalImages = rockImages
-            .map((img: { image_url: string }) => img.image_url)
-            .filter((url: string) => isValidImageUrl(url));
+        if (error) {
+          console.error("🖼️ Error fetching rock images:", error);
+        } else {
+          console.log(`🖼️ Raw rock images response:`, rockImages);
+          
+          if (rockImages && rockImages.length > 0) {
+            additionalImages = rockImages
+              .map((img: { image_url: string }) => img.image_url)
+              .filter((url: string) => isValidImageUrl(url));
 
-          // Cache the results
-          sessionStorage.setItem(cacheKey, JSON.stringify(additionalImages));
+            console.log(`🖼️ Filtered additional images: ${additionalImages.length} valid images`);
+            console.log(`🖼️ Additional image URLs:`, additionalImages);
+
+            // Cache the results
+            sessionStorage.setItem(cacheKey, JSON.stringify(additionalImages));
+          } else {
+            console.log(`🖼️ No additional images found for rock ID: ${rock.id}`);
+          }
         }
       } catch (error) {
-        console.error("Error fetching additional rock images:", error);
+        console.error("🖼️ Error fetching additional rock images:", error);
       }
     }
+  } else {
+    console.log(`🖼️ No rock ID available, skipping additional images fetch`);
   }
 
   // Create a description from rock properties if it doesn't exist
