@@ -80,6 +80,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       setLoading(true);
+      
+      // Clear any existing session data first
+      localStorage.removeItem('custom_user');
+      
       // Use authService to login (now returns { user, session } or null)
       const response = await authService.login({ email, password });
       if (response && response.user) {
@@ -93,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Store user data in localStorage for custom sessions
         if (!response.session) {
           localStorage.setItem('custom_user', JSON.stringify(userData));
-          console.log("✅ Stored custom user in localStorage");
+          console.log("✅ Stored new custom user in localStorage:", userData);
         }
         
         setUser(userData);

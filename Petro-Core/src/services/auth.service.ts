@@ -60,19 +60,9 @@ export const authService = {
       if (studentData.password && studentData.password === password) {
         console.log("✅ Password matches in students table");
         
-        // Try to sign in with Supabase Auth first
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (!authError && authData.user) {
-          console.log("✅ Supabase Auth successful, using standard session");
-          return { user: authData.user, session: authData.session };
-        }
-
-        // If Supabase Auth fails, create custom session
-        console.log("⚠️ Supabase Auth failed, creating custom session");
+        // Since password matches in students table, create custom session
+        // Skip Supabase Auth to avoid 400 errors for database-only users
+        console.log("🔧 Creating custom session for database user");
         return {
           user: {
             id: studentData.user_id || studentData.id,
@@ -291,6 +281,30 @@ export const authService = {
   },
 
   getCurrentUser: async function () {
+    // First check for custom user in localStorage
+    const customUser = localStorage.getItem('custom_user');
+    if (customUser) {
+      try {
+        const userData = JSON.parse(customUser);
+        console.log("🔍 getCurrentUser - Found custom user:", userData);
+        // Return in the same format as Supabase user
+        return {
+          id: userData.id,
+          email: userData.email,
+          user_metadata: {
+            role: userData.role,
+            full_name: userData.name,
+            first_name: userData.name?.split(' ')[0] || '',
+            last_name: userData.name?.split(' ').slice(1).join(' ') || ''
+          }
+        };
+      } catch (error) {
+        console.error("Error parsing custom user:", error);
+        localStorage.removeItem('custom_user');
+      }
+    }
+
+    // Fallback to Supabase Auth
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) return null;
     return data.user;
