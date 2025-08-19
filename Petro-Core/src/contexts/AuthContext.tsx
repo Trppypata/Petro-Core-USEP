@@ -120,16 +120,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       setLoading(true);
+      console.log("🔐 Starting logout process...");
+      
+      // Debug: Log current session data before clearing
+      console.log("🔍 Current session data before logout:");
+      console.log("  - custom_user:", localStorage.getItem('custom_user') ? "EXISTS" : "NOT FOUND");
+      console.log("  - access_token:", localStorage.getItem('access_token') ? "EXISTS" : "NOT FOUND");
+      console.log("  - supabase.auth.token:", sessionStorage.getItem('supabase.auth.token') ? "EXISTS" : "NOT FOUND");
+      
       // Use Supabase to sign out
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.warn("Supabase logout error:", error);
       }
       
-      // Clear custom user data
+      // Clear ALL session-related data
+      console.log("🧹 Clearing all session data...");
+      
+      // Clear localStorage items
       localStorage.removeItem('custom_user');
+      localStorage.removeItem('access_token');
+      
+      // Clear sessionStorage items (Supabase stores some data here)
+      sessionStorage.removeItem('supabase.auth.token');
+      
+      // Clear any other potential session items
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('auth') || key.includes('session') || key.includes('token'))) {
+          keysToRemove.push(key);
+        }
+      }
+      
+      keysToRemove.forEach(key => {
+        console.log(`🗑️ Removing session item: ${key}`);
+        localStorage.removeItem(key);
+      });
       
       setUser(null);
+      console.log("✅ Logout completed - all session data cleared");
       toast.success('Logged out successfully');
     } catch (error) {
       console.error('Logout error:', error);
