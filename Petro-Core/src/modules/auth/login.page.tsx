@@ -48,9 +48,28 @@ export default function LoginPage() {
       console.log(`Login took ${endTime - startTime} milliseconds`);
 
       if (success) {
-        if (isAdmin) {
+        // Get the user data from localStorage to check the current role
+        const customUser = localStorage.getItem('custom_user');
+        let userRole = 'student'; // default
+        
+        if (customUser) {
+          try {
+            const userData = JSON.parse(customUser);
+            userRole = userData.role;
+            console.log("🔍 Redirect - User role from localStorage:", userRole);
+          } catch (error) {
+            console.error("Error parsing custom user for redirect:", error);
+          }
+        }
+        
+        console.log("🔍 Redirect - Final role check:", userRole);
+        console.log("🔍 Redirect - Is admin?", userRole === 'admin');
+        
+        if (userRole === 'admin') {
+          console.log("🔍 Redirecting to dashboard-app");
           navigate('/dashboard-app');
         } else {
+          console.log("🔍 Redirecting to home");
           navigate('/home');
         }
       } else {

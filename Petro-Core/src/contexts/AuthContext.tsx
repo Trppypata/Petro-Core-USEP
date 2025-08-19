@@ -97,6 +97,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         
         setUser(userData);
+        console.log("🔍 Login - Final user data:", userData);
+        console.log("🔍 Login - User role:", userData.role);
+        console.log("🔍 Login - Is admin?", userData.role === 'admin');
         toast.success(`Welcome ${userData.name || userData.email}!`);
         return true;
       }
