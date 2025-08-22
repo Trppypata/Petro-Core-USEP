@@ -78,11 +78,17 @@ const formSchema = z.object({
   parent_rock: z.string().optional(),
   foliation: z.string().optional(),
   foliation_type: z.string().optional(),
+  associated_minerals: z.string().optional(),
+  reaction_to_hcl: z.string().optional(),
+  magnetism: z.string().optional(),
+  protolith: z.string().optional(),
   // Igneous rock specific fields
   silica_content: z.string().optional(),
   cooling_rate: z.string().optional(),
   mineral_content: z.string().optional(),
   origin: z.string().optional(),
+  luster: z.string().optional(),
+  streak: z.string().optional(),
   // Sedimentary rock specific fields
   bedding: z.string().optional(),
   sorting: z.string().optional(),
@@ -93,14 +99,16 @@ const formSchema = z.object({
   commodity_type: z.string().optional(),
   ore_group: z.string().optional(),
   mining_company: z.string().optional(),
-  // Additional fields
-  protolith: z.string().optional(),
 });
 
 // Type definition for form values
 export type FormValues = z.infer<typeof formSchema> & {
   // Add any additional fields that might be in the IRock interface but not in the schema
   image_url?: string;
+  associated_minerals?: string;
+  reaction_to_hcl?: string;
+  magnetism?: string;
+  protolith?: string;
 };
 
 const RockForm = ({
@@ -1022,6 +1030,142 @@ const RockForm = ({
             </>
           )}
 
+          {/* Igneous rock specific fields */}
+          {form.watch("category") === "Igneous" && (
+            <>
+              <FormField
+                control={form.control}
+                name="luster"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Luster</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Vitreous, Metallic, Pearly" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="streak"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Streak</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., White, Black, Red" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="associated_minerals"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Associated Minerals</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Quartz, Feldspar, Mica" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="origin"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Origin</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Intrusive, Extrusive" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="magnetism"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Magnetism</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Magnetic, Non-magnetic" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </>
+          )}
+
+          {/* Sedimentary rock specific fields */}
+          {form.watch("category") === "Sedimentary" && (
+            <>
+              <FormField
+                control={form.control}
+                name="sorting"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sorting</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Well-sorted, Poorly-sorted" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="associated_minerals"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Associated Minerals</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Quartz, Feldspar, Clay" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="reaction_to_hcl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Reaction to HCl</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Positive, Negative" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="fossil_content"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fossil Content</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Shells, Bones, Plant remains" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </>
+          )}
+
           {/* Metamorphic rock specific fields */}
           {form.watch("category") === "Metamorphic" && (
             <>
@@ -1075,6 +1219,76 @@ const RockForm = ({
                     <FormLabel>Foliation</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g., Present, Absent" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="foliation_type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Foliation Type</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Slaty, Schistose, Gneissic" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="associated_minerals"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Associated Minerals</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Quartz, Feldspar, Mica" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="reaction_to_hcl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Reaction to HCl</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Positive, Negative" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="magnetism"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Magnetism</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Magnetic, Non-magnetic" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="protolith"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Protolith</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Shale, Basalt, Granite" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -421,7 +421,7 @@ export const cleanRockData = (rockData: any): Partial<IRock> => {
   }
 
   // Explicitly remove ALL problematic fields that might be included
-  delete (cleanedData as any).origin;
+  // Note: origin field is needed for igneous rocks and should NOT be deleted
   delete (cleanedData as any).user;
   delete (cleanedData as any).user_id;
   delete (cleanedData as any).user_metadata;
